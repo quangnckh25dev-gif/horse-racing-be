@@ -1,13 +1,13 @@
-package com.quangnv.horseracing;
+package com.horseracing;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class HorseRacingBeApplication {
+public class HorseRacingBackendApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(HorseRacingBeApplication.class, args);
+        SpringApplication.run(HorseRacingBackendApplication.class, args);
     }
 
 }
