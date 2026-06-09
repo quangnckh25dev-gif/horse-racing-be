@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.horseracing.dto.ChangePasswordRequest;
+import com.horseracing.dto.ResetPasswordRequest;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin("*")
@@ -41,12 +44,18 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ApiResponse<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        return ApiResponse.success(200, "Doi mat khau thanh cong", authService.forgotPassword(request));
+        String token = authService.forgotPassword(request);
+        return ApiResponse.success(200, "Vui long su dung token nay de dat lai mat khau", token);
     }
 
     @PostMapping("/reset-password")
-    public ApiResponse<?> resetPassword(@RequestBody ForgotPasswordRequest request) {
-        return ApiResponse.success(200, "Doi mat khau thanh cong", authService.forgotPassword(request));
+    public ApiResponse<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        return ApiResponse.success(200, "Dat lai mat khau thanh cong", authService.resetPasswordWithToken(request));
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        return ApiResponse.success(200, "Doi mat khau thanh cong", authService.changePassword(request.getUsername(), request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
