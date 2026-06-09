@@ -17,20 +17,29 @@ public class AuditLog {
     @Column(name = "LogID")
     private Integer logId;
 
+    @Column(name = "UserID")
+    private Integer userId;
+
     @Column(name = "Action")
     private String action;
 
-    @Column(name = "PerformedBy")
-    private Integer performedBy;
+    @Column(name = "TableName")
+    private String tableName;
 
-    @Column(name = "TargetID")
-    private Integer targetId;
+    @Column(name = "RecordID")
+    private Integer recordId;
 
-    @Column(name = "Timestamp")
-    private LocalDateTime timestamp;
+    @Column(name = "OldValue")
+    private String oldValue;
 
-    @Column(name = "Details")
-    private String details;
+    @Column(name = "NewValue")
+    private String newValue;
+
+    @Column(name = "IPAddress")
+    private String ipAddress;
+
+    @Column(name = "CreatedAt")
+    private LocalDateTime createdAt;
 
     public Integer getLogId() {
         return logId;
@@ -38,6 +47,14 @@ public class AuditLog {
 
     public void setLogId(Integer logId) {
         this.logId = logId;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 
     public String getAction() {
@@ -48,35 +65,51 @@ public class AuditLog {
         this.action = action;
     }
 
-    public Integer getPerformedBy() {
-        return performedBy;
+    public String getTableName() {
+        return tableName;
     }
 
-    public void setPerformedBy(Integer performedBy) {
-        this.performedBy = performedBy;
+    public void setTableName(String tableName) {
+        this.tableName = tableName;
     }
 
-    public Integer getTargetId() {
-        return targetId;
+    public Integer getRecordId() {
+        return recordId;
     }
 
-    public void setTargetId(Integer targetId) {
-        this.targetId = targetId;
+    public void setRecordId(Integer recordId) {
+        this.recordId = recordId;
     }
 
-    public LocalDateTime getTimestamp() {
-        return timestamp;
+    public String getOldValue() {
+        return oldValue;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
+    public void setOldValue(String oldValue) {
+        this.oldValue = oldValue;
     }
 
-    public String getDetails() {
-        return details;
+    public String getNewValue() {
+        return newValue;
     }
 
-    public void setDetails(String details) {
-        this.details = details;
+    public void setNewValue(String newValue) {
+        this.newValue = newValue;
+    }
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }
