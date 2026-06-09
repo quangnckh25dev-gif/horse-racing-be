@@ -44,7 +44,7 @@ public class AdminUserService {
         user.setUpdatedAt(LocalDateTime.now());
         User savedUser = userRepository.save(user);
 
-        logAudit("APPROVE_USER", adminId, targetUserId, "Admin approved user registration");
+        logAudit("APPROVE_USER", adminId, "Users", targetUserId, "Pending", "Approved");
 
         return toUserResponse(savedUser);
     }
@@ -58,7 +58,7 @@ public class AdminUserService {
         user.setUpdatedAt(LocalDateTime.now());
         User savedUser = userRepository.save(user);
 
-        logAudit("REJECT_USER", adminId, targetUserId, "Admin rejected user registration");
+        logAudit("REJECT_USER", adminId, "Users", targetUserId, "Pending", "Rejected");
 
         return toUserResponse(savedUser);
     }
@@ -88,18 +88,20 @@ public class AdminUserService {
         history.setChangedAt(LocalDateTime.now());
         userRoleHistoryRepository.save(history);
 
-        logAudit("CHANGE_ROLE", adminId, targetUserId, "Admin changed user role to " + roleName);
+        logAudit("CHANGE_ROLE", adminId, "Users", targetUserId, String.valueOf(oldRoleId), String.valueOf(newRole.getRoleId()));
 
         return toUserResponse(savedUser);
     }
 
-    private void logAudit(String action, Integer performedBy, Integer targetId, String details) {
+    private void logAudit(String action, Integer performedBy, String tableName, Integer recordId, String oldValue, String newValue) {
         AuditLog log = new AuditLog();
         log.setAction(action);
-        log.setPerformedBy(performedBy);
-        log.setTargetId(targetId);
-        log.setDetails(details);
-        log.setTimestamp(LocalDateTime.now());
+        log.setUserId(performedBy);
+        log.setTableName(tableName);
+        log.setRecordId(recordId);
+        log.setOldValue(oldValue);
+        log.setNewValue(newValue);
+        log.setCreatedAt(LocalDateTime.now());
         auditLogRepository.save(log);
     }
 
