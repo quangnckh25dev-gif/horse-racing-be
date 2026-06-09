@@ -54,6 +54,21 @@ public class User {
     @Column(name = "UpdatedAt")
     private LocalDateTime updatedAt;
 
+    @Column(name = "FailedLoginAttempts")
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "IsLocked")
+    private Boolean isLocked = false;
+
+    @Column(name = "LastLogin")
+    private LocalDateTime lastLogin;
+
+    @Column(name = "ResetToken")
+    private String resetToken;
+
+    @Column(name = "ResetTokenExpiry")
+    private LocalDateTime resetTokenExpiry;
+
     public Integer getUserId() {
         return userId;
     }
@@ -148,5 +163,45 @@ public class User {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public Boolean getIsLocked() {
+        return isLocked;
+    }
+
+    public void setIsLocked(Boolean locked) {
+        isLocked = locked;
+    }
+
+    public LocalDateTime getLastLogin() {
+        return lastLogin;
+    }
+
+    public void setLastLogin(LocalDateTime lastLogin) {
+        this.lastLogin = lastLogin;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public LocalDateTime getResetTokenExpiry() {
+        return resetTokenExpiry;
+    }
+
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
+        this.resetTokenExpiry = resetTokenExpiry;
     }
 }

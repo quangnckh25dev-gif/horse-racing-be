@@ -4,6 +4,8 @@ import com.horseracing.dto.ForgotPasswordRequest;
 import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.LoginResponse;
 import com.horseracing.dto.RegisterRequest;
+import com.horseracing.dto.ResetPasswordRequest;
+import com.horseracing.dto.ChangePasswordRequest;
 import com.horseracing.dto.UserResponse;
 import com.horseracing.entity.Role;
 import com.horseracing.entity.User;
@@ -20,11 +22,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -41,6 +45,10 @@ public class AuthService {
             throw new IllegalArgumentException("Email da ton tai");
         }
 
+        if (request.getPhone() != null && !request.getPhone().isBlank() && userRepository.existsByPhone(request.getPhone())) {
+            throw new IllegalArgumentException("So dien thoai da ton tai");
+        }
+
         Role role = resolveRole(request);
         LocalDateTime now = LocalDateTime.now();
 
@@ -52,7 +60,7 @@ public class AuthService {
         user.setPhone(request.getPhone());
         user.setRole(role);
         user.setIsActive(true);
-        user.setIsApproved(true);
+        user.setIsApproved(false); // Changed to false for Admin approval
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -66,6 +74,10 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Sai username hoac password"));
 
+        if (Boolean.TRUE.equals(user.getIsLocked())) {
+            throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
+        }
+
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new IllegalArgumentException("Tai khoan dang bi khoa");
         }
@@ -75,21 +87,73 @@ public class AuthService {
         }
 
         if (!matchesPassword(request.getPassword(), user.getPasswordHash())) {
+            int failedAttempts = user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0;
+            failedAttempts++;
+            user.setFailedLoginAttempts(failedAttempts);
+            if (failedAttempts >= 5) {
+                user.setIsLocked(true);
+            }
+            userRepository.save(user);
             throw new IllegalArgumentException("Sai username hoac password");
         }
 
-        String accessToken = "test-access-" + UUID.randomUUID();
-        String refreshToken = "test-refresh-" + UUID.randomUUID();
+        // Login successful
+        user.setFailedLoginAttempts(0);
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+
+        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "Spectator";
+        String accessToken = jwtService.generateToken(user.getUsername(), roleName);
+        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
 
         return new LoginResponse(accessToken, refreshToken, toUserResponse(user));
     }
 
-    public UserResponse forgotPassword(ForgotPasswordRequest request) {
+    public String forgotPassword(ForgotPasswordRequest request) {
         validateRequired(request.getEmail(), "email khong duoc de trong");
-        validateRequired(request.getNewPassword(), "newPassword khong duoc de trong");
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan voi email nay"));
+
+        String resetToken = UUID.randomUUID().toString();
+        user.setResetToken(resetToken);
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        // TODO: In a real system, send this token via email
+        return resetToken;
+    }
+
+    public UserResponse resetPasswordWithToken(ResetPasswordRequest request) {
+        validateRequired(request.getToken(), "token khong duoc de trong");
+        validateRequired(request.getNewPassword(), "newPassword khong duoc de trong");
+
+        User user = userRepository.findByResetToken(request.getToken())
+                .orElseThrow(() -> new IllegalArgumentException("Token khong hop le hoac khong tim thay"));
+
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Token da het han");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        user.setUpdatedAt(LocalDateTime.now());
+
+        return toUserResponse(userRepository.save(user));
+    }
+
+    public UserResponse changePassword(String username, ChangePasswordRequest request) {
+        validateRequired(request.getOldPassword(), "oldPassword khong duoc de trong");
+        validateRequired(request.getNewPassword(), "newPassword khong duoc de trong");
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan"));
+
+        if (!matchesPassword(request.getOldPassword(), user.getPasswordHash())) {
+            throw new IllegalArgumentException("Mat khau cu khong chinh xac");
+        }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdatedAt(LocalDateTime.now());
