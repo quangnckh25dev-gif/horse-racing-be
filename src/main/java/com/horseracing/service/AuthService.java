@@ -23,12 +23,14 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.emailService = emailService;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -121,8 +123,10 @@ public class AuthService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // TODO: In a real system, send this token via email
-        return resetToken;
+        // Gửi email thực tế
+        emailService.sendResetTokenEmail(user.getEmail(), resetToken);
+        
+        return "Mã xác nhận đã được gửi đến email của bạn";
     }
 
     public UserResponse resetPasswordWithToken(ResetPasswordRequest request) {

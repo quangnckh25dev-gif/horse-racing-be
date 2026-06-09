@@ -44,8 +44,8 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ApiResponse<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        String token = authService.forgotPassword(request);
-        return ApiResponse.success(200, "Vui long su dung token nay de dat lai mat khau", token);
+        String message = authService.forgotPassword(request);
+        return ApiResponse.success(200, message, null);
     }
 
     @PostMapping("/reset-password")
