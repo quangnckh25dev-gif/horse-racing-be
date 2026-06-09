@@ -9,14 +9,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin/users")
 @CrossOrigin("*")
-public class AdminUserController {
-
-    private final AdminUserService adminUserService;
-
-    public AdminUserController(AdminUserService adminUserService) {
-        this.adminUserService = adminUserService;
-    }
-
     @GetMapping("/pending")
     public ApiResponse<?> getPendingUsers() {
         return ApiResponse.success(200, "Lay danh sach cho duyet thanh cong", adminUserService.getPendingUsers());
