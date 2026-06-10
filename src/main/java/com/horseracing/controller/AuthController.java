@@ -22,9 +22,11 @@ import com.horseracing.dto.ResetPasswordRequest;
 @CrossOrigin("*")
 public class AuthController {
     private final AuthService authService;
+    private final com.horseracing.service.JwtService jwtService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, com.horseracing.service.JwtService jwtService) {
         this.authService = authService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -54,8 +56,19 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    public ApiResponse<?> changePassword(@RequestBody ChangePasswordRequest request) {
-        return ApiResponse.success(200, "Doi mat khau thanh cong", authService.changePassword(request.getUsername(), request));
+    public ApiResponse<?> changePassword(jakarta.servlet.http.HttpServletRequest httpRequest, @RequestBody ChangePasswordRequest request) {
+        String authHeader = httpRequest.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ApiResponse.error(401, "Thieu token hoac token khong hop le");
+        }
+        
+        try {
+            String token = authHeader.substring(7);
+            String username = jwtService.extractClaims(token).getSubject();
+            return ApiResponse.success(200, "Doi mat khau thanh cong", authService.changePassword(username, request));
+        } catch (Exception e) {
+            return ApiResponse.error(401, "Token khong hop le hoac da het han");
+        }
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
