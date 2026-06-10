@@ -22,6 +22,11 @@ public class AdminUserController {
         return ApiResponse.success(200, "Lay danh sach cho duyet thanh cong", adminUserService.getPendingUsers());
     }
 
+    @GetMapping
+    public ApiResponse<?> getAllActiveUsers() {
+        return ApiResponse.success(200, "Lay danh sach tat ca user thanh cong", adminUserService.getAllActiveUsers());
+    }
+
     @PutMapping("/{id}/approve")
     public ApiResponse<?> approveUser(@PathVariable Integer id, @RequestParam(defaultValue = "1") Integer adminId) {
         return ApiResponse.success(200, "Duyet user thanh cong", adminUserService.approveUser(id, adminId));

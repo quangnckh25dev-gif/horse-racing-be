@@ -19,4 +19,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findByResetToken(String resetToken);
 
     java.util.List<User> findByIsApprovedFalse();
+
+    java.util.List<User> findByIsActiveTrue();
 }
