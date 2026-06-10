@@ -94,9 +94,13 @@ public class AuthService {
             user.setFailedLoginAttempts(failedAttempts);
             if (failedAttempts >= 5) {
                 user.setIsLocked(true);
+                user.setIsActive(false);
+                userRepository.save(user);
+                throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
             }
             userRepository.save(user);
-            throw new IllegalArgumentException("Sai username hoac password");
+            int remaining = 5 - failedAttempts;
+            throw new IllegalArgumentException("Sai mat khau. Con " + remaining + " lan thu.");
         }
 
         // Login successful
@@ -117,7 +121,7 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan voi email nay"));
 
-        String resetToken = UUID.randomUUID().toString();
+        String resetToken = String.format("%06d", new java.util.Random().nextInt(1000000));
         user.setResetToken(resetToken);
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
         user.setUpdatedAt(LocalDateTime.now());
