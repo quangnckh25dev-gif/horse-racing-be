@@ -13,6 +13,7 @@ import com.horseracing.repository.RoleRepository;
 import com.horseracing.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -69,6 +70,7 @@ public class AuthService {
         return toUserResponse(userRepository.save(user));
     }
 
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
     public LoginResponse login(LoginRequest request) {
         validateRequired(request.getUsername(), "username khong duoc de trong");
         validateRequired(request.getPassword(), "password khong duoc de trong");
