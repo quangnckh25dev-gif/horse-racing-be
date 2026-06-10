@@ -36,6 +36,12 @@ public class AdminUserService {
                 .collect(Collectors.toList());
     }
 
+    public List<UserResponse> getAllActiveUsers() {
+        return userRepository.findByIsActiveTrue().stream()
+                .map(this::toUserResponse)
+                .collect(Collectors.toList());
+    }
+
     public UserResponse approveUser(Integer targetUserId, Integer adminId) {
         User user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
