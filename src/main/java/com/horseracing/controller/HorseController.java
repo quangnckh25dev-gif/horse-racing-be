@@ -5,6 +5,7 @@ import com.horseracing.dto.HorseRequest;
 import com.horseracing.dto.HorseStatusRequest;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.HorseService;
+import com.horseracing.service.StatsService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -23,9 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class HorseController {
 
     private final HorseService horseService;
+    private final StatsService statsService;
 
-    public HorseController(HorseService horseService) {
+    public HorseController(HorseService horseService, StatsService statsService) {
         this.horseService = horseService;
+        this.statsService = statsService;
     }
 
     @GetMapping("/api/horses")
@@ -56,6 +59,11 @@ public class HorseController {
     @GetMapping("/api/horses/{horseId}/health")
     public ApiResponse<?> getHealthHistory(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
         return ApiResponse.success(200, "Lay lich su suc khoe horse thanh cong", horseService.getHealthHistory(horseId, httpRequest));
+    }
+
+    @GetMapping("/api/horses/{horseId}/stats")
+    public ApiResponse<?> getHorseStats(@PathVariable Integer horseId) {
+        return ApiResponse.success(200, "Lay thong ke horse thanh cong", statsService.getHorseStats(horseId));
     }
 
     @PostMapping("/api/horses/{horseId}/health")

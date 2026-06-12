@@ -3,12 +3,15 @@ package com.horseracing.controller;
 import com.horseracing.dto.ForgotPasswordRequest;
 import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.RegisterRequest;
+import com.horseracing.dto.TokenRequest;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -42,6 +45,22 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<?> login(@RequestBody LoginRequest request) {
         return ApiResponse.success(200, "Dang nhap thanh cong", authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ApiResponse<?> refresh(@RequestBody TokenRequest request) {
+        return ApiResponse.success(200, "Refresh token thanh cong", authService.refreshToken(request));
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<?> logout(@RequestBody TokenRequest request) {
+        authService.logout(request);
+        return ApiResponse.success(200, "Dang xuat thanh cong", null);
+    }
+
+    @GetMapping("/users/{userId}/tokens")
+    public ApiResponse<?> getUserTokens(@PathVariable Integer userId) {
+        return ApiResponse.success(200, "Lay danh sach token cua user thanh cong", authService.getUserTokens(userId));
     }
 
     @PostMapping("/forgot-password")
