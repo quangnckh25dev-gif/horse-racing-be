@@ -21,4 +21,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     java.util.List<User> findByIsApprovedFalse();
 
     java.util.List<User> findByIsActiveTrue();
+
+    java.util.List<User> findByRole_RoleNameAndIsActiveTrue(String roleName);
 }
