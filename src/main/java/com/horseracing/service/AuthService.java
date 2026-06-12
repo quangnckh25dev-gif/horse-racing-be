@@ -5,11 +5,15 @@ import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.LoginResponse;
 import com.horseracing.dto.RegisterRequest;
 import com.horseracing.dto.ResetPasswordRequest;
+import com.horseracing.dto.TokenRequest;
 import com.horseracing.dto.ChangePasswordRequest;
+import com.horseracing.dto.UserTokenResponse;
 import com.horseracing.dto.UserResponse;
 import com.horseracing.entity.Role;
 import com.horseracing.entity.User;
+import com.horseracing.entity.UserToken;
 import com.horseracing.repository.RoleRepository;
+import com.horseracing.repository.UserTokenRepository;
 import com.horseracing.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,13 +29,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
+    private final UserTokenRepository userTokenRepository;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder,
+                       JwtService jwtService, EmailService emailService, UserTokenRepository userTokenRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
+        this.userTokenRepository = userTokenRepository;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -113,8 +120,60 @@ public class AuthService {
         String roleName = user.getRole() != null ? user.getRole().getRoleName() : "Spectator";
         String accessToken = jwtService.generateToken(user.getUsername(), roleName);
         String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        saveRefreshToken(user.getUserId(), refreshToken);
 
         return new LoginResponse(accessToken, refreshToken, toUserResponse(user));
+    }
+
+    @Transactional
+    public LoginResponse refreshToken(TokenRequest request) {
+        validateRequired(request.getRefreshToken(), "refreshToken khong duoc de trong");
+
+        UserToken storedToken = userTokenRepository.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new IllegalArgumentException("Refresh token khong hop le"));
+
+        if (Boolean.TRUE.equals(storedToken.getIsRevoked()) || storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Refresh token da het han hoac da bi thu hoi");
+        }
+
+        User user = userRepository.findById(storedToken.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua token"));
+
+        if (!Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
+            throw new IllegalArgumentException("Tai khoan khong duoc phep refresh token");
+        }
+
+        storedToken.setIsRevoked(true);
+        userTokenRepository.save(storedToken);
+
+        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "Spectator";
+        String accessToken = jwtService.generateToken(user.getUsername(), roleName);
+        String newRefreshToken = jwtService.generateRefreshToken(user.getUsername());
+        saveRefreshToken(user.getUserId(), newRefreshToken);
+
+        return new LoginResponse(accessToken, newRefreshToken, toUserResponse(user));
+    }
+
+    @Transactional
+    public void logout(TokenRequest request) {
+        validateRequired(request.getRefreshToken(), "refreshToken khong duoc de trong");
+
+        UserToken storedToken = userTokenRepository.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new IllegalArgumentException("Refresh token khong hop le"));
+
+        storedToken.setIsRevoked(true);
+        userTokenRepository.save(storedToken);
+    }
+
+    public java.util.List<UserTokenResponse> getUserTokens(Integer userId) {
+        if (userId == null || !userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("Khong tim thay user");
+        }
+
+        return userTokenRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::toUserTokenResponse)
+                .toList();
     }
 
     public String forgotPassword(ForgotPasswordRequest request) {
@@ -202,6 +261,26 @@ public class AuthService {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(message);
         }
+    }
+
+    private void saveRefreshToken(Integer userId, String refreshToken) {
+        UserToken userToken = new UserToken();
+        userToken.setUserId(userId);
+        userToken.setToken(refreshToken);
+        userToken.setExpiresAt(LocalDateTime.now().plusDays(7));
+        userToken.setIsRevoked(false);
+        userTokenRepository.save(userToken);
+    }
+
+    private UserTokenResponse toUserTokenResponse(UserToken token) {
+        return new UserTokenResponse(
+                token.getTokenId(),
+                token.getUserId(),
+                token.getToken(),
+                token.getExpiresAt(),
+                token.getIsRevoked(),
+                token.getCreatedAt()
+        );
     }
 
     private UserResponse toUserResponse(User user) {
