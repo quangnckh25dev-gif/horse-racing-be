@@ -7,13 +7,15 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
 public class JwtService {
 
-    // In a real application, this secret should be stored securely in application.properties or environment variables
-    private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    // Demo secret is fixed so tokens remain valid after restarting Spring Boot.
+    private static final String DEV_SECRET = "horse-racing-swp391-dev-secret-key-change-before-production-2026";
+    private final Key key = Keys.hmacShaKeyFor(DEV_SECRET.getBytes(StandardCharsets.UTF_8));
     private final long EXPIRATION_TIME = 86400000; // 24 hours
     private final long REFRESH_EXPIRATION_TIME = 604800000; // 7 days
 
