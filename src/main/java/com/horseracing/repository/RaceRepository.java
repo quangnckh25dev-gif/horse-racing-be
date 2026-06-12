@@ -20,4 +20,6 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
     List<Race> findByRoundIdAndStatus(Integer roundId, String status);
 
     List<Race> findByTournamentIdAndRoundIdAndStatus(Integer tournamentId, Integer roundId, String status);
+
+    boolean existsByRoundId(Integer roundId);
 }
