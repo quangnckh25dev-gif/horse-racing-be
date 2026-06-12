@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -54,10 +55,10 @@ public class Race {
     @Column(name = "Status", nullable = false)
     private String status;
 
-    @Column(name = "RegistrationOpen")
+    @Transient
     private LocalDateTime registrationOpen;
 
-    @Column(name = "RegistrationClose")
+    @Transient
     private LocalDateTime registrationClose;
 
     @Column(name = "CreatedAt")
