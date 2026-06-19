@@ -44,7 +44,6 @@ public class RaceResultService {
 
         RaceResult result = new RaceResult();
         result.setRaceId(raceId);
-        result.setEntryId(request.getEntryId());
         applyResultRequest(result, request);
         result.setApprovalStatus(STATUS_PENDING);
         result.setCreatedAt(LocalDateTime.now());
@@ -55,10 +54,13 @@ public class RaceResultService {
     public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request) {
         ensureRaceExists(raceId);
 
-        RaceResult result = getResultOrThrow(resultId);
+        RaceResult result = raceResultRepository.findById(resultId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay ket qua"));
+
         if (!result.getRaceId().equals(raceId)) {
             throw new IllegalArgumentException("Ket qua khong thuoc race nay");
         }
+
         if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
             throw new IllegalArgumentException("Ket qua da public, khong the cap nhat");
         }
@@ -123,7 +125,10 @@ public class RaceResultService {
         ensureOrganizer(organizerId);
 
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
-        if (results.stream().anyMatch(result -> !STATUS_APPROVED.equals(result.getApprovalStatus()))) {
+        boolean hasUnapprovedResult = results.stream()
+                .anyMatch(result -> !STATUS_APPROVED.equals(result.getApprovalStatus()));
+
+        if (hasUnapprovedResult) {
             throw new IllegalArgumentException("Ket qua chua duoc Ban to chuc duyet, khong the public");
         }
 
@@ -148,11 +153,6 @@ public class RaceResultService {
         result.setDq(Boolean.TRUE.equals(request.getDq()));
         result.setConfirmedByRef(request.getConfirmedByRef());
         result.setConfirmedAt(request.getConfirmedByRef() == null ? null : LocalDateTime.now());
-    }
-
-    private RaceResult getResultOrThrow(Integer resultId) {
-        return raceResultRepository.findById(resultId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay ket qua"));
     }
 
     private List<RaceResult> getRaceResultsOrThrow(Integer raceId) {
