@@ -1,11 +1,8 @@
 package com.horseracing.dto;
 
-import lombok.Getter;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Getter
 public class RaceResultResponse {
 
     private Integer resultId;
@@ -30,87 +27,107 @@ public class RaceResultResponse {
 
     private LocalDateTime confirmedAt;
 
+    private String approvalStatus;
+
+    private Integer approvedByOrganizer;
+
+    private LocalDateTime approvedAt;
+
+    private LocalDateTime publishedAt;
+
     private Boolean published;
 
     private LocalDateTime createdAt;
 
-    public RaceResultResponse() {
+    public RaceResultResponse(Integer resultId, Integer raceId, Integer entryId, Integer position,
+                              String finishTime, Integer point, BigDecimal prizeWon, Boolean dnf, Boolean dq,
+                              Integer confirmedByRef, LocalDateTime confirmedAt, String approvalStatus,
+                              Integer approvedByOrganizer, LocalDateTime approvedAt, LocalDateTime publishedAt,
+                              Boolean published, LocalDateTime createdAt) {
+        this.resultId = resultId;
+        this.raceId = raceId;
+        this.entryId = entryId;
+        this.position = position;
+        this.finishTime = finishTime;
+        this.point = point;
+        this.prizeWon = prizeWon;
+        this.dnf = dnf;
+        this.dq = dq;
+        this.confirmedByRef = confirmedByRef;
+        this.confirmedAt = confirmedAt;
+        this.approvalStatus = approvalStatus;
+        this.approvedByOrganizer = approvedByOrganizer;
+        this.approvedAt = approvedAt;
+        this.publishedAt = publishedAt;
+        this.published = published;
+        this.createdAt = createdAt;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public Integer getResultId() {
+        return resultId;
     }
 
-    public static class Builder {
-        private final RaceResultResponse response = new RaceResultResponse();
+    public Integer getRaceId() {
+        return raceId;
+    }
 
-        public Builder resultId(Integer resultId) {
-            response.resultId = resultId;
-            return this;
-        }
+    public Integer getEntryId() {
+        return entryId;
+    }
 
-        public Builder raceId(Integer raceId) {
-            response.raceId = raceId;
-            return this;
-        }
+    public Integer getPosition() {
+        return position;
+    }
 
-        public Builder entryId(Integer entryId) {
-            response.entryId = entryId;
-            return this;
-        }
+    public String getFinishTime() {
+        return finishTime;
+    }
 
-        public Builder position(Integer position) {
-            response.position = position;
-            return this;
-        }
+    public Integer getPoint() {
+        return point;
+    }
 
-        public Builder finishTime(String finishTime) {
-            response.finishTime = finishTime;
-            return this;
-        }
+    public BigDecimal getPrizeWon() {
+        return prizeWon;
+    }
 
-        public Builder point(Integer point) {
-            response.point = point;
-            return this;
-        }
+    public Boolean getDnf() {
+        return dnf;
+    }
 
-        public Builder prizeWon(BigDecimal prizeWon) {
-            response.prizeWon = prizeWon;
-            return this;
-        }
+    public Boolean getDq() {
+        return dq;
+    }
 
-        public Builder dnf(Boolean dnf) {
-            response.dnf = dnf;
-            return this;
-        }
+    public Integer getConfirmedByRef() {
+        return confirmedByRef;
+    }
 
-        public Builder dq(Boolean dq) {
-            response.dq = dq;
-            return this;
-        }
+    public LocalDateTime getConfirmedAt() {
+        return confirmedAt;
+    }
 
-        public Builder confirmedByRef(Integer confirmedByRef) {
-            response.confirmedByRef = confirmedByRef;
-            return this;
-        }
+    public String getApprovalStatus() {
+        return approvalStatus;
+    }
 
-        public Builder confirmedAt(LocalDateTime confirmedAt) {
-            response.confirmedAt = confirmedAt;
-            return this;
-        }
+    public Integer getApprovedByOrganizer() {
+        return approvedByOrganizer;
+    }
 
-        public Builder published(Boolean published) {
-            response.published = published;
-            return this;
-        }
+    public LocalDateTime getApprovedAt() {
+        return approvedAt;
+    }
 
-        public Builder createdAt(LocalDateTime createdAt) {
-            response.createdAt = createdAt;
-            return this;
-        }
+    public LocalDateTime getPublishedAt() {
+        return publishedAt;
+    }
 
-        public RaceResultResponse build() {
-            return response;
-        }
+    public Boolean getPublished() {
+        return published;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }

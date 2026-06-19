@@ -14,6 +14,11 @@ import java.util.List;
 @Service
 public class RaceResultService {
 
+    private static final String STATUS_PENDING = "Pending";
+    private static final String STATUS_APPROVED = "Approved";
+    private static final String STATUS_REJECTED = "Rejected";
+    private static final String STATUS_PUBLISHED = "Published";
+
     private final RaceResultRepository raceResultRepository;
 
     public RaceResultService(RaceResultRepository raceResultRepository) {
@@ -34,18 +39,14 @@ public class RaceResultService {
 
         raceResultRepository.findByRaceIdAndEntryId(raceId, request.getEntryId())
                 .ifPresent(result -> {
-                    throw new IllegalArgumentException("Entry này đã có kết quả trong race");
+                    throw new IllegalArgumentException("Entry nay da co ket qua trong race");
                 });
 
         RaceResult result = new RaceResult();
         result.setRaceId(raceId);
         result.setEntryId(request.getEntryId());
-        result.setFinishPosition(resolvePosition(request));
-        result.setFinishTime(parseFinishTime(request.getFinishTime()));
-        result.setPrizeWon(resolvePrizeWon(request));
-        result.setDnf(Boolean.TRUE.equals(request.getDnf()));
-        result.setDq(Boolean.TRUE.equals(request.getDq()));
-        result.setConfirmedByRef(request.getConfirmedByRef());
+        applyResultRequest(result, request);
+        result.setApprovalStatus(STATUS_PENDING);
         result.setCreatedAt(LocalDateTime.now());
 
         return toResponse(raceResultRepository.save(result));
@@ -54,33 +55,39 @@ public class RaceResultService {
     public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request) {
         ensureRaceExists(raceId);
 
-        RaceResult result = raceResultRepository.findById(resultId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kết quả"));
-
+        RaceResult result = getResultOrThrow(resultId);
         if (!result.getRaceId().equals(raceId)) {
-            throw new IllegalArgumentException("Kết quả không thuộc race này");
+            throw new IllegalArgumentException("Ket qua khong thuoc race nay");
+        }
+        if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
+            throw new IllegalArgumentException("Ket qua da public, khong the cap nhat");
         }
 
         ensureEntryBelongsToRace(raceId, request.getEntryId());
-
-        result.setEntryId(request.getEntryId());
-        result.setFinishPosition(resolvePosition(request));
-        result.setFinishTime(parseFinishTime(request.getFinishTime()));
-        result.setPrizeWon(resolvePrizeWon(request));
-        result.setDnf(Boolean.TRUE.equals(request.getDnf()));
-        result.setDq(Boolean.TRUE.equals(request.getDq()));
-        result.setConfirmedByRef(request.getConfirmedByRef());
+        applyResultRequest(result, request);
+        result.setApprovalStatus(STATUS_PENDING);
+        result.setApprovedByOrganizer(null);
+        result.setApprovedAt(null);
+        result.setPublishedAt(null);
 
         return toResponse(raceResultRepository.save(result));
     }
 
-    public List<RaceResultResponse> publishResults(Integer raceId) {
+    public List<RaceResultResponse> approveResults(Integer raceId, Integer organizerId) {
         ensureRaceExists(raceId);
+        ensureOrganizer(organizerId);
 
-        List<RaceResult> results = raceResultRepository.findByRaceId(raceId);
+        List<RaceResult> results = getRaceResultsOrThrow(raceId);
         LocalDateTime now = LocalDateTime.now();
 
-        results.forEach(result -> result.setConfirmedAt(now));
+        results.forEach(result -> {
+            if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
+                throw new IllegalArgumentException("Ket qua da public, khong the duyet lai");
+            }
+            result.setApprovalStatus(STATUS_APPROVED);
+            result.setApprovedByOrganizer(organizerId);
+            result.setApprovedAt(now);
+        });
 
         return raceResultRepository.saveAll(results)
                 .stream()
@@ -88,15 +95,89 @@ public class RaceResultService {
                 .toList();
     }
 
+    public List<RaceResultResponse> rejectResults(Integer raceId, Integer organizerId) {
+        ensureRaceExists(raceId);
+        ensureOrganizer(organizerId);
+
+        List<RaceResult> results = getRaceResultsOrThrow(raceId);
+        LocalDateTime now = LocalDateTime.now();
+
+        results.forEach(result -> {
+            if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
+                throw new IllegalArgumentException("Ket qua da public, khong the tu choi");
+            }
+            result.setApprovalStatus(STATUS_REJECTED);
+            result.setApprovedByOrganizer(organizerId);
+            result.setApprovedAt(now);
+            result.setPublishedAt(null);
+        });
+
+        return raceResultRepository.saveAll(results)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<RaceResultResponse> publishResults(Integer raceId, Integer organizerId) {
+        ensureRaceExists(raceId);
+        ensureOrganizer(organizerId);
+
+        List<RaceResult> results = getRaceResultsOrThrow(raceId);
+        if (results.stream().anyMatch(result -> !STATUS_APPROVED.equals(result.getApprovalStatus()))) {
+            throw new IllegalArgumentException("Ket qua chua duoc Ban to chuc duyet, khong the public");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        results.forEach(result -> {
+            result.setApprovalStatus(STATUS_PUBLISHED);
+            result.setPublishedAt(now);
+        });
+
+        return raceResultRepository.saveAll(results)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private void applyResultRequest(RaceResult result, RaceResultRequest request) {
+        result.setEntryId(request.getEntryId());
+        result.setFinishPosition(resolvePosition(request));
+        result.setFinishTime(parseFinishTime(request.getFinishTime()));
+        result.setPrizeWon(resolvePrizeWon(request));
+        result.setDnf(Boolean.TRUE.equals(request.getDnf()));
+        result.setDq(Boolean.TRUE.equals(request.getDq()));
+        result.setConfirmedByRef(request.getConfirmedByRef());
+        result.setConfirmedAt(request.getConfirmedByRef() == null ? null : LocalDateTime.now());
+    }
+
+    private RaceResult getResultOrThrow(Integer resultId) {
+        return raceResultRepository.findById(resultId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay ket qua"));
+    }
+
+    private List<RaceResult> getRaceResultsOrThrow(Integer raceId) {
+        List<RaceResult> results = raceResultRepository.findByRaceId(raceId);
+        if (results.isEmpty()) {
+            throw new IllegalArgumentException("Race chua co ket qua");
+        }
+        return results;
+    }
+
     private void ensureRaceExists(Integer raceId) {
         if (raceId == null || raceResultRepository.countRaceById(raceId) == 0) {
-            throw new IllegalArgumentException("Không tìm thấy race");
+            throw new IllegalArgumentException("Khong tim thay race");
         }
     }
 
     private void ensureEntryBelongsToRace(Integer raceId, Integer entryId) {
         if (entryId == null || raceResultRepository.countEntryInRace(raceId, entryId) == 0) {
-            throw new IllegalArgumentException("Entry không thuộc race này");
+            throw new IllegalArgumentException("Entry khong thuoc race nay");
+        }
+    }
+
+    private void ensureOrganizer(Integer organizerId) {
+        if (organizerId == null || raceResultRepository.countOrganizerById(organizerId) == 0) {
+            throw new IllegalArgumentException("Khong tim thay Ban to chuc hop le");
         }
     }
 
@@ -132,26 +213,30 @@ public class RaceResultService {
 
             return new BigDecimal(finishTime).setScale(3, RoundingMode.HALF_UP);
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("finishTime phải có dạng HH:mm:ss.SSS hoặc số giây");
+            throw new IllegalArgumentException("finishTime phai co dang HH:mm:ss.SSS hoac so giay");
         }
     }
 
     private RaceResultResponse toResponse(RaceResult result) {
-        return RaceResultResponse.builder()
-                .resultId(result.getResultId())
-                .raceId(result.getRaceId())
-                .entryId(result.getEntryId())
-                .position(result.getFinishPosition())
-                .finishTime(formatFinishTime(result.getFinishTime()))
-                .point(calculatePoint(result.getFinishPosition()))
-                .prizeWon(result.getPrizeWon())
-                .dnf(result.getDnf())
-                .dq(result.getDq())
-                .confirmedByRef(result.getConfirmedByRef())
-                .confirmedAt(result.getConfirmedAt())
-                .published(result.getConfirmedAt() != null)
-                .createdAt(result.getCreatedAt())
-                .build();
+        return new RaceResultResponse(
+                result.getResultId(),
+                result.getRaceId(),
+                result.getEntryId(),
+                result.getFinishPosition(),
+                formatFinishTime(result.getFinishTime()),
+                calculatePoint(result.getFinishPosition()),
+                result.getPrizeWon(),
+                result.getDnf(),
+                result.getDq(),
+                result.getConfirmedByRef(),
+                result.getConfirmedAt(),
+                result.getApprovalStatus(),
+                result.getApprovedByOrganizer(),
+                result.getApprovedAt(),
+                result.getPublishedAt(),
+                STATUS_PUBLISHED.equals(result.getApprovalStatus()),
+                result.getCreatedAt()
+        );
     }
 
     private Integer calculatePoint(Integer position) {
