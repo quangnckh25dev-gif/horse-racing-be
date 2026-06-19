@@ -19,4 +19,9 @@ public interface RaceResultRepository extends JpaRepository<RaceResult, Integer>
 
     @Query(value = "SELECT COUNT(1) FROM RaceEntries WHERE RaceID = :raceId AND EntryID = :entryId", nativeQuery = true)
     int countEntryInRace(@Param("raceId") Integer raceId, @Param("entryId") Integer entryId);
+
+    @Query(value = "SELECT COUNT(1) FROM Users u JOIN Roles r ON u.RoleID = r.RoleID "
+            + "WHERE u.UserID = :organizerId AND u.IsActive = 1 AND u.IsApproved = 1 "
+            + "AND r.RoleName IN ('OrganizerHead', 'OrganizerMember')", nativeQuery = true)
+    int countOrganizerById(@Param("organizerId") Integer organizerId);
 }

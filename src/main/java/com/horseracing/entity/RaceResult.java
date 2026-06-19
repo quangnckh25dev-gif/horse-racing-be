@@ -62,6 +62,18 @@ public class RaceResult {
     @Column(name = "ConfirmedAt")
     private LocalDateTime confirmedAt;
 
+    @Column(name = "ApprovalStatus", nullable = false)
+    private String approvalStatus;
+
+    @Column(name = "ApprovedByOrganizer")
+    private Integer approvedByOrganizer;
+
+    @Column(name = "ApprovedAt")
+    private LocalDateTime approvedAt;
+
+    @Column(name = "PublishedAt")
+    private LocalDateTime publishedAt;
+
     @Column(name = "CreatedAt")
     private LocalDateTime createdAt;
 
@@ -143,6 +155,38 @@ public class RaceResult {
 
     public void setConfirmedAt(LocalDateTime confirmedAt) {
         this.confirmedAt = confirmedAt;
+    }
+
+    public String getApprovalStatus() {
+        return approvalStatus;
+    }
+
+    public void setApprovalStatus(String approvalStatus) {
+        this.approvalStatus = approvalStatus;
+    }
+
+    public Integer getApprovedByOrganizer() {
+        return approvedByOrganizer;
+    }
+
+    public void setApprovedByOrganizer(Integer approvedByOrganizer) {
+        this.approvedByOrganizer = approvedByOrganizer;
+    }
+
+    public LocalDateTime getApprovedAt() {
+        return approvedAt;
+    }
+
+    public void setApprovedAt(LocalDateTime approvedAt) {
+        this.approvedAt = approvedAt;
+    }
+
+    public LocalDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(LocalDateTime publishedAt) {
+        this.publishedAt = publishedAt;
     }
 
     public LocalDateTime getCreatedAt() {

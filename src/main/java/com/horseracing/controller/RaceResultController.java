@@ -30,7 +30,7 @@ public class RaceResultController {
     public ApiResponse<?> getResults(@PathVariable Integer raceId) {
         return ApiResponse.success(
                 200,
-                "Lấy kết quả cuộc đua thành công",
+                "Lay ket qua race thanh cong",
                 raceResultService.getResultsByRace(raceId)
         );
     }
@@ -42,7 +42,7 @@ public class RaceResultController {
     ) {
         return ApiResponse.success(
                 201,
-                "Tạo kết quả cuộc đua thành công",
+                "Tao ket qua race thanh cong",
                 raceResultService.createResult(raceId, request)
         );
     }
@@ -55,17 +55,8 @@ public class RaceResultController {
     ) {
         return ApiResponse.success(
                 200,
-                "Cập nhật kết quả cuộc đua thành công",
+                "Cap nhat ket qua race thanh cong",
                 raceResultService.updateResult(raceId, resultId, request)
-        );
-    }
-
-    @PostMapping("/publish")
-    public ApiResponse<?> publishResults(@PathVariable Integer raceId) {
-        return ApiResponse.success(
-                200,
-                "Công bố kết quả cuộc đua thành công",
-                raceResultService.publishResults(raceId)
         );
     }
 

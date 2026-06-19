@@ -5,6 +5,7 @@ import com.horseracing.dto.RaceRequest;
 import com.horseracing.dto.RaceStatusRequest;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.RaceRefereeService;
+import com.horseracing.service.RaceResultService;
 import com.horseracing.service.RaceService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -17,20 +18,25 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/organizer")
 @CrossOrigin("*")
-public class AdminRaceController {
+public class OrganizerRaceController {
 
     private final RaceService raceService;
     private final RaceRefereeService raceRefereeService;
+    private final RaceResultService raceResultService;
 
-    public AdminRaceController(RaceService raceService, RaceRefereeService raceRefereeService) {
+    public OrganizerRaceController(RaceService raceService,
+                                   RaceRefereeService raceRefereeService,
+                                   RaceResultService raceResultService) {
         this.raceService = raceService;
         this.raceRefereeService = raceRefereeService;
+        this.raceResultService = raceResultService;
     }
 
     @PostMapping("/races")
@@ -100,6 +106,42 @@ public class AdminRaceController {
     ) {
         raceRefereeService.removeReferee(id, refereeId);
         return ApiResponse.success(200, "Huy phan cong referee thanh cong", null);
+    }
+
+    @PutMapping("/races/{raceId}/results/approve")
+    public ApiResponse<?> approveResults(
+            @PathVariable Integer raceId,
+            @RequestParam Integer organizerId
+    ) {
+        return ApiResponse.success(
+                200,
+                "Duyet ket qua race thanh cong",
+                raceResultService.approveResults(raceId, organizerId)
+        );
+    }
+
+    @PutMapping("/races/{raceId}/results/reject")
+    public ApiResponse<?> rejectResults(
+            @PathVariable Integer raceId,
+            @RequestParam Integer organizerId
+    ) {
+        return ApiResponse.success(
+                200,
+                "Tu choi ket qua race thanh cong",
+                raceResultService.rejectResults(raceId, organizerId)
+        );
+    }
+
+    @PostMapping("/races/{raceId}/results/publish")
+    public ApiResponse<?> publishResults(
+            @PathVariable Integer raceId,
+            @RequestParam Integer organizerId
+    ) {
+        return ApiResponse.success(
+                200,
+                "Cong bo ket qua race thanh cong",
+                raceResultService.publishResults(raceId, organizerId)
+        );
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
