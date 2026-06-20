@@ -87,6 +87,15 @@ public class OrganizerRaceController {
         );
     }
 
+    @GetMapping("/races/{id}/referees")
+    public ApiResponse<?> getRaceReferees(@PathVariable Integer id) {
+        return ApiResponse.success(
+                200,
+                "Lay danh sach referee da phan cong thanh cong",
+                raceRefereeService.getRaceReferees(id)
+        );
+    }
+
     @PostMapping("/races/{id}/referees")
     public ApiResponse<?> assignReferee(
             @PathVariable Integer id,

@@ -54,6 +54,14 @@ public class RaceRefereeService {
                 .toList();
     }
 
+    public List<RaceRefereeResponse> getRaceReferees(Integer raceId) {
+        getRaceOrThrow(raceId);
+        return raceRefereeRepository.findByRaceId(raceId)
+                .stream()
+                .map(this::toRaceRefereeResponse)
+                .toList();
+    }
+
     public RaceRefereeResponse assignReferee(Integer raceId, RaceRefereeRequest request) {
         Race race = getRaceOrThrow(raceId);
         Referee referee = getRefereeOrThrow(request);
