@@ -15,7 +15,7 @@ public class DashboardService {
         Object[] row = (Object[]) entityManager.createNativeQuery("""
                         SELECT TotalActiveUsers, PendingApprovals, OngoingTournaments,
                                UpcomingRaces, FinishedRaces, TotalHorses, TotalJockeys,
-                               TotalPredictions, CorrectPredictions
+                               TotalBets, WonBets
                         FROM vw_SystemDashboard
                         """)
                 .getSingleResult();

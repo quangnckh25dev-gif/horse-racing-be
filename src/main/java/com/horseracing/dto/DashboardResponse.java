@@ -8,12 +8,12 @@ public class DashboardResponse {
     private Integer finishedRaces;
     private Integer totalHorses;
     private Integer totalJockeys;
-    private Integer totalPredictions;
-    private Integer correctPredictions;
+    private Integer totalBets;
+    private Integer wonBets;
 
     public DashboardResponse(Integer totalActiveUsers, Integer pendingApprovals, Integer ongoingTournaments,
                              Integer upcomingRaces, Integer finishedRaces, Integer totalHorses,
-                             Integer totalJockeys, Integer totalPredictions, Integer correctPredictions) {
+                             Integer totalJockeys, Integer totalBets, Integer wonBets) {
         this.totalActiveUsers = totalActiveUsers;
         this.pendingApprovals = pendingApprovals;
         this.ongoingTournaments = ongoingTournaments;
@@ -21,8 +21,8 @@ public class DashboardResponse {
         this.finishedRaces = finishedRaces;
         this.totalHorses = totalHorses;
         this.totalJockeys = totalJockeys;
-        this.totalPredictions = totalPredictions;
-        this.correctPredictions = correctPredictions;
+        this.totalBets = totalBets;
+        this.wonBets = wonBets;
     }
 
     public Integer getTotalActiveUsers() { return totalActiveUsers; }
@@ -32,6 +32,6 @@ public class DashboardResponse {
     public Integer getFinishedRaces() { return finishedRaces; }
     public Integer getTotalHorses() { return totalHorses; }
     public Integer getTotalJockeys() { return totalJockeys; }
-    public Integer getTotalPredictions() { return totalPredictions; }
-    public Integer getCorrectPredictions() { return correctPredictions; }
+    public Integer getTotalBets() { return totalBets; }
+    public Integer getWonBets() { return wonBets; }
 }
