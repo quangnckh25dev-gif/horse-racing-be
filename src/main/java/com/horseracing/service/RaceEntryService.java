@@ -54,6 +54,12 @@ public class RaceEntryService {
         return raceEntryRepository.findByRaceId(raceId).stream().map(this::toResponse).toList();
     }
 
+    public List<RaceEntryResponse> getMyEntries(HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        HorseOwner owner = getOwnerByUserId(user.getUserId());
+        return raceEntryRepository.findByOwnerId(owner.getOwnerId()).stream().map(this::toResponse).toList();
+    }
+
     public RaceEntryResponse registerHorse(Integer raceId, RaceEntryRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         HorseOwner owner = getOwnerByUserId(user.getUserId());
