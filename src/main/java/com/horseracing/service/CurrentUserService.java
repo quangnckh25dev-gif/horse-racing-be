@@ -39,6 +39,12 @@ public class CurrentUserService {
             } catch (JwtException | IllegalArgumentException ex) {
                 throw new IllegalArgumentException("Token khong hop le hoac da het han. Hay login lai de lay token moi.");
             }
+            Integer userId = claims.get("userId", Integer.class);
+            if (userId != null) {
+                return userRepository.findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user hien tai"));
+            }
+
             return userRepository.findByUsername(claims.getSubject())
                     .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user hien tai"));
         }

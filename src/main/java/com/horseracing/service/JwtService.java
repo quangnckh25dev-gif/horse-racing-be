@@ -19,10 +19,11 @@ public class JwtService {
     private final long EXPIRATION_TIME = 86400000; // 24 hours
     private final long REFRESH_EXPIRATION_TIME = 604800000; // 7 days
 
-    public String generateToken(String username, String roleName) {
+    public String generateToken(Integer userId, String username, String roleName) {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", roleName)
+                .claim("userId", userId)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(key)

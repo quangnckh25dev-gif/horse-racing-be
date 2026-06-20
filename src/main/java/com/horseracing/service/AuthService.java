@@ -118,7 +118,7 @@ public class AuthService {
         userRepository.save(user);
 
         String roleName = user.getRole() != null ? user.getRole().getRoleName() : "Spectator";
-        String accessToken = jwtService.generateToken(user.getUsername(), roleName);
+        String accessToken = jwtService.generateToken(user.getUserId(), user.getUsername(), roleName);
         String refreshToken = jwtService.generateRefreshToken(user.getUsername());
         saveRefreshToken(user.getUserId(), refreshToken);
 
@@ -147,7 +147,7 @@ public class AuthService {
         userTokenRepository.save(storedToken);
 
         String roleName = user.getRole() != null ? user.getRole().getRoleName() : "Spectator";
-        String accessToken = jwtService.generateToken(user.getUsername(), roleName);
+        String accessToken = jwtService.generateToken(user.getUserId(), user.getUsername(), roleName);
         String newRefreshToken = jwtService.generateRefreshToken(user.getUsername());
         saveRefreshToken(user.getUserId(), newRefreshToken);
 
