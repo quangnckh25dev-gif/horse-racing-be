@@ -20,9 +20,11 @@ public class RaceResultService {
     private static final String STATUS_PUBLISHED = "Published";
 
     private final RaceResultRepository raceResultRepository;
+    private final BettingService bettingService;
 
-    public RaceResultService(RaceResultRepository raceResultRepository) {
+    public RaceResultService(RaceResultRepository raceResultRepository, BettingService bettingService) {
         this.raceResultRepository = raceResultRepository;
+        this.bettingService = bettingService;
     }
 
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
@@ -91,10 +93,12 @@ public class RaceResultService {
             result.setApprovedAt(now);
         });
 
-        return raceResultRepository.saveAll(results)
+        List<RaceResultResponse> publishedResults = raceResultRepository.saveAll(results)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+        bettingService.settleRaceBets(raceId);
+        return publishedResults;
     }
 
     public List<RaceResultResponse> rejectResults(Integer raceId, Integer organizerId) {
