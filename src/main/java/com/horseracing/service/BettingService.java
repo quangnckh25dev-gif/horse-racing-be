@@ -12,12 +12,16 @@ import com.horseracing.entity.RaceResult;
 import com.horseracing.entity.User;
 import com.horseracing.repository.BetRepository;
 import com.horseracing.repository.HorseRepository;
+import com.horseracing.repository.JockeyRepository;
 import com.horseracing.repository.RaceEntryRepository;
 import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RaceResultRepository;
+import com.horseracing.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,6 +41,8 @@ public class BettingService {
     private final RaceEntryRepository raceEntryRepository;
     private final RaceResultRepository raceResultRepository;
     private final HorseRepository horseRepository;
+    private final JockeyRepository jockeyRepository;
+    private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
     private final WalletService walletService;
 
@@ -45,6 +51,8 @@ public class BettingService {
                           RaceEntryRepository raceEntryRepository,
                           RaceResultRepository raceResultRepository,
                           HorseRepository horseRepository,
+                          JockeyRepository jockeyRepository,
+                          UserRepository userRepository,
                           CurrentUserService currentUserService,
                           WalletService walletService) {
         this.betRepository = betRepository;
@@ -52,6 +60,8 @@ public class BettingService {
         this.raceEntryRepository = raceEntryRepository;
         this.raceResultRepository = raceResultRepository;
         this.horseRepository = horseRepository;
+        this.jockeyRepository = jockeyRepository;
+        this.userRepository = userRepository;
         this.currentUserService = currentUserService;
         this.walletService = walletService;
     }
@@ -69,7 +79,7 @@ public class BettingService {
         User user = currentUserService.getCurrentUser(request);
         ensureRaceExists(raceId);
         Bet bet = betRepository.findByUserIdAndRaceId(user.getUserId(), raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Chua co ve cuoc cho race nay"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chua co ve cuoc cho race nay"));
         return toResponse(bet);
     }
 
@@ -151,7 +161,10 @@ public class BettingService {
             throw new IllegalArgumentException("Race da bat dau, khong the dat cuoc");
         }
         if (race.getStatus() != null
-                && ("Running".equalsIgnoreCase(race.getStatus()) || "Finished".equalsIgnoreCase(race.getStatus()))) {
+                && ("Running".equalsIgnoreCase(race.getStatus())
+                || "Ongoing".equalsIgnoreCase(race.getStatus())
+                || "Finished".equalsIgnoreCase(race.getStatus())
+                || "Cancelled".equalsIgnoreCase(race.getStatus()))) {
             throw new IllegalArgumentException("Race khong con mo dat cuoc");
         }
         return race;
@@ -188,21 +201,32 @@ public class BettingService {
 
     private BetOptionResponse toBetOptionResponse(RaceEntry entry) {
         Horse horse = horseRepository.findById(entry.getHorseId()).orElse(null);
+        String jockeyName = entry.getJockeyId() == null ? null : jockeyRepository.findById(entry.getJockeyId())
+                .flatMap(jockey -> userRepository.findById(jockey.getUserId()))
+                .map(User::getFullName)
+                .orElse(null);
         return new BetOptionResponse(
                 entry.getEntryId(),
                 entry.getHorseId(),
                 horse == null ? null : horse.getHorseName(),
                 entry.getJockeyId(),
+                jockeyName,
+                entry.getLaneNumber(),
                 DEFAULT_ODDS
         );
     }
 
     private BetResponse toResponse(Bet bet) {
+        Race race = raceRepository.findById(bet.getRaceId()).orElse(null);
+        RaceEntry entry = raceEntryRepository.findById(bet.getEntryId()).orElse(null);
+        Horse horse = entry == null ? null : horseRepository.findById(entry.getHorseId()).orElse(null);
         return new BetResponse(
                 bet.getBetId(),
                 bet.getUserId(),
                 bet.getRaceId(),
+                race == null ? null : race.getRaceName(),
                 bet.getEntryId(),
+                horse == null ? null : horse.getHorseName(),
                 bet.getBetType(),
                 bet.getAmount(),
                 bet.getOdds(),

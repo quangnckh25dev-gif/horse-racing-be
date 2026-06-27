@@ -30,6 +30,7 @@ public class WalletTransactionResponse {
     public Integer getWalletId() { return walletId; }
     public BigDecimal getAmount() { return amount; }
     public String getTransactionType() { return transactionType; }
+    public String getType() { return transactionType; }
     public String getDescription() { return description; }
     public String getRelatedEntity() { return relatedEntity; }
     public Integer getRelatedEntityId() { return relatedEntityId; }

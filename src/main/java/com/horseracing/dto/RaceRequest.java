@@ -15,6 +15,7 @@ public class RaceRequest {
     private BigDecimal prizeFirst;
     private BigDecimal prizeSecond;
     private BigDecimal prizeThird;
+    private BigDecimal prizePool;
     private String status;
     private LocalDateTime registrationOpen;
     private LocalDateTime registrationClose;
@@ -51,12 +52,28 @@ public class RaceRequest {
         this.raceDate = raceDate;
     }
 
+    public LocalDateTime getStartTime() {
+        return raceDate;
+    }
+
+    public void setStartTime(LocalDateTime startTime) {
+        this.raceDate = startTime;
+    }
+
     public Integer getTrackLength() {
         return trackLength;
     }
 
     public void setTrackLength(Integer trackLength) {
         this.trackLength = trackLength;
+    }
+
+    public Integer getDistance() {
+        return trackLength;
+    }
+
+    public void setDistance(Integer distance) {
+        this.trackLength = distance;
     }
 
     public String getTrackType() {
@@ -97,6 +114,14 @@ public class RaceRequest {
 
     public void setPrizeThird(BigDecimal prizeThird) {
         this.prizeThird = prizeThird;
+    }
+
+    public BigDecimal getPrizePool() {
+        return prizePool;
+    }
+
+    public void setPrizePool(BigDecimal prizePool) {
+        this.prizePool = prizePool;
     }
 
     public String getStatus() {

@@ -61,7 +61,15 @@ public class RaceSummaryResponse {
         return raceDate;
     }
 
+    public LocalDateTime getStartTime() {
+        return raceDate;
+    }
+
     public Integer getTrackLength() {
+        return trackLength;
+    }
+
+    public Integer getDistance() {
         return trackLength;
     }
 
@@ -85,6 +93,10 @@ public class RaceSummaryResponse {
         return prizeThird;
     }
 
+    public BigDecimal getPrizePool() {
+        return safeMoney(prizeFirst).add(safeMoney(prizeSecond)).add(safeMoney(prizeThird));
+    }
+
     public String getStatus() {
         return status;
     }
@@ -95,5 +107,9 @@ public class RaceSummaryResponse {
 
     public LocalDateTime getRegistrationClose() {
         return registrationClose;
+    }
+
+    private BigDecimal safeMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

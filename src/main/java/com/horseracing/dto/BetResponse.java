@@ -7,7 +7,9 @@ public class BetResponse {
     private Integer betId;
     private Integer userId;
     private Integer raceId;
+    private String raceName;
     private Integer entryId;
+    private String horseName;
     private String betType;
     private BigDecimal amount;
     private BigDecimal odds;
@@ -19,10 +21,19 @@ public class BetResponse {
     public BetResponse(Integer betId, Integer userId, Integer raceId, Integer entryId,
                        String betType, BigDecimal amount, BigDecimal odds, BigDecimal potentialPayout,
                        String status, LocalDateTime createdAt, LocalDateTime settledAt) {
+        this(betId, userId, raceId, null, entryId, null, betType, amount, odds, potentialPayout,
+                status, createdAt, settledAt);
+    }
+
+    public BetResponse(Integer betId, Integer userId, Integer raceId, String raceName, Integer entryId,
+                       String horseName, String betType, BigDecimal amount, BigDecimal odds,
+                       BigDecimal potentialPayout, String status, LocalDateTime createdAt, LocalDateTime settledAt) {
         this.betId = betId;
         this.userId = userId;
         this.raceId = raceId;
+        this.raceName = raceName;
         this.entryId = entryId;
+        this.horseName = horseName;
         this.betType = betType;
         this.amount = amount;
         this.odds = odds;
@@ -35,11 +46,14 @@ public class BetResponse {
     public Integer getBetId() { return betId; }
     public Integer getUserId() { return userId; }
     public Integer getRaceId() { return raceId; }
+    public String getRaceName() { return raceName; }
     public Integer getEntryId() { return entryId; }
+    public String getHorseName() { return horseName; }
     public String getBetType() { return betType; }
     public BigDecimal getAmount() { return amount; }
     public BigDecimal getOdds() { return odds; }
     public BigDecimal getPotentialPayout() { return potentialPayout; }
+    public BigDecimal getPayout() { return potentialPayout; }
     public String getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getSettledAt() { return settledAt; }

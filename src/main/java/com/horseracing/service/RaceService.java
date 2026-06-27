@@ -161,6 +161,7 @@ public class RaceService {
         validateNonNegative(request.getPrizeFirst(), "PrizeFirst");
         validateNonNegative(request.getPrizeSecond(), "PrizeSecond");
         validateNonNegative(request.getPrizeThird(), "PrizeThird");
+        validateNonNegative(request.getPrizePool(), "PrizePool");
         if (request.getRegistrationOpen() != null && request.getRegistrationClose() != null
                 && request.getRegistrationClose().isBefore(request.getRegistrationOpen())) {
             throw new IllegalArgumentException("RegistrationClose phai sau RegistrationOpen");
@@ -184,9 +185,18 @@ public class RaceService {
         race.setTrackLength(request.getTrackLength());
         race.setTrackType(request.getTrackType());
         race.setMaxParticipants(request.getMaxParticipants());
-        race.setPrizeFirst(defaultMoney(request.getPrizeFirst()));
-        race.setPrizeSecond(defaultMoney(request.getPrizeSecond()));
-        race.setPrizeThird(defaultMoney(request.getPrizeThird()));
+        if (request.getPrizePool() != null
+                && request.getPrizeFirst() == null
+                && request.getPrizeSecond() == null
+                && request.getPrizeThird() == null) {
+            race.setPrizeFirst(defaultMoney(request.getPrizePool()));
+            race.setPrizeSecond(BigDecimal.ZERO);
+            race.setPrizeThird(BigDecimal.ZERO);
+        } else {
+            race.setPrizeFirst(defaultMoney(request.getPrizeFirst()));
+            race.setPrizeSecond(defaultMoney(request.getPrizeSecond()));
+            race.setPrizeThird(defaultMoney(request.getPrizeThird()));
+        }
         race.setRegistrationOpen(request.getRegistrationOpen());
         race.setRegistrationClose(request.getRegistrationClose());
     }
