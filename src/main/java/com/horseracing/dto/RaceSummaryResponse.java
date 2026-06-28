@@ -17,6 +17,7 @@ public class RaceSummaryResponse {
     private BigDecimal prizeSecond;
     private BigDecimal prizeThird;
     private String status;
+    private String statusLabel;
     private LocalDateTime registrationOpen;
     private LocalDateTime registrationClose;
 
@@ -37,6 +38,7 @@ public class RaceSummaryResponse {
         this.prizeSecond = prizeSecond;
         this.prizeThird = prizeThird;
         this.status = status;
+        this.statusLabel = toStatusLabel(status);
         this.registrationOpen = registrationOpen;
         this.registrationClose = registrationClose;
     }
@@ -101,6 +103,10 @@ public class RaceSummaryResponse {
         return status;
     }
 
+    public String getStatusLabel() {
+        return statusLabel;
+    }
+
     public LocalDateTime getRegistrationOpen() {
         return registrationOpen;
     }
@@ -111,5 +117,19 @@ public class RaceSummaryResponse {
 
     private BigDecimal safeMoney(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String toStatusLabel(String value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "Scheduled" -> "Đã lên lịch";
+            case "RegistrationOpen" -> "Mở đăng ký";
+            case "Ongoing" -> "Đang diễn ra";
+            case "Finished" -> "Kết thúc";
+            case "Cancelled" -> "Đã hủy";
+            default -> value;
+        };
     }
 }

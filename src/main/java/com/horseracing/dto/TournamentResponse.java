@@ -14,6 +14,7 @@ public class TournamentResponse {
     private LocalDate endDate;
     private BigDecimal prizeFund;
     private String status;
+    private String statusLabel;
     private Integer createdByAdmin;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -29,6 +30,7 @@ public class TournamentResponse {
         this.endDate = endDate;
         this.prizeFund = prizeFund;
         this.status = status;
+        this.statusLabel = toStatusLabel(status);
         this.createdByAdmin = createdByAdmin;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -66,6 +68,10 @@ public class TournamentResponse {
         return status;
     }
 
+    public String getStatusLabel() {
+        return statusLabel;
+    }
+
     public Integer getCreatedByAdmin() {
         return createdByAdmin;
     }
@@ -76,5 +82,19 @@ public class TournamentResponse {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    private String toStatusLabel(String value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "Draft" -> "Nháp";
+            case "Open" -> "Mở đăng ký";
+            case "Ongoing" -> "Đang diễn ra";
+            case "Finished" -> "Kết thúc";
+            case "Cancelled" -> "Đã hủy";
+            default -> value;
+        };
     }
 }

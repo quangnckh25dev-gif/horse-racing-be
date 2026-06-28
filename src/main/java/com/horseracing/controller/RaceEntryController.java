@@ -37,6 +37,11 @@ public class RaceEntryController {
         return ApiResponse.success(200, "Lay danh sach entry cua owner thanh cong", raceEntryService.getMyEntries(httpRequest));
     }
 
+    @GetMapping("/api/entries/mine/approved")
+    public ApiResponse<?> getMyApprovedEntries(HttpServletRequest httpRequest) {
+        return ApiResponse.success(200, "Lấy danh sách entry đã được duyệt thành công", raceEntryService.getMyApprovedEntries(httpRequest));
+    }
+
     @PostMapping("/api/races/{raceId}/entries")
     public ApiResponse<?> registerHorse(@PathVariable Integer raceId, @RequestBody RaceEntryRequest request, HttpServletRequest httpRequest) {
         return ApiResponse.success(201, "Dang ky horse vao race thanh cong", raceEntryService.registerHorse(raceId, request, httpRequest));

@@ -11,6 +11,8 @@ public class ViolationResponse {
     private String violationType;
     private String description;
     private String penalty;
+
+    private String penaltyLabel;
     private LocalDateTime recordedAt;
 
     public ViolationResponse(Integer violationId, Integer raceId, Integer entryId, Integer refereeId,
@@ -22,6 +24,7 @@ public class ViolationResponse {
         this.violationType = violationType;
         this.description = description;
         this.penalty = penalty;
+        this.penaltyLabel = penalty;
         this.recordedAt = recordedAt;
     }
 
@@ -51,6 +54,10 @@ public class ViolationResponse {
 
     public String getPenalty() {
         return penalty;
+    }
+
+    public String getPenaltyLabel() {
+        return penaltyLabel;
     }
 
     public LocalDateTime getRecordedAt() {

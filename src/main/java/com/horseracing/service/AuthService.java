@@ -13,6 +13,7 @@ import com.horseracing.entity.Role;
 import com.horseracing.entity.User;
 import com.horseracing.entity.UserToken;
 import com.horseracing.repository.RoleRepository;
+import com.horseracing.repository.SystemConfigRepository;
 import com.horseracing.repository.UserTokenRepository;
 import com.horseracing.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -30,15 +32,18 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final UserTokenRepository userTokenRepository;
+    private final SystemConfigRepository systemConfigRepository;
 
     public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder,
-                       JwtService jwtService, EmailService emailService, UserTokenRepository userTokenRepository) {
+                       JwtService jwtService, EmailService emailService, UserTokenRepository userTokenRepository,
+                       SystemConfigRepository systemConfigRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
         this.userTokenRepository = userTokenRepository;
+        this.systemConfigRepository = systemConfigRepository;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -84,6 +89,8 @@ public class AuthService {
 
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Sai username hoac password"));
+
+        ensureSystemAvailableFor(user);
 
         if (Boolean.TRUE.equals(user.getIsLocked())) {
             throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
@@ -138,6 +145,8 @@ public class AuthService {
 
         User user = userRepository.findById(storedToken.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua token"));
+
+        ensureSystemAvailableFor(user);
 
         if (!Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
             throw new IllegalArgumentException("Tai khoan khong duoc phep refresh token");
@@ -232,17 +241,62 @@ public class AuthService {
 
     private Role resolveRole(RegisterRequest request) {
         if (request.getRoleId() != null) {
-            return roleRepository.findById(request.getRoleId())
+            Role role = roleRepository.findById(request.getRoleId())
                     .orElseThrow(() -> new IllegalArgumentException("roleId khong ton tai"));
+            if ("Admin".equalsIgnoreCase(role.getRoleName())) {
+                throw new IllegalArgumentException("Không được đăng ký trực tiếp role Admin");
+            }
+            return role;
         }
 
         String roleName = request.getRoleName();
         if (roleName == null || roleName.isBlank()) {
             roleName = "Spectator";
         }
+        roleName = normalizeRoleName(roleName);
+        if ("Admin".equalsIgnoreCase(roleName)) {
+            throw new IllegalArgumentException("Không được đăng ký trực tiếp role Admin");
+        }
 
         return roleRepository.findByRoleName(roleName)
                 .orElseThrow(() -> new IllegalArgumentException("roleName khong ton tai"));
+    }
+
+    private String normalizeRoleName(String roleName) {
+        String normalized = roleName.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "horseowner", "owner", "chủ ngựa", "chu ngua" -> "HorseOwner";
+            case "jockey", "nài ngựa", "nai ngua", "kỵ sĩ", "ky si" -> "Jockey";
+            case "referee", "trọng tài", "trong tai" -> "Referee";
+            case "spectator", "khán giả", "khan gia" -> "Spectator";
+            case "organizerhead", "trưởng ban tổ chức", "truong ban to chuc" -> "OrganizerHead";
+            case "organizermember", "thành viên ban tổ chức", "thanh vien ban to chuc" -> "OrganizerMember";
+            case "admin" -> "Admin";
+            default -> roleName.trim();
+        };
+    }
+
+    private void ensureSystemAvailableFor(User user) {
+        String roleName = user.getRole() == null ? null : user.getRole().getRoleName();
+        if ("Admin".equalsIgnoreCase(roleName)) {
+            return;
+        }
+
+        boolean maintenanceEnabled = systemConfigRepository.findByConfigKey("MAINTENANCE_MODE")
+                .map(config -> "1".equals(config.getConfigValue()) || "true".equalsIgnoreCase(config.getConfigValue()))
+                .orElse(false);
+        if (!maintenanceEnabled) {
+            return;
+        }
+
+        String until = systemConfigRepository.findByConfigKey("MAINTENANCE_UNTIL")
+                .map(config -> config.getConfigValue() == null ? "" : config.getConfigValue().trim())
+                .filter(value -> !value.isBlank())
+                .orElse(null);
+        if (until == null) {
+            throw new IllegalArgumentException("Hệ thống đang bảo trì. Chỉ admin được phép đăng nhập.");
+        }
+        throw new IllegalArgumentException("Hệ thống đang bảo trì. Dự kiến mở lại vào " + until + ". Chỉ admin được phép đăng nhập.");
     }
 
     private boolean matchesPassword(String rawPassword, String storedPassword) {

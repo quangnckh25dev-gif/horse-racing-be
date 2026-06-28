@@ -9,4 +9,6 @@ public interface HorseRepository extends JpaRepository<Horse, Integer> {
     List<Horse> findByOwnerId(Integer ownerId);
 
     List<Horse> findByOwnerIdAndIsActive(Integer ownerId, Boolean isActive);
+
+    boolean existsByRegisterCode(String registerCode);
 }

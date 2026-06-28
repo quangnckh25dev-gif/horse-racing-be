@@ -19,6 +19,16 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
             """, nativeQuery = true)
     List<RaceEntry> findByOwnerId(@Param("ownerId") Integer ownerId);
 
+    @Query(value = """
+            SELECT re.*
+            FROM RaceEntries re
+            JOIN Horses h ON re.HorseID = h.HorseID
+            WHERE h.OwnerID = :ownerId
+              AND re.RegistrationStatus = 'Approved'
+            ORDER BY re.RegisteredAt DESC
+            """, nativeQuery = true)
+    List<RaceEntry> findApprovedByOwnerId(@Param("ownerId") Integer ownerId);
+
     long countByRaceIdAndRegistrationStatusNot(Integer raceId, String registrationStatus);
 
     boolean existsByRaceIdAndHorseIdAndRegistrationStatusNot(Integer raceId, Integer horseId, String registrationStatus);
