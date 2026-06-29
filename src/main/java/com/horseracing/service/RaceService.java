@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -41,7 +42,7 @@ public class RaceService {
             ensureRoundExists(roundId);
         }
         if (status != null && !status.isBlank()) {
-            resolveStatus(status, status);
+            status = resolveStatus(status, status);
         }
 
         List<Race> races;
@@ -206,11 +207,23 @@ public class RaceService {
     }
 
     private String resolveStatus(String status, String defaultStatus) {
-        String resolved = (status == null || status.isBlank()) ? defaultStatus : status;
+        String resolved = (status == null || status.isBlank()) ? defaultStatus : normalizeStatus(status);
         if (!VALID_STATUSES.contains(resolved)) {
-            throw new IllegalArgumentException("Status khong hop le. Chi chap nhan: " + VALID_STATUSES);
+            throw new IllegalArgumentException("Trạng thái vòng đua không hợp lệ. Chỉ chấp nhận: Đã lên lịch, Mở đăng ký, Đang diễn ra, Kết thúc, Đã hủy");
         }
         return resolved;
+    }
+
+    private String normalizeStatus(String status) {
+        String normalized = status.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "scheduled", "đã lên lịch", "da len lich" -> "Scheduled";
+            case "registrationopen", "registration open", "mở đăng ký", "mo dang ky" -> "RegistrationOpen";
+            case "ongoing", "đang diễn ra", "dang dien ra" -> "Ongoing";
+            case "finished", "kết thúc", "ket thuc" -> "Finished";
+            case "cancelled", "canceled", "đã hủy", "da huy" -> "Cancelled";
+            default -> status.trim();
+        };
     }
 
     private RaceSummaryResponse toResponse(Race race) {

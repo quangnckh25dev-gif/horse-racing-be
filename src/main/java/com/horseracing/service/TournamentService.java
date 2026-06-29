@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -135,11 +136,23 @@ public class TournamentService {
     }
 
     private String resolveStatus(String status, String defaultStatus) {
-        String resolved = (status == null || status.isBlank()) ? defaultStatus : status;
+        String resolved = (status == null || status.isBlank()) ? defaultStatus : normalizeStatus(status);
         if (!VALID_STATUSES.contains(resolved)) {
-            throw new IllegalArgumentException("Status khong hop le. Chi chap nhan: " + VALID_STATUSES);
+            throw new IllegalArgumentException("Trạng thái giải đấu không hợp lệ. Chỉ chấp nhận: Nháp, Mở đăng ký, Đang diễn ra, Kết thúc, Đã hủy");
         }
         return resolved;
+    }
+
+    private String normalizeStatus(String status) {
+        String normalized = status.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "draft", "nháp", "nhap" -> "Draft";
+            case "open", "mở đăng ký", "mo dang ky", "registrationopen" -> "Open";
+            case "ongoing", "đang diễn ra", "dang dien ra" -> "Ongoing";
+            case "finished", "kết thúc", "ket thuc" -> "Finished";
+            case "cancelled", "canceled", "đã hủy", "da huy" -> "Cancelled";
+            default -> status.trim();
+        };
     }
 
     private TournamentResponse toTournamentResponse(Tournament tournament) {

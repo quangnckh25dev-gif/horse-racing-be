@@ -226,6 +226,8 @@ public class RaceResultService {
                 result.getResultId(),
                 result.getRaceId(),
                 result.getEntryId(),
+                raceResultRepository.findHorseNameByEntryId(result.getEntryId()),
+                raceResultRepository.findJockeyNameByEntryId(result.getEntryId()),
                 result.getFinishPosition(),
                 formatFinishTime(result.getFinishTime()),
                 calculatePoint(result.getFinishPosition()),

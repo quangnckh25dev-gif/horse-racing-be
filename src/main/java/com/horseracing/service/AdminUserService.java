@@ -45,6 +45,7 @@ public class AdminUserService {
     public UserResponse approveUser(Integer targetUserId, Integer adminId) {
         User user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+        ensureNotHardAdmin(user);
         
         user.setIsApproved(true);
         user.setUpdatedAt(LocalDateTime.now());
@@ -58,6 +59,7 @@ public class AdminUserService {
     public UserResponse rejectUser(Integer targetUserId, Integer adminId) {
         User user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+        ensureNotHardAdmin(user);
         
         user.setIsApproved(false);
         user.setIsActive(false);
@@ -72,9 +74,13 @@ public class AdminUserService {
     public UserResponse changeUserRole(Integer targetUserId, String roleName, Integer adminId) {
         User user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+        ensureNotHardAdmin(user);
 
         Role newRole = roleRepository.findByRoleName(roleName)
                 .orElseThrow(() -> new IllegalArgumentException("Role khong ton tai"));
+        if ("Admin".equalsIgnoreCase(newRole.getRoleName())) {
+            throw new IllegalArgumentException("Không được cấp role Admin từ màn hình quản lý người dùng");
+        }
 
         Integer oldRoleId = user.getRole() != null ? user.getRole().getRoleId() : null;
 
@@ -97,6 +103,13 @@ public class AdminUserService {
         logAudit("CHANGE_ROLE", adminId, "Users", targetUserId, String.valueOf(oldRoleId), String.valueOf(newRole.getRoleId()));
 
         return toUserResponse(savedUser);
+    }
+
+    private void ensureNotHardAdmin(User user) {
+        String roleName = user.getRole() == null ? null : user.getRole().getRoleName();
+        if ("Admin".equalsIgnoreCase(roleName)) {
+            throw new IllegalArgumentException("Tài khoản admin cứng không được phép thay đổi");
+        }
     }
 
     private void logAudit(String action, Integer performedBy, String tableName, Integer recordId, String oldValue, String newValue) {

@@ -11,6 +11,10 @@ public class RaceResultResponse {
 
     private Integer entryId;
 
+    private String horseName;
+
+    private String jockeyName;
+
     private Integer position;
 
     private String finishTime;
@@ -63,6 +67,17 @@ public class RaceResultResponse {
         this.createdAt = createdAt;
     }
 
+    public RaceResultResponse(Integer resultId, Integer raceId, Integer entryId, String horseName, String jockeyName,
+                              Integer position, String finishTime, Integer point, BigDecimal prizeWon,
+                              Boolean dnf, Boolean dq, Integer confirmedByRef, LocalDateTime confirmedAt,
+                              String approvalStatus, Integer approvedByOrganizer, LocalDateTime approvedAt,
+                              LocalDateTime publishedAt, Boolean published, LocalDateTime createdAt) {
+        this(resultId, raceId, entryId, position, finishTime, point, prizeWon, dnf, dq, confirmedByRef,
+                confirmedAt, approvalStatus, approvedByOrganizer, approvedAt, publishedAt, published, createdAt);
+        this.horseName = horseName;
+        this.jockeyName = jockeyName;
+    }
+
     public Integer getResultId() {
         return resultId;
     }
@@ -73,6 +88,14 @@ public class RaceResultResponse {
 
     public Integer getEntryId() {
         return entryId;
+    }
+
+    public String getHorseName() {
+        return horseName;
+    }
+
+    public String getJockeyName() {
+        return jockeyName;
     }
 
     public Integer getPosition() {

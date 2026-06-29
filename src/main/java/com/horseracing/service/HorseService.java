@@ -19,6 +19,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 public class HorseService {
@@ -66,6 +68,9 @@ public class HorseService {
         Horse horse = new Horse();
         horse.setOwnerId(owner.getOwnerId());
         applyHorseFields(horse, request);
+        if (horse.getRegisterCode() == null) {
+            horse.setRegisterCode(generateRegisterCode());
+        }
 
         return toHorseResponse(horseRepository.save(horse));
     }
@@ -89,7 +94,7 @@ public class HorseService {
             throw new IllegalArgumentException("status khong duoc de trong");
         }
 
-        horse.setIsActive(parseActiveStatus(request.getStatus()));
+        applyHorseStatus(horse, request.getStatus());
         return toHorseResponse(horseRepository.save(horse));
     }
 
@@ -139,12 +144,17 @@ public class HorseService {
         horse.setColor(trimToNull(request.getColor()));
         horse.setGender(trimToNull(request.getGender()));
         horse.setWeightKg(resolveWeight(request));
-        horse.setRegisterCode(trimToNull(request.getRegisterCode()));
+        String registerCode = trimToNull(request.getRegisterCode());
+        if (registerCode != null) {
+            horse.setRegisterCode(registerCode);
+        } else if (horse.getRegisterCode() == null) {
+            horse.setRegisterCode(generateRegisterCode());
+        }
         horse.setHealthStatus(trimToNull(request.getHealthStatus()));
         horse.setPhotoUrl(trimToNull(request.getPhotoUrl()));
 
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            horse.setIsActive(parseActiveStatus(request.getStatus()));
+            applyHorseStatus(horse, request.getStatus());
         }
     }
 
@@ -209,14 +219,41 @@ public class HorseService {
         return request.getWeightKg() != null ? request.getWeightKg() : request.getWeight();
     }
 
+    private void applyHorseStatus(Horse horse, String status) {
+        String normalized = normalizeStatus(status);
+        if ("ACTIVE".equals(normalized)) {
+            horse.setIsActive(true);
+            horse.setHealthStatus("Hoạt động");
+            return;
+        }
+        if ("INJURED".equals(normalized)) {
+            horse.setIsActive(false);
+            horse.setHealthStatus("Bị thương");
+            return;
+        }
+        horse.setIsActive(false);
+        horse.setHealthStatus("Không hoạt động");
+    }
+
     private Boolean parseActiveStatus(String status) {
-        if ("Active".equalsIgnoreCase(status) || "true".equalsIgnoreCase(status)) {
-            return true;
+        String normalized = normalizeStatus(status);
+        return "ACTIVE".equals(normalized);
+    }
+
+    private String normalizeStatus(String status) {
+        String normalized = status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equals("active") || normalized.equals("hoạt động") || normalized.equals("hoat dong")
+                || normalized.equals("true")) {
+            return "ACTIVE";
         }
-        if ("Inactive".equalsIgnoreCase(status) || "false".equalsIgnoreCase(status)) {
-            return false;
+        if (normalized.equals("injured") || normalized.equals("bị thương") || normalized.equals("bi thuong")) {
+            return "INJURED";
         }
-        throw new IllegalArgumentException("status chi chap nhan Active hoac Inactive");
+        if (normalized.equals("inactive") || normalized.equals("unactive") || normalized.equals("không hoạt động")
+                || normalized.equals("khong hoat dong") || normalized.equals("false")) {
+            return "INACTIVE";
+        }
+        throw new IllegalArgumentException("Trạng thái ngựa chỉ chấp nhận: Hoạt động, Bị thương, Không hoạt động");
     }
 
     private HorseResponse toHorseResponse(Horse horse) {
@@ -235,11 +272,27 @@ public class HorseService {
                 horse.getRegisterCode(),
                 horse.getHealthStatus(),
                 horse.getPhotoUrl(),
-                active ? "Active" : "Inactive",
+                resolveStatusLabel(horse),
                 active,
                 horse.getCreatedAt(),
                 horse.getUpdatedAt()
         );
+    }
+
+    private String resolveStatusLabel(Horse horse) {
+        String healthStatus = horse.getHealthStatus();
+        if (healthStatus != null && healthStatus.equalsIgnoreCase("Bị thương")) {
+            return "Bị thương";
+        }
+        return Boolean.TRUE.equals(horse.getIsActive()) ? "Hoạt động" : "Không hoạt động";
+    }
+
+    private String generateRegisterCode() {
+        String code;
+        do {
+            code = "HORSE-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+        } while (horseRepository.existsByRegisterCode(code));
+        return code;
     }
 
     private HorseHealthRecordResponse toHealthResponse(HorseHealthRecord record) {

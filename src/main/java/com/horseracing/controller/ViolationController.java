@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,37 +25,24 @@ public class ViolationController {
         this.violationService = violationService;
     }
 
+    @GetMapping("/api/violations/options")
+    public ApiResponse<?> getViolationOptions() {
+        return ApiResponse.success(200, "Lấy danh sách loại vi phạm thành công", violationService.getViolationOptions());
+    }
+
     @GetMapping("/api/races/{raceId}/violations")
     public ApiResponse<?> getViolations(@PathVariable Integer raceId) {
-        return ApiResponse.success(
-                200,
-                "Lấy danh sách vi phạm thành công",
-                violationService.getViolationsByRace(raceId)
-        );
+        return ApiResponse.success(200, "Lấy danh sách vi phạm thành công", violationService.getViolationsByRace(raceId));
     }
 
     @PostMapping("/api/races/{raceId}/violations")
-    public ApiResponse<?> createViolation(
-            @PathVariable Integer raceId,
-            @RequestBody ViolationRequest request
-    ) {
-        return ApiResponse.success(
-                201,
-                "Tạo vi phạm thành công",
-                violationService.createViolation(raceId, request)
-        );
+    public ApiResponse<?> createViolation(@PathVariable Integer raceId, @RequestBody ViolationRequest request) {
+        return ApiResponse.success(201, "Tạo vi phạm thành công", violationService.createViolation(raceId, request));
     }
 
     @PutMapping("/api/violations/{violationId}")
-    public ApiResponse<?> updateViolation(
-            @PathVariable Integer violationId,
-            @RequestBody ViolationRequest request
-    ) {
-        return ApiResponse.success(
-                200,
-                "Cập nhật vi phạm thành công",
-                violationService.updateViolation(violationId, request)
-        );
+    public ApiResponse<?> updateViolation(@PathVariable Integer violationId, @RequestBody ViolationRequest request) {
+        return ApiResponse.success(200, "Cập nhật vi phạm thành công", violationService.updateViolation(violationId, request));
     }
 
     @DeleteMapping("/api/violations/{violationId}")

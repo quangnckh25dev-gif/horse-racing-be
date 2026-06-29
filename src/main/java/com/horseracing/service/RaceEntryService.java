@@ -60,6 +60,12 @@ public class RaceEntryService {
         return raceEntryRepository.findByOwnerId(owner.getOwnerId()).stream().map(this::toResponse).toList();
     }
 
+    public List<RaceEntryResponse> getMyApprovedEntries(HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        HorseOwner owner = getOwnerByUserId(user.getUserId());
+        return raceEntryRepository.findApprovedByOwnerId(owner.getOwnerId()).stream().map(this::toResponse).toList();
+    }
+
     public RaceEntryResponse registerHorse(Integer raceId, RaceEntryRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         HorseOwner owner = getOwnerByUserId(user.getUserId());
@@ -102,7 +108,9 @@ public class RaceEntryService {
             entry.setJockeyConfirmed(false);
         }
 
-        return toResponse(raceEntryRepository.save(entry));
+        RaceEntry saved = raceEntryRepository.save(entry);
+        notifyOrganizers(saved, race, horse, user);
+        return toResponse(saved);
     }
 
     public RaceEntryResponse withdrawEntry(Integer raceId, Integer entryId, HttpServletRequest httpRequest) {
@@ -157,8 +165,8 @@ public class RaceEntryService {
     }
 
     private void validateRaceCanReceiveEntry(Race race) {
-        if (!"Scheduled".equalsIgnoreCase(race.getStatus())) {
-            throw new IllegalArgumentException("Race khong o trang thai nhan dang ky");
+        if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus()) && !"Scheduled".equalsIgnoreCase(race.getStatus())) {
+            throw new IllegalArgumentException("Vòng đua chưa mở đăng ký");
         }
     }
 
@@ -215,6 +223,24 @@ public class RaceEntryService {
         notification.setRelatedEntity("RaceEntry");
         notification.setIsRead(false);
         notificationRepository.save(notification);
+    }
+
+    private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {
+        String title = "Có đăng ký thi đấu mới chờ duyệt";
+        String body = ownerUser.getFullName() + " đã đăng ký ngựa "
+                + horse.getHorseName() + " vào vòng đua " + race.getRaceName() + ".";
+
+        userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
+            Notification notification = new Notification();
+            notification.setUserId(user.getUserId());
+            notification.setTitle(title);
+            notification.setBody(body);
+            notification.setNotifType("EntryPendingApproval");
+            notification.setRelatedEntityId(entry.getEntryId());
+            notification.setRelatedEntity("RaceEntry");
+            notification.setIsRead(false);
+            notificationRepository.save(notification);
+        });
     }
 
     private RaceEntryResponse toResponse(RaceEntry entry) {
