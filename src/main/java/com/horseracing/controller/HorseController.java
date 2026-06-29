@@ -36,6 +36,11 @@ public class HorseController {
         return ApiResponse.success(200, "Lay danh sach horse thanh cong", horseService.getHorses(httpRequest));
     }
 
+    @GetMapping("/api/horses/options")
+    public ApiResponse<?> getHorseOptions() {
+        return ApiResponse.success(200, "Lấy danh sách tùy chọn ngựa thành công", horseService.getHorseOptions());
+    }
+
     @GetMapping("/api/horses/{horseId}")
     public ApiResponse<?> getHorse(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
         return ApiResponse.success(200, "Lay chi tiet horse thanh cong", horseService.getHorse(horseId, httpRequest));

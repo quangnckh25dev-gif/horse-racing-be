@@ -37,6 +37,11 @@ public class AuthController {
         return ApiResponse.success(201, "Tao tai khoan thanh cong", authService.register(request));
     }
 
+    @GetMapping("/register-roles")
+    public ApiResponse<?> getRegisterRoles() {
+        return ApiResponse.success(200, "Lấy danh sách vai trò đăng ký thành công", authService.getRegisterRoleOptions());
+    }
+
     @PostMapping("/create-account")
     public ApiResponse<?> createAccount(@RequestBody RegisterRequest request) {
         return ApiResponse.success(201, "Tao tai khoan thanh cong", authService.register(request));

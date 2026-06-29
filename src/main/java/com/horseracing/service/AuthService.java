@@ -3,6 +3,7 @@ package com.horseracing.service;
 import com.horseracing.dto.ForgotPasswordRequest;
 import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.LoginResponse;
+import com.horseracing.dto.OptionResponse;
 import com.horseracing.dto.RegisterRequest;
 import com.horseracing.dto.ResetPasswordRequest;
 import com.horseracing.dto.TokenRequest;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -80,6 +82,17 @@ public class AuthService {
         user.setUpdatedAt(now);
 
         return toUserResponse(userRepository.save(user));
+    }
+
+    public List<OptionResponse> getRegisterRoleOptions() {
+        return List.of(
+                new OptionResponse("HorseOwner", "Chủ ngựa"),
+                new OptionResponse("Jockey", "Kỵ sĩ"),
+                new OptionResponse("Referee", "Trọng tài"),
+                new OptionResponse("Spectator", "Khán giả"),
+                new OptionResponse("OrganizerHead", "Trưởng ban tổ chức"),
+                new OptionResponse("OrganizerMember", "Thành viên ban tổ chức")
+        );
     }
 
     @Transactional(noRollbackFor = IllegalArgumentException.class)

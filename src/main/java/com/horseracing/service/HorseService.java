@@ -2,9 +2,11 @@ package com.horseracing.service;
 
 import com.horseracing.dto.HorseHealthRecordRequest;
 import com.horseracing.dto.HorseHealthRecordResponse;
+import com.horseracing.dto.HorseOptionsResponse;
 import com.horseracing.dto.HorseRequest;
 import com.horseracing.dto.HorseResponse;
 import com.horseracing.dto.HorseStatusRequest;
+import com.horseracing.dto.OptionResponse;
 import com.horseracing.entity.Horse;
 import com.horseracing.entity.HorseHealthRecord;
 import com.horseracing.entity.HorseOwner;
@@ -51,6 +53,44 @@ public class HorseService {
                 .stream()
                 .map(this::toHorseResponse)
                 .toList();
+    }
+
+    public HorseOptionsResponse getHorseOptions() {
+        return new HorseOptionsResponse(
+                List.of(
+                        new OptionResponse("Hoạt động", "Hoạt động"),
+                        new OptionResponse("Bị thương", "Bị thương"),
+                        new OptionResponse("Không hoạt động", "Không hoạt động")
+                ),
+                List.of(
+                        new OptionResponse("Đen", "Đen"),
+                        new OptionResponse("Trắng", "Trắng"),
+                        new OptionResponse("Nâu", "Nâu"),
+                        new OptionResponse("Nâu đậm", "Nâu đậm"),
+                        new OptionResponse("Nâu đỏ", "Nâu đỏ"),
+                        new OptionResponse("Vàng", "Vàng"),
+                        new OptionResponse("Xám", "Xám"),
+                        new OptionResponse("Xám đốm", "Xám đốm"),
+                        new OptionResponse("Hạt dẻ", "Hạt dẻ"),
+                        new OptionResponse("Palomino", "Palomino"),
+                        new OptionResponse("Pinto", "Pinto"),
+                        new OptionResponse("Appaloosa", "Appaloosa")
+                ),
+                List.of(
+                        new OptionResponse("Thoroughbred", "Thoroughbred"),
+                        new OptionResponse("Arabian", "Arabian"),
+                        new OptionResponse("Quarter Horse", "Quarter Horse"),
+                        new OptionResponse("Standardbred", "Standardbred"),
+                        new OptionResponse("Andalusian", "Andalusian"),
+                        new OptionResponse("Appaloosa", "Appaloosa"),
+                        new OptionResponse("Akhal-Teke", "Akhal-Teke"),
+                        new OptionResponse("Friesian", "Friesian"),
+                        new OptionResponse("Mustang", "Mustang"),
+                        new OptionResponse("Morgan", "Morgan"),
+                        new OptionResponse("Hanoverian", "Hanoverian"),
+                        new OptionResponse("Warmblood", "Warmblood")
+                )
+        );
     }
 
     public HorseResponse getHorse(Integer horseId, HttpServletRequest httpRequest) {
