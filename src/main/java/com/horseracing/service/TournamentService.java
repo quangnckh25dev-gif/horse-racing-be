@@ -1,10 +1,12 @@
 package com.horseracing.service;
 
 import com.horseracing.dto.RaceSummaryResponse;
+import com.horseracing.dto.OptionResponse;
 import com.horseracing.dto.RoundSummaryResponse;
 import com.horseracing.dto.TournamentDetailResponse;
 import com.horseracing.dto.TournamentRequest;
 import com.horseracing.dto.TournamentResponse;
+import com.horseracing.dto.TournamentStatusTransitionResponse;
 import com.horseracing.entity.Race;
 import com.horseracing.entity.Round;
 import com.horseracing.entity.Tournament;
@@ -92,6 +94,16 @@ public class TournamentService {
         return toTournamentResponse(tournamentRepository.save(tournament));
     }
 
+    public TournamentStatusTransitionResponse getStatusTransitions(Integer tournamentId) {
+        Tournament tournament = getTournamentOrThrow(tournamentId);
+        String status = tournament.getStatus();
+        return new TournamentStatusTransitionResponse(
+                status,
+                toStatusLabel(status),
+                nextStatuses(status)
+        );
+    }
+
     public void deleteTournament(Integer tournamentId) {
         Tournament tournament = getTournamentOrThrow(tournamentId);
         tournament.setStatus("Cancelled");
@@ -152,6 +164,32 @@ public class TournamentService {
             case "finished", "kết thúc", "ket thuc" -> "Finished";
             case "cancelled", "canceled", "đã hủy", "da huy" -> "Cancelled";
             default -> status.trim();
+        };
+    }
+
+    private List<OptionResponse> nextStatuses(String status) {
+        return switch (status == null ? "" : status) {
+            case "Draft" -> List.of(new OptionResponse("Open", "Mở đăng ký"));
+            case "Open" -> List.of(
+                    new OptionResponse("Ongoing", "Bắt đầu"),
+                    new OptionResponse("Cancelled", "Hủy")
+            );
+            case "Ongoing" -> List.of(
+                    new OptionResponse("Finished", "Kết thúc"),
+                    new OptionResponse("Cancelled", "Hủy")
+            );
+            default -> List.of();
+        };
+    }
+
+    private String toStatusLabel(String status) {
+        return switch (status == null ? "" : status) {
+            case "Draft" -> "Nháp";
+            case "Open" -> "Mở đăng ký";
+            case "Ongoing" -> "Đang diễn ra";
+            case "Finished" -> "Kết thúc";
+            case "Cancelled" -> "Đã hủy";
+            default -> status;
         };
     }
 

@@ -86,6 +86,15 @@ public class TournamentController {
         );
     }
 
+    @GetMapping("/{id}/status-transitions")
+    public ApiResponse<?> getTournamentStatusTransitions(@PathVariable Integer id) {
+        return ApiResponse.success(
+                200,
+                "Lấy danh sách trạng thái kế tiếp thành công",
+                tournamentService.getStatusTransitions(id)
+        );
+    }
+
     @PatchMapping("/{id}/status")
     public ApiResponse<?> patchTournamentStatus(
             @PathVariable Integer id,
