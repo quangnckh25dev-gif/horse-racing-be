@@ -2,19 +2,11 @@ package com.horseracing.dto;
 
 public class RaceMinuteRequest {
 
-    private Integer refereeId;
     private String content;
     private String preRaceChecks;
     private String postRaceNotes;
+    private String minutesFileUrl;
     private String note;
-
-    public Integer getRefereeId() {
-        return refereeId;
-    }
-
-    public void setRefereeId(Integer refereeId) {
-        this.refereeId = refereeId;
-    }
 
     public String getContent() {
         return content;
@@ -38,6 +30,14 @@ public class RaceMinuteRequest {
 
     public void setPostRaceNotes(String postRaceNotes) {
         this.postRaceNotes = postRaceNotes;
+    }
+
+    public String getMinutesFileUrl() {
+        return minutesFileUrl;
+    }
+
+    public void setMinutesFileUrl(String minutesFileUrl) {
+        this.minutesFileUrl = minutesFileUrl;
     }
 
     public String getNote() {

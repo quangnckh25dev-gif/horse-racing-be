@@ -3,8 +3,10 @@ package com.horseracing.service;
 import com.horseracing.dto.RaceResultRequest;
 import com.horseracing.dto.RaceResultResponse;
 import com.horseracing.entity.RaceResult;
+import com.horseracing.entity.User;
 import com.horseracing.repository.RaceResultRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -20,11 +22,9 @@ public class RaceResultService {
     private static final String STATUS_PUBLISHED = "Published";
 
     private final RaceResultRepository raceResultRepository;
-    private final BettingService bettingService;
 
-    public RaceResultService(RaceResultRepository raceResultRepository, BettingService bettingService) {
+    public RaceResultService(RaceResultRepository raceResultRepository) {
         this.raceResultRepository = raceResultRepository;
-        this.bettingService = bettingService;
     }
 
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
@@ -35,8 +35,10 @@ public class RaceResultService {
                 .toList();
     }
 
-    public RaceResultResponse createResult(Integer raceId, RaceResultRequest request) {
+    public RaceResultResponse createResult(Integer raceId, RaceResultRequest request, User currentUser) {
         ensureRaceExists(raceId);
+        Integer refereeId = ensureAssignedReferee(raceId, currentUser);
+        validateResultRequest(request);
         ensureEntryBelongsToRace(raceId, request.getEntryId());
 
         raceResultRepository.findByRaceIdAndEntryId(raceId, request.getEntryId())
@@ -46,15 +48,17 @@ public class RaceResultService {
 
         RaceResult result = new RaceResult();
         result.setRaceId(raceId);
-        applyResultRequest(result, request);
+        applyResultRequest(result, request, refereeId);
         result.setApprovalStatus(STATUS_PENDING);
         result.setCreatedAt(LocalDateTime.now());
 
         return toResponse(raceResultRepository.save(result));
     }
 
-    public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request) {
+    public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request, User currentUser) {
         ensureRaceExists(raceId);
+        Integer refereeId = ensureAssignedReferee(raceId, currentUser);
+        validateResultRequest(request);
 
         RaceResult result = raceResultRepository.findById(resultId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay ket qua"));
@@ -68,7 +72,7 @@ public class RaceResultService {
         }
 
         ensureEntryBelongsToRace(raceId, request.getEntryId());
-        applyResultRequest(result, request);
+        applyResultRequest(result, request, refereeId);
         result.setApprovalStatus(STATUS_PENDING);
         result.setApprovedByOrganizer(null);
         result.setApprovedAt(null);
@@ -77,9 +81,9 @@ public class RaceResultService {
         return toResponse(raceResultRepository.save(result));
     }
 
-    public List<RaceResultResponse> approveResults(Integer raceId, Integer organizerId) {
+    public List<RaceResultResponse> approveResults(Integer raceId, User currentUser) {
         ensureRaceExists(raceId);
-        ensureOrganizer(organizerId);
+        Integer organizerId = ensureOrganizer(currentUser);
 
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         LocalDateTime now = LocalDateTime.now();
@@ -93,17 +97,15 @@ public class RaceResultService {
             result.setApprovedAt(now);
         });
 
-        List<RaceResultResponse> publishedResults = raceResultRepository.saveAll(results)
+        return raceResultRepository.saveAll(results)
                 .stream()
                 .map(this::toResponse)
                 .toList();
-        bettingService.settleRaceBets(raceId);
-        return publishedResults;
     }
 
-    public List<RaceResultResponse> rejectResults(Integer raceId, Integer organizerId) {
+    public List<RaceResultResponse> rejectResults(Integer raceId, User currentUser) {
         ensureRaceExists(raceId);
-        ensureOrganizer(organizerId);
+        Integer organizerId = ensureOrganizer(currentUser);
 
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         LocalDateTime now = LocalDateTime.now();
@@ -124,9 +126,10 @@ public class RaceResultService {
                 .toList();
     }
 
-    public List<RaceResultResponse> publishResults(Integer raceId, Integer organizerId) {
+    @Transactional
+    public List<RaceResultResponse> publishResults(Integer raceId, User currentUser) {
         ensureRaceExists(raceId);
-        ensureOrganizer(organizerId);
+        Integer organizerId = ensureOrganizer(currentUser);
 
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         boolean hasUnapprovedResult = results.stream()
@@ -136,27 +139,24 @@ public class RaceResultService {
             throw new IllegalArgumentException("Ket qua chua duoc Ban to chuc duyet, khong the public");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        results.forEach(result -> {
-            result.setApprovalStatus(STATUS_PUBLISHED);
-            result.setPublishedAt(now);
-        });
+        raceResultRepository.publishRaceResult(raceId, organizerId);
 
-        return raceResultRepository.saveAll(results)
+        return raceResultRepository.findByRaceId(raceId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    private void applyResultRequest(RaceResult result, RaceResultRequest request) {
+    private void applyResultRequest(RaceResult result, RaceResultRequest request, Integer refereeId) {
         result.setEntryId(request.getEntryId());
-        result.setFinishPosition(resolvePosition(request));
         result.setFinishTime(parseFinishTime(request.getFinishTime()));
-        result.setPrizeWon(resolvePrizeWon(request));
+        result.setPenaltyTime(defaultDecimal(result.getPenaltyTime()));
+        result.setPoints(result.getPoints() == null ? 0 : result.getPoints());
+        result.setPrizeWon(defaultDecimal(result.getPrizeWon()));
         result.setDnf(Boolean.TRUE.equals(request.getDnf()));
-        result.setDq(Boolean.TRUE.equals(request.getDq()));
-        result.setConfirmedByRef(request.getConfirmedByRef());
-        result.setConfirmedAt(request.getConfirmedByRef() == null ? null : LocalDateTime.now());
+        result.setDq(Boolean.TRUE.equals(result.getDq()));
+        result.setConfirmedByRef(refereeId);
+        result.setConfirmedAt(LocalDateTime.now());
     }
 
     private List<RaceResult> getRaceResultsOrThrow(Integer raceId) {
@@ -179,26 +179,47 @@ public class RaceResultService {
         }
     }
 
-    private void ensureOrganizer(Integer organizerId) {
+    private Integer ensureOrganizer(User currentUser) {
+        if (currentUser == null) {
+            throw new IllegalArgumentException("Thieu thong tin Organizer hien tai");
+        }
+        Integer organizerId = currentUser.getUserId();
         if (organizerId == null || raceResultRepository.countOrganizerById(organizerId) == 0) {
             throw new IllegalArgumentException("Khong tim thay Ban to chuc hop le");
         }
+        return organizerId;
     }
 
-    private Integer resolvePosition(RaceResultRequest request) {
-        return request.getPosition() != null ? request.getPosition() : request.getFinishPosition();
+    private Integer ensureAssignedReferee(Integer raceId, User currentUser) {
+        if (currentUser == null || currentUser.getRole() == null
+                || !"Referee".equalsIgnoreCase(currentUser.getRole().getRoleName())) {
+            throw new IllegalArgumentException("Chi Referee moi duoc nhap ket qua race");
+        }
+        if (raceResultRepository.countAssignedReferee(raceId, currentUser.getUserId()) == 0) {
+            throw new IllegalArgumentException("Referee chua duoc phan cong cho race nay");
+        }
+        Integer refereeId = raceResultRepository.findRefereeIdByUserId(currentUser.getUserId());
+        if (refereeId == null) {
+            throw new IllegalArgumentException("User hien tai chua co ho so Referee");
+        }
+        return refereeId;
     }
 
-    private BigDecimal resolvePrizeWon(RaceResultRequest request) {
-        if (request.getPrizeWon() != null) {
-            return request.getPrizeWon();
+    private void validateResultRequest(RaceResultRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Du lieu ket qua khong hop le");
         }
-
-        if (request.getPoint() != null) {
-            return BigDecimal.valueOf(request.getPoint());
+        if (request.getEntryId() == null) {
+            throw new IllegalArgumentException("entryId khong duoc de trong");
         }
+        if (!Boolean.TRUE.equals(request.getDnf())
+                && (request.getFinishTime() == null || request.getFinishTime().isBlank())) {
+            throw new IllegalArgumentException("finishTime khong duoc de trong neu ngua khong DNF");
+        }
+    }
 
-        return BigDecimal.ZERO;
+    private BigDecimal defaultDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private BigDecimal parseFinishTime(String finishTime) {
@@ -230,7 +251,9 @@ public class RaceResultService {
                 raceResultRepository.findJockeyNameByEntryId(result.getEntryId()),
                 result.getFinishPosition(),
                 formatFinishTime(result.getFinishTime()),
-                calculatePoint(result.getFinishPosition()),
+                formatFinishTime(result.getPenaltyTime()),
+                formatFinishTime(result.getFinalTime()),
+                result.getPoints(),
                 result.getPrizeWon(),
                 result.getDnf(),
                 result.getDq(),
@@ -243,19 +266,6 @@ public class RaceResultService {
                 STATUS_PUBLISHED.equals(result.getApprovalStatus()),
                 result.getCreatedAt()
         );
-    }
-
-    private Integer calculatePoint(Integer position) {
-        if (position == null) {
-            return 0;
-        }
-
-        return switch (position) {
-            case 1 -> 10;
-            case 2 -> 7;
-            case 3 -> 5;
-            default -> 0;
-        };
     }
 
     private String formatFinishTime(BigDecimal finishTime) {

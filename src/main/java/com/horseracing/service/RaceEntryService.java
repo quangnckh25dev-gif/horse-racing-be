@@ -20,6 +20,7 @@ import com.horseracing.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -97,8 +98,8 @@ public class RaceEntryService {
         entry.setRaceId(raceId);
         entry.setHorseId(horse.getHorseId());
         entry.setLaneNumber(request.getLaneNumber());
-        entry.setOwnerConfirmed(true);
         entry.setRegistrationStatus("Pending");
+        entry.setOdds(BigDecimal.valueOf(2));
 
         if (request.getJockeyId() != null) {
             Jockey jockey = jockeyRepository.findById(request.getJockeyId())
@@ -128,14 +129,14 @@ public class RaceEntryService {
         }
 
         entry.setRegistrationStatus("Withdrawn");
-        entry.setAdminApproved(false);
+        entry.setRejectReason(null);
         return toResponse(raceEntryRepository.save(entry));
     }
 
     public RaceEntryResponse approveEntry(Integer raceId, Integer entryId, RaceEntryApproveRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
-        if (!currentUserService.isAdmin(user)) {
-            throw new IllegalArgumentException("Chi Admin moi duoc duyet entry");
+        if (!isOrganizer(user)) {
+            throw new IllegalArgumentException("Chi Ban to chuc moi duoc duyet entry");
         }
 
         RaceEntry entry = getEntryInRace(raceId, entryId);
@@ -148,10 +149,12 @@ public class RaceEntryService {
 
         if (Boolean.TRUE.equals(request.getApproved())) {
             entry.setRegistrationStatus("Approved");
-            entry.setAdminApproved(true);
+            entry.setApprovedBy(user.getUserId());
+            entry.setRejectReason(null);
         } else {
             entry.setRegistrationStatus("Rejected");
-            entry.setAdminApproved(false);
+            entry.setApprovedBy(user.getUserId());
+            entry.setRejectReason(request.getReason());
         }
 
         RaceEntry saved = raceEntryRepository.save(entry);
@@ -263,11 +266,19 @@ public class RaceEntryService {
                 jockeyUser == null ? null : jockeyUser.getFullName(),
                 entry.getLaneNumber(),
                 entry.getRegistrationStatus(),
-                entry.getOwnerConfirmed(),
+                entry.getApprovedBy(),
+                entry.getRejectReason(),
                 entry.getJockeyConfirmed(),
-                entry.getAdminApproved(),
+                entry.getOdds(),
+                horse == null ? null : horse.getHealthStatus(),
                 entry.getRegisteredAt(),
                 entry.getUpdatedAt()
         );
+    }
+
+    private boolean isOrganizer(User user) {
+        return user != null
+                && user.getRole() != null
+                && "Organizer".equalsIgnoreCase(user.getRole().getRoleName());
     }
 }

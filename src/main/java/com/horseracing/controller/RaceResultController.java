@@ -1,8 +1,11 @@
 package com.horseracing.controller;
 
 import com.horseracing.dto.RaceResultRequest;
+import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
+import com.horseracing.service.CurrentUserService;
 import com.horseracing.service.RaceResultService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,9 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class RaceResultController {
 
     private final RaceResultService raceResultService;
+    private final CurrentUserService currentUserService;
 
-    public RaceResultController(RaceResultService raceResultService) {
+    public RaceResultController(RaceResultService raceResultService, CurrentUserService currentUserService) {
         this.raceResultService = raceResultService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping
@@ -38,12 +43,14 @@ public class RaceResultController {
     @PostMapping
     public ApiResponse<?> createResult(
             @PathVariable Integer raceId,
-            @RequestBody RaceResultRequest request
+            @RequestBody RaceResultRequest request,
+            HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 201,
                 "Tao ket qua race thanh cong",
-                raceResultService.createResult(raceId, request)
+                raceResultService.createResult(raceId, request, currentUser)
         );
     }
 
@@ -51,12 +58,14 @@ public class RaceResultController {
     public ApiResponse<?> updateResult(
             @PathVariable Integer raceId,
             @PathVariable Integer resultId,
-            @RequestBody RaceResultRequest request
+            @RequestBody RaceResultRequest request,
+            HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Cap nhat ket qua race thanh cong",
-                raceResultService.updateResult(raceId, resultId, request)
+                raceResultService.updateResult(raceId, resultId, request, currentUser)
         );
     }
 
