@@ -22,15 +22,27 @@ public class RaceResultService {
     private static final String STATUS_PUBLISHED = "Published";
 
     private final RaceResultRepository raceResultRepository;
+    private final BettingService bettingService;
 
-    public RaceResultService(RaceResultRepository raceResultRepository) {
+    public RaceResultService(RaceResultRepository raceResultRepository,
+                             BettingService bettingService) {
         this.raceResultRepository = raceResultRepository;
+        this.bettingService = bettingService;
     }
 
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
         ensureRaceExists(raceId);
         return raceResultRepository.findByRaceId(raceId)
                 .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<RaceResultResponse> getPublishedResultsByRace(Integer raceId) {
+        ensureRaceExists(raceId);
+        return raceResultRepository.findByRaceId(raceId)
+                .stream()
+                .filter(result -> STATUS_PUBLISHED.equals(result.getApprovalStatus()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -140,11 +152,9 @@ public class RaceResultService {
         }
 
         raceResultRepository.publishRaceResult(raceId, organizerId);
+        bettingService.settleRaceBets(raceId);
 
-        return raceResultRepository.findByRaceId(raceId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return getPublishedResultsByRace(raceId);
     }
 
     private void applyResultRequest(RaceResult result, RaceResultRequest request, Integer refereeId) {

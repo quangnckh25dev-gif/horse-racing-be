@@ -142,7 +142,7 @@ public class OrganizerRaceController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cong bo ket qua race thanh cong",
+                "Cong bo ket qua chinh thuc thanh cong",
                 raceResultService.publishResults(raceId, currentUser)
         );
     }

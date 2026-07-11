@@ -40,6 +40,15 @@ public class RaceResultController {
         );
     }
 
+    @GetMapping("/published")
+    public ApiResponse<?> getPublishedResults(@PathVariable Integer raceId) {
+        return ApiResponse.success(
+                200,
+                "Lay ket qua da public thanh cong",
+                raceResultService.getPublishedResultsByRace(raceId)
+        );
+    }
+
     @PostMapping
     public ApiResponse<?> createResult(
             @PathVariable Integer raceId,
