@@ -18,7 +18,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +25,10 @@ import java.util.UUID;
 
 @Service
 public class HorseService {
+
+    private static final String HEALTH_ACTIVE = "Hoạt động";
+    private static final String HEALTH_INJURED = "Bị thương";
+    private static final String HEALTH_INACTIVE = "Không hoạt động";
 
     private final HorseRepository horseRepository;
     private final HorseOwnerRepository horseOwnerRepository;
@@ -128,7 +131,7 @@ public class HorseService {
     public HorseResponse updateHorseStatus(Integer horseId, HorseStatusRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
-        ensureCanAccessHorse(user, horse);
+        ensureCanManageHorseHealth(user);
 
         if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
             throw new IllegalArgumentException("status khong duoc de trong");
@@ -152,7 +155,7 @@ public class HorseService {
     public HorseHealthRecordResponse addHealthRecord(Integer horseId, HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
-        ensureCanAccessHorse(user, horse);
+        ensureCanManageHorseHealth(user);
 
         if (request == null) {
             throw new IllegalArgumentException("Du lieu health record khong hop le");
@@ -168,9 +171,9 @@ public class HorseService {
         record.setDiagnosis(firstNonBlank(request.getDiagnosis(), request.getHealthStatus()));
         record.setNotes(firstNonBlank(request.getNotes(), request.getNote()));
 
-        String latestHealth = firstNonBlank(request.getHealthStatus(), request.getDiagnosis());
+        String latestHealth = trimToNull(request.getHealthStatus());
         if (latestHealth != null) {
-            horse.setHealthStatus(latestHealth);
+            applyHorseStatus(horse, latestHealth);
             horseRepository.save(horse);
         }
 
@@ -180,22 +183,20 @@ public class HorseService {
     private void applyHorseFields(Horse horse, HorseRequest request) {
         horse.setHorseName(request.getHorseName().trim());
         horse.setBreed(trimToNull(request.getBreed()));
-        horse.setBirthYear(resolveBirthYear(request));
+        horse.setBirthYear(request.getBirthYear());
         horse.setColor(trimToNull(request.getColor()));
         horse.setGender(trimToNull(request.getGender()));
         horse.setWeightKg(resolveWeight(request));
-        String registerCode = trimToNull(request.getRegisterCode());
-        if (registerCode != null) {
-            horse.setRegisterCode(registerCode);
-        } else if (horse.getRegisterCode() == null) {
+        if (horse.getRegisterCode() == null) {
             horse.setRegisterCode(generateRegisterCode());
         }
-        horse.setHealthStatus(trimToNull(request.getHealthStatus()));
-        horse.setPhotoUrl(trimToNull(request.getPhotoUrl()));
-
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            applyHorseStatus(horse, request.getStatus());
+        if (horse.getHealthStatus() == null || horse.getHealthStatus().isBlank()) {
+            horse.setHealthStatus(HEALTH_ACTIVE);
         }
+        if (horse.getIsActive() == null) {
+            horse.setIsActive(true);
+        }
+        horse.setPhotoUrl(trimToNull(request.getPhotoUrl()));
     }
 
     private void validateHorseRequest(HorseRequest request) {
@@ -206,14 +207,20 @@ public class HorseService {
             throw new IllegalArgumentException("horseName khong duoc de trong");
         }
 
-        BigDecimal weight = resolveWeight(request);
-        if (weight != null && weight.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("weight phai lon hon 0");
+        BigDecimal weight = request.getWeightKg();
+        if (weight == null) {
+            throw new IllegalArgumentException("weightKg khong duoc de trong");
+        }
+        if (weight.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("weightKg phai lon hon 0");
         }
 
-        Integer birthYear = resolveBirthYear(request);
+        Integer birthYear = request.getBirthYear();
+        if (birthYear == null) {
+            throw new IllegalArgumentException("birthYear khong duoc de trong");
+        }
         int currentYear = Year.now().getValue();
-        if (birthYear != null && (birthYear < 1980 || birthYear > currentYear)) {
+        if (birthYear < 1980 || birthYear > currentYear) {
             throw new IllegalArgumentException("birthYear khong hop le");
         }
     }
@@ -232,7 +239,7 @@ public class HorseService {
     }
 
     private void ensureCanAccessHorse(User user, Horse horse) {
-        if (currentUserService.isAdmin(user)) {
+        if (currentUserService.isAdmin(user) || isOrganizer(user)) {
             return;
         }
 
@@ -242,42 +249,24 @@ public class HorseService {
         }
     }
 
-    private Integer resolveBirthYear(HorseRequest request) {
-        if (request.getBirthYear() != null) {
-            return request.getBirthYear();
-        }
-        if (request.getAge() != null) {
-            if (request.getAge() <= 0) {
-                throw new IllegalArgumentException("age phai lon hon 0");
-            }
-            return Year.now().getValue() - request.getAge();
-        }
-        return null;
-    }
-
     private BigDecimal resolveWeight(HorseRequest request) {
-        return request.getWeightKg() != null ? request.getWeightKg() : request.getWeight();
+        return request.getWeightKg();
     }
 
     private void applyHorseStatus(Horse horse, String status) {
         String normalized = normalizeStatus(status);
         if ("ACTIVE".equals(normalized)) {
             horse.setIsActive(true);
-            horse.setHealthStatus("Hoạt động");
+            horse.setHealthStatus(HEALTH_ACTIVE);
             return;
         }
         if ("INJURED".equals(normalized)) {
             horse.setIsActive(false);
-            horse.setHealthStatus("Bị thương");
+            horse.setHealthStatus(HEALTH_INJURED);
             return;
         }
         horse.setIsActive(false);
-        horse.setHealthStatus("Không hoạt động");
-    }
-
-    private Boolean parseActiveStatus(String status) {
-        String normalized = normalizeStatus(status);
-        return "ACTIVE".equals(normalized);
+        horse.setHealthStatus(HEALTH_INACTIVE);
     }
 
     private String normalizeStatus(String status) {
@@ -321,10 +310,27 @@ public class HorseService {
 
     private String resolveStatusLabel(Horse horse) {
         String healthStatus = horse.getHealthStatus();
-        if (healthStatus != null && healthStatus.equalsIgnoreCase("Bị thương")) {
-            return "Bị thương";
+        if (healthStatus != null && "INJURED".equals(normalizeStatus(healthStatus))) {
+            return HEALTH_INJURED;
         }
-        return Boolean.TRUE.equals(horse.getIsActive()) ? "Hoạt động" : "Không hoạt động";
+        return Boolean.TRUE.equals(horse.getIsActive()) ? HEALTH_ACTIVE : HEALTH_INACTIVE;
+    }
+
+    private void ensureCanManageHorseHealth(User user) {
+        if (currentUserService.isAdmin(user) || isOrganizer(user)) {
+            return;
+        }
+        throw new IllegalArgumentException("Chi Admin hoac Ban to chuc moi duoc cap nhat suc khoe ngua");
+    }
+
+    private boolean isOrganizer(User user) {
+        if (user == null || user.getRole() == null || user.getRole().getRoleName() == null) {
+            return false;
+        }
+        String roleName = user.getRole().getRoleName();
+        return "Organizer".equalsIgnoreCase(roleName)
+                || "OrganizerHead".equalsIgnoreCase(roleName)
+                || "OrganizerMember".equalsIgnoreCase(roleName);
     }
 
     private String generateRegisterCode() {

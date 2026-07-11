@@ -32,4 +32,21 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
     long countByRaceIdAndRegistrationStatusNot(Integer raceId, String registrationStatus);
 
     boolean existsByRaceIdAndHorseIdAndRegistrationStatusNot(Integer raceId, Integer horseId, String registrationStatus);
+
+    @Query(value = """
+            SELECT COUNT(*)
+            FROM RaceEntries
+            WHERE RaceID = :raceId
+              AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn')
+            """, nativeQuery = true)
+    long countActiveRegistrations(@Param("raceId") Integer raceId);
+
+    @Query(value = """
+            SELECT CASE WHEN COUNT(*) > 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END
+            FROM RaceEntries
+            WHERE RaceID = :raceId
+              AND HorseID = :horseId
+              AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn')
+            """, nativeQuery = true)
+    boolean existsActiveRegistration(@Param("raceId") Integer raceId, @Param("horseId") Integer horseId);
 }
