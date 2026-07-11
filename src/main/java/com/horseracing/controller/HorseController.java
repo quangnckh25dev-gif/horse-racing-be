@@ -56,12 +56,13 @@ public class HorseController {
         return ApiResponse.success(200, "Cap nhat horse thanh cong", horseService.updateHorse(horseId, request, httpRequest));
     }
 
-    @PatchMapping("/api/horses/{horseId}/status")
+    @PatchMapping({"/api/horses/{horseId}/health", "/api/horses/{horseId}/status"})
     public ApiResponse<?> updateHorseStatus(@PathVariable Integer horseId, @RequestBody HorseStatusRequest request, HttpServletRequest httpRequest) {
+        //của buiquangann
         return ApiResponse.success(200, "Cap nhat trang thai horse thanh cong", horseService.updateHorseStatus(horseId, request, httpRequest));
     }
 
-    @GetMapping("/api/horses/{horseId}/health")
+    @GetMapping({"/api/horses/{horseId}/health-records", "/api/horses/{horseId}/health"})
     public ApiResponse<?> getHealthHistory(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
         return ApiResponse.success(200, "Lay lich su suc khoe horse thanh cong", horseService.getHealthHistory(horseId, httpRequest));
     }
@@ -71,7 +72,7 @@ public class HorseController {
         return ApiResponse.success(200, "Lay thong ke horse thanh cong", statsService.getHorseStats(horseId));
     }
 
-    @PostMapping("/api/horses/{horseId}/health")
+    @PostMapping({"/api/horses/{horseId}/health-records", "/api/horses/{horseId}/health"})
     public ApiResponse<?> addHealthRecord(@PathVariable Integer horseId, @RequestBody HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
         return ApiResponse.success(201, "Them ho so suc khoe horse thanh cong", horseService.addHealthRecord(horseId, request, httpRequest));
     }

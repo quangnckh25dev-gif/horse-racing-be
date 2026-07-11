@@ -17,6 +17,8 @@ import com.horseracing.repository.NotificationRepository;
 import com.horseracing.repository.RaceEntryRepository;
 import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.UserRepository;
+import com.horseracing.repository.TournamentRepository;
+import com.horseracing.entity.Tournament;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
@@ -32,11 +34,13 @@ public class RaceEntryService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final CurrentUserService currentUserService;
+    private final TournamentRepository tournamentRepository;
 
     public RaceEntryService(RaceEntryRepository raceEntryRepository, RaceRepository raceRepository,
                             HorseRepository horseRepository, HorseOwnerRepository horseOwnerRepository,
                             JockeyRepository jockeyRepository, UserRepository userRepository,
-                            NotificationRepository notificationRepository, CurrentUserService currentUserService) {
+                            NotificationRepository notificationRepository, CurrentUserService currentUserService,
+                            TournamentRepository tournamentRepository) {
         this.raceEntryRepository = raceEntryRepository;
         this.raceRepository = raceRepository;
         this.horseRepository = horseRepository;
@@ -45,6 +49,7 @@ public class RaceEntryService {
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.currentUserService = currentUserService;
+        this.tournamentRepository = tournamentRepository;
     }
 
     public List<RaceEntryResponse> getRaceEntries(Integer raceId) {
@@ -95,7 +100,7 @@ public class RaceEntryService {
         entry.setRaceId(raceId);
         entry.setHorseId(horse.getHorseId());
         entry.setLaneNumber(request.getLaneNumber());
-        entry.setOwnerConfirmed(true);
+        entry.setOrganizerApproved(false);
         entry.setJockeyConfirmed(false);
         entry.setRegistrationStatus("Pending");
 
@@ -124,10 +129,13 @@ public class RaceEntryService {
     }
 
     public RaceEntryResponse approveEntry(Integer raceId, Integer entryId, RaceEntryApproveRequest request, HttpServletRequest httpRequest) {
+        //của buiquangann
         User user = currentUserService.getCurrentUser(httpRequest);
-        if (!currentUserService.isAdmin(user)) {
-            throw new IllegalArgumentException("Chi Admin moi duoc duyet entry");
-        }
+        requireOrganizer(user);
+        Race race = getRace(raceId);
+        Tournament tournament = tournamentRepository.findByTournamentIdAndCreatedBy(
+                        race.getTournamentId(), user.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Race khong thuoc Organizer hien tai"));
 
         RaceEntry entry = getEntryInRace(raceId, entryId);
         if (request == null || request.getApproved() == null) {
@@ -138,11 +146,18 @@ public class RaceEntryService {
         }
 
         if (Boolean.TRUE.equals(request.getApproved())) {
+            Horse horse = horseRepository.findById(entry.getHorseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
+            if (!"Hoạt động".equals(horse.getHealthStatus())) {
+                throw new IllegalArgumentException("Chi duyet ngua co healthStatus = Hoat dong");
+            }
             entry.setRegistrationStatus("Approved");
+            entry.setOrganizerApproved(true);
             entry.setApprovedBy(user.getUserId());
             entry.setRejectReason(null);
         } else {
             entry.setRegistrationStatus("Rejected");
+            entry.setOrganizerApproved(false);
             entry.setApprovedBy(user.getUserId());
             entry.setRejectReason(request.getReason());
         }
@@ -215,7 +230,9 @@ public class RaceEntryService {
         String body = ownerUser.getFullName() + " đã đăng ký ngựa "
                 + horse.getHorseName() + " vào vòng đua " + race.getRaceName() + ".";
 
-        userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
+        Tournament tournament = tournamentRepository.findById(race.getTournamentId()).orElse(null);
+        if (tournament == null || tournament.getCreatedBy() == null) return;
+        userRepository.findById(tournament.getCreatedBy()).stream().forEach(user -> {
             Notification notification = new Notification();
             notification.setUserId(user.getUserId());
             notification.setTitle(title);
@@ -248,7 +265,7 @@ public class RaceEntryService {
                 jockeyUser == null ? null : jockeyUser.getFullName(),
                 entry.getLaneNumber(),
                 entry.getRegistrationStatus(),
-                entry.getOwnerConfirmed(),
+                entry.getOrganizerApproved(),
                 entry.getJockeyConfirmed(),
                 entry.getApprovedBy(),
                 entry.getRejectReason(),
@@ -256,5 +273,11 @@ public class RaceEntryService {
                 entry.getRegisteredAt(),
                 entry.getUpdatedAt()
         );
+    }
+
+    private void requireOrganizer(User user) {
+        if (user == null || user.getRole() == null || !"Organizer".equals(user.getRole().getRoleName())) {
+            throw new IllegalArgumentException("Chi Organizer moi duoc duyet entry");
+        }
     }
 }

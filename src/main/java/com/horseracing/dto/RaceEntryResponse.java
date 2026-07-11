@@ -15,7 +15,7 @@ public class RaceEntryResponse {
     private String jockeyName;
     private Integer laneNumber;
     private String registrationStatus;
-    private Boolean ownerConfirmed;
+    private Boolean organizerApproved;
     private Boolean jockeyConfirmed;
     private Integer approvedBy;
     private String rejectReason;
@@ -25,7 +25,7 @@ public class RaceEntryResponse {
 
     public RaceEntryResponse(Integer entryId, Integer raceId, String raceName, Integer horseId, String horseName,
                              Integer ownerId, String ownerName, Integer jockeyId, String jockeyName,
-                             Integer laneNumber, String registrationStatus, Boolean ownerConfirmed,
+                             Integer laneNumber, String registrationStatus, Boolean organizerApproved,
                              Boolean jockeyConfirmed, Integer approvedBy, String rejectReason, BigDecimal odds,
                              LocalDateTime registeredAt, LocalDateTime updatedAt) {
         this.entryId = entryId;
@@ -39,7 +39,7 @@ public class RaceEntryResponse {
         this.jockeyName = jockeyName;
         this.laneNumber = laneNumber;
         this.registrationStatus = registrationStatus;
-        this.ownerConfirmed = ownerConfirmed;
+        this.organizerApproved = organizerApproved;
         this.jockeyConfirmed = jockeyConfirmed;
         this.approvedBy = approvedBy;
         this.rejectReason = rejectReason;
@@ -59,7 +59,7 @@ public class RaceEntryResponse {
     public String getJockeyName() { return jockeyName; }
     public Integer getLaneNumber() { return laneNumber; }
     public String getRegistrationStatus() { return registrationStatus; }
-    public Boolean getOwnerConfirmed() { return ownerConfirmed; }
+    public Boolean getOrganizerApproved() { return organizerApproved; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
     public Integer getApprovedBy() { return approvedBy; }
     public String getRejectReason() { return rejectReason; }

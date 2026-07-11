@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +49,9 @@ public class HorseService {
     public List<HorseResponse> getHorses(HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         if (currentUserService.isAdmin(user)) {
+            return horseRepository.findAll().stream().map(this::toHorseResponse).toList();
+        }
+        if (isOrganizer(user)) {
             return horseRepository.findAll().stream().map(this::toHorseResponse).toList();
         }
 
@@ -121,7 +125,7 @@ public class HorseService {
     public HorseResponse updateHorse(Integer horseId, HorseRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
-        ensureCanAccessHorse(user, horse);
+        ensureOwnerOwnsHorse(user, horse);
         validateHorseRequest(request);
         applyHorseFields(horse, request);
 
@@ -129,6 +133,7 @@ public class HorseService {
     }
 
     public HorseResponse updateHorseStatus(Integer horseId, HorseStatusRequest request, HttpServletRequest httpRequest) {
+        //của buiquangann
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
         ensureCanManageHorseHealth(user);
@@ -137,14 +142,14 @@ public class HorseService {
             throw new IllegalArgumentException("status khong duoc de trong");
         }
 
-        applyHorseStatus(horse, request.getStatus());
+        applyHorseStatus(horse, request.getStatus(), user);
         return toHorseResponse(horseRepository.save(horse));
     }
 
     public List<HorseHealthRecordResponse> getHealthHistory(Integer horseId, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
-        ensureCanAccessHorse(user, horse);
+        ensureCanAccessHealthHistory(user, horse);
 
         return healthRecordRepository.findByHorseIdOrderByCheckDateDesc(horseId)
                 .stream()
@@ -153,6 +158,7 @@ public class HorseService {
     }
 
     public HorseHealthRecordResponse addHealthRecord(Integer horseId, HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
+        //của buiquangann
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
         ensureCanManageHorseHealth(user);
@@ -173,7 +179,7 @@ public class HorseService {
 
         String latestHealth = trimToNull(request.getHealthStatus());
         if (latestHealth != null) {
-            applyHorseStatus(horse, latestHealth);
+            applyHorseStatus(horse, latestHealth, user);
             horseRepository.save(horse);
         }
 
@@ -242,7 +248,10 @@ public class HorseService {
         if (currentUserService.isAdmin(user) || isOrganizer(user)) {
             return;
         }
+        ensureOwnerOwnsHorse(user, horse);
+    }
 
+    private void ensureOwnerOwnsHorse(User user, Horse horse) {
         HorseOwner owner = getOwnerByUserId(user.getUserId());
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
             throw new IllegalArgumentException("Ban khong co quyen truy cap horse nay");
@@ -253,20 +262,17 @@ public class HorseService {
         return request.getWeightKg();
     }
 
-    private void applyHorseStatus(Horse horse, String status) {
+    private void applyHorseStatus(Horse horse, String status, User organizer) {
         String normalized = normalizeStatus(status);
         if ("ACTIVE".equals(normalized)) {
-            horse.setIsActive(true);
             horse.setHealthStatus(HEALTH_ACTIVE);
-            return;
-        }
-        if ("INJURED".equals(normalized)) {
-            horse.setIsActive(false);
+        } else if ("INJURED".equals(normalized)) {
             horse.setHealthStatus(HEALTH_INJURED);
-            return;
+        } else {
+            horse.setHealthStatus(HEALTH_INACTIVE);
         }
-        horse.setIsActive(false);
-        horse.setHealthStatus(HEALTH_INACTIVE);
+        horse.setHealthUpdatedBy(organizer.getUserId());
+        horse.setHealthUpdatedAt(LocalDateTime.now());
     }
 
     private String normalizeStatus(String status) {
@@ -317,10 +323,17 @@ public class HorseService {
     }
 
     private void ensureCanManageHorseHealth(User user) {
-        if (currentUserService.isAdmin(user) || isOrganizer(user)) {
+        if (isOrganizer(user)) {
             return;
         }
-        throw new IllegalArgumentException("Chi Admin hoac Ban to chuc moi duoc cap nhat suc khoe ngua");
+        throw new IllegalArgumentException("Chi Organizer moi duoc cap nhat suc khoe ngua");
+    }
+
+    private void ensureCanAccessHealthHistory(User user, Horse horse) {
+        if (isOrganizer(user)) {
+            return;
+        }
+        ensureOwnerOwnsHorse(user, horse);
     }
 
     private boolean isOrganizer(User user) {
@@ -329,8 +342,8 @@ public class HorseService {
         }
         String roleName = user.getRole().getRoleName();
         return "Organizer".equalsIgnoreCase(roleName)
-                || "OrganizerHead".equalsIgnoreCase(roleName)
-                || "OrganizerMember".equalsIgnoreCase(roleName);
+                && Boolean.TRUE.equals(user.getIsActive())
+                && Boolean.TRUE.equals(user.getIsApproved());
     }
 
     private String generateRegisterCode() {

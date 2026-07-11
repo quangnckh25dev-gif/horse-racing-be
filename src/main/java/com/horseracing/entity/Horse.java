@@ -48,6 +48,12 @@ public class Horse {
     @Column(name = "HealthStatus")
     private String healthStatus;
 
+    @Column(name = "HealthUpdatedBy")
+    private Integer healthUpdatedBy;
+
+    @Column(name = "HealthUpdatedAt")
+    private LocalDateTime healthUpdatedAt;
+
     @Column(name = "PhotoURL")
     private String photoUrl;
 
@@ -95,6 +101,10 @@ public class Horse {
     public void setRegisterCode(String registerCode) { this.registerCode = registerCode; }
     public String getHealthStatus() { return healthStatus; }
     public void setHealthStatus(String healthStatus) { this.healthStatus = healthStatus; }
+    public Integer getHealthUpdatedBy() { return healthUpdatedBy; }
+    public void setHealthUpdatedBy(Integer healthUpdatedBy) { this.healthUpdatedBy = healthUpdatedBy; }
+    public LocalDateTime getHealthUpdatedAt() { return healthUpdatedAt; }
+    public void setHealthUpdatedAt(LocalDateTime healthUpdatedAt) { this.healthUpdatedAt = healthUpdatedAt; }
     public String getPhotoUrl() { return photoUrl; }
     public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
     public Boolean getIsActive() { return isActive; }

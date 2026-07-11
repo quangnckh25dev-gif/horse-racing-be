@@ -3,6 +3,8 @@ package com.horseracing.controller;
 import com.horseracing.dto.RaceStatusRequest;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.RaceService;
+import com.horseracing.service.CurrentUserService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class RaceController {
 
     private final RaceService raceService;
+    private final CurrentUserService currentUserService;
 
-    public RaceController(RaceService raceService) {
+    public RaceController(RaceService raceService, CurrentUserService currentUserService) {
         this.raceService = raceService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping
@@ -60,12 +64,13 @@ public class RaceController {
     @PatchMapping("/{id}/status")
     public ApiResponse<?> updateRaceStatus(
             @PathVariable Integer id,
-            @RequestBody RaceStatusRequest request
+            @RequestBody RaceStatusRequest request,
+            HttpServletRequest httpRequest
     ) {
         return ApiResponse.success(
                 200,
                 "Cap nhat status race thanh cong",
-                raceService.updateStatus(id, request.getStatus())
+                raceService.updateStatus(id, request.getStatus(), currentUserService.getCurrentUser(httpRequest))
         );
     }
 

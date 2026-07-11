@@ -89,8 +89,7 @@ public class AuthService {
                 new OptionResponse("Jockey", "Kỵ sĩ"),
                 new OptionResponse("Referee", "Trọng tài"),
                 new OptionResponse("Spectator", "Khán giả"),
-                new OptionResponse("OrganizerHead", "Trưởng ban tổ chức"),
-                new OptionResponse("OrganizerMember", "Thành viên ban tổ chức")
+                new OptionResponse("Organizer", "Ban tổ chức")
         );
     }
 
@@ -270,8 +269,9 @@ public class AuthService {
             case "jockey", "nài ngựa", "nai ngua", "kỵ sĩ", "ky si" -> "Jockey";
             case "referee", "trọng tài", "trong tai" -> "Referee";
             case "spectator", "khán giả", "khan gia" -> "Spectator";
-            case "organizerhead", "trưởng ban tổ chức", "truong ban to chuc" -> "OrganizerHead";
-            case "organizermember", "thành viên ban tổ chức", "thanh vien ban to chuc" -> "OrganizerMember";
+            case "organizer", "organizerhead", "organizermember",
+                    "trưởng ban tổ chức", "truong ban to chuc",
+                    "thành viên ban tổ chức", "thanh vien ban to chuc" -> "Organizer";
             case "admin" -> "Admin";
             default -> roleName.trim();
         };

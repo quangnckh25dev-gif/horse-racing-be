@@ -2,9 +2,22 @@ package com.horseracing.service;
 
 import com.horseracing.dto.RaceResultRequest;
 import com.horseracing.dto.RaceResultResponse;
+import com.horseracing.entity.Notification;
+import com.horseracing.entity.Race;
+import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.RaceResult;
+import com.horseracing.entity.Referee;
+import com.horseracing.entity.User;
+import com.horseracing.repository.NotificationRepository;
+import com.horseracing.repository.RaceEntryRepository;
+import com.horseracing.repository.RaceRefereeRepository;
+import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RaceResultRepository;
+import com.horseracing.repository.RefereeRepository;
+import com.horseracing.repository.TournamentRepository;
+import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -12,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class RaceResultService {
 
     private static final String STATUS_PENDING = "Pending";
@@ -20,55 +34,75 @@ public class RaceResultService {
     private static final String STATUS_PUBLISHED = "Published";
 
     private final RaceResultRepository raceResultRepository;
-    private final BettingService bettingService;
+    private final RaceRepository raceRepository;
+    private final RaceEntryRepository raceEntryRepository;
+    private final RefereeRepository refereeRepository;
+    private final RaceRefereeRepository raceRefereeRepository;
+    private final TournamentRepository tournamentRepository;
+    private final NotificationRepository notificationRepository;
+    private final EntityManager entityManager;
 
-    public RaceResultService(RaceResultRepository raceResultRepository, BettingService bettingService) {
+    public RaceResultService(RaceResultRepository raceResultRepository,
+                             RaceRepository raceRepository,
+                             RaceEntryRepository raceEntryRepository,
+                             RefereeRepository refereeRepository,
+                             RaceRefereeRepository raceRefereeRepository,
+                             TournamentRepository tournamentRepository,
+                             NotificationRepository notificationRepository,
+                             EntityManager entityManager) {
         this.raceResultRepository = raceResultRepository;
-        this.bettingService = bettingService;
+        this.raceRepository = raceRepository;
+        this.raceEntryRepository = raceEntryRepository;
+        this.refereeRepository = refereeRepository;
+        this.raceRefereeRepository = raceRefereeRepository;
+        this.tournamentRepository = tournamentRepository;
+        this.notificationRepository = notificationRepository;
+        this.entityManager = entityManager;
     }
 
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
         ensureRaceExists(raceId);
-        return raceResultRepository.findByRaceId(raceId)
-                .stream()
+        return raceResultRepository.findByRaceId(raceId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public RaceResultResponse createResult(Integer raceId, RaceResultRequest request) {
-        ensureRaceExists(raceId);
-        ensureEntryBelongsToRace(raceId, request.getEntryId());
+    @Transactional
+    //của buiquangann
+    public RaceResultResponse createResult(Integer raceId, RaceResultRequest request, User refereeUser) {
+        Referee referee = requireAssignedReferee(raceId, refereeUser);
+        RaceEntry entry = getEligibleEntry(raceId, request == null ? null : request.getEntryId());
 
-        raceResultRepository.findByRaceIdAndEntryId(raceId, request.getEntryId())
+        raceResultRepository.findByRaceIdAndEntryId(raceId, entry.getEntryId())
                 .ifPresent(result -> {
                     throw new IllegalArgumentException("Entry nay da co ket qua trong race");
                 });
 
         RaceResult result = new RaceResult();
         result.setRaceId(raceId);
-        applyResultRequest(result, request);
+        result.setEntryId(entry.getEntryId());
+        applyRefereeInput(result, request, referee);
         result.setApprovalStatus(STATUS_PENDING);
         result.setCreatedAt(LocalDateTime.now());
 
         return toResponse(raceResultRepository.save(result));
     }
 
-    public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request) {
-        ensureRaceExists(raceId);
-
+    @Transactional
+    public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request, User refereeUser) {
+        Referee referee = requireAssignedReferee(raceId, refereeUser);
         RaceResult result = raceResultRepository.findById(resultId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay ket qua"));
-
         if (!result.getRaceId().equals(raceId)) {
             throw new IllegalArgumentException("Ket qua khong thuoc race nay");
         }
-
         if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
-            throw new IllegalArgumentException("Ket qua da public, khong the cap nhat");
+            throw new IllegalArgumentException("Ket qua da publish, khong the cap nhat");
         }
 
-        ensureEntryBelongsToRace(raceId, request.getEntryId());
-        applyResultRequest(result, request);
+        RaceEntry entry = getEligibleEntry(raceId, request == null ? null : request.getEntryId());
+        result.setEntryId(entry.getEntryId());
+        applyRefereeInput(result, request, referee);
         result.setApprovalStatus(STATUS_PENDING);
         result.setApprovedByOrganizer(null);
         result.setApprovedAt(null);
@@ -77,86 +111,129 @@ public class RaceResultService {
         return toResponse(raceResultRepository.save(result));
     }
 
-    public List<RaceResultResponse> approveResults(Integer raceId, Integer organizerId) {
-        ensureRaceExists(raceId);
-        ensureOrganizer(organizerId);
-
+    @Transactional
+    //của buiquangann
+    public List<RaceResultResponse> approveResults(Integer raceId, User organizer) {
+        ensureOwnedRace(raceId, organizer);
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         LocalDateTime now = LocalDateTime.now();
 
         results.forEach(result -> {
             if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
-                throw new IllegalArgumentException("Ket qua da public, khong the duyet lai");
+                throw new IllegalArgumentException("Ket qua da publish, khong the duyet lai");
             }
             result.setApprovalStatus(STATUS_APPROVED);
-            result.setApprovedByOrganizer(organizerId);
+            result.setApprovedByOrganizer(organizer.getUserId());
             result.setApprovedAt(now);
         });
 
-        List<RaceResultResponse> publishedResults = raceResultRepository.saveAll(results)
-                .stream()
+        return raceResultRepository.saveAll(results).stream()
                 .map(this::toResponse)
                 .toList();
-        bettingService.settleRaceBets(raceId);
-        return publishedResults;
     }
 
-    public List<RaceResultResponse> rejectResults(Integer raceId, Integer organizerId) {
-        ensureRaceExists(raceId);
-        ensureOrganizer(organizerId);
-
+    @Transactional
+    public List<RaceResultResponse> rejectResults(Integer raceId, String reason, User organizer) {
+        Race race = ensureOwnedRace(raceId, organizer);
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         LocalDateTime now = LocalDateTime.now();
 
         results.forEach(result -> {
             if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
-                throw new IllegalArgumentException("Ket qua da public, khong the tu choi");
+                throw new IllegalArgumentException("Ket qua da publish, khong the tu choi");
             }
             result.setApprovalStatus(STATUS_REJECTED);
-            result.setApprovedByOrganizer(organizerId);
+            result.setApprovedByOrganizer(organizer.getUserId());
             result.setApprovedAt(now);
             result.setPublishedAt(null);
         });
+        notifyAssignedReferees(race, reason);
 
-        return raceResultRepository.saveAll(results)
-                .stream()
+        return raceResultRepository.saveAll(results).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public List<RaceResultResponse> publishResults(Integer raceId, Integer organizerId) {
-        ensureRaceExists(raceId);
-        ensureOrganizer(organizerId);
-
+    @Transactional
+    //của buiquangann
+    public List<RaceResultResponse> publishResults(Integer raceId, User organizer) {
+        ensureOwnedRace(raceId, organizer);
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
-        boolean hasUnapprovedResult = results.stream()
-                .anyMatch(result -> !STATUS_APPROVED.equals(result.getApprovalStatus()));
-
-        if (hasUnapprovedResult) {
-            throw new IllegalArgumentException("Ket qua chua duoc Ban to chuc duyet, khong the public");
+        if (results.stream().anyMatch(result -> !STATUS_APPROVED.equals(result.getApprovalStatus()))) {
+            throw new IllegalArgumentException("Ket qua chua duoc Organizer duyet, khong the publish");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        results.forEach(result -> {
-            result.setApprovalStatus(STATUS_PUBLISHED);
-            result.setPublishedAt(now);
-        });
+        entityManager.createNativeQuery("EXEC sp_PublishRaceResult @RaceID = :raceId")
+                .setParameter("raceId", raceId)
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
 
-        return raceResultRepository.saveAll(results)
-                .stream()
+        return raceResultRepository.findByRaceId(raceId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    private void applyResultRequest(RaceResult result, RaceResultRequest request) {
-        result.setEntryId(request.getEntryId());
-        result.setFinishPosition(resolvePosition(request));
-        result.setFinishTime(parseFinishTime(request.getFinishTime()));
-        result.setPrizeWon(resolvePrizeWon(request));
-        result.setDnf(Boolean.TRUE.equals(request.getDnf()));
-        result.setDq(Boolean.TRUE.equals(request.getDq()));
-        result.setConfirmedByRef(request.getConfirmedByRef());
-        result.setConfirmedAt(request.getConfirmedByRef() == null ? null : LocalDateTime.now());
+    private void applyRefereeInput(RaceResult result, RaceResultRequest request, Referee referee) {
+        if (request == null) {
+            throw new IllegalArgumentException("Du lieu ket qua khong duoc de trong");
+        }
+        boolean dnf = Boolean.TRUE.equals(request.getDnf());
+        if (!dnf && (request.getFinishTime() == null || request.getFinishTime().isBlank())) {
+            throw new IllegalArgumentException("finishTime la bat buoc neu horse khong DNF");
+        }
+        result.setFinishTime(dnf ? null : parseFinishTime(request.getFinishTime()));
+        result.setDnf(dnf);
+        result.setDq(false);
+        result.setConfirmedByRef(referee.getRefereeId());
+        result.setConfirmedAt(LocalDateTime.now());
+    }
+
+    private Referee requireAssignedReferee(Integer raceId, User user) {
+        if (!isApprovedActiveRole(user, "Referee")) {
+            throw new IllegalArgumentException("Chi Referee moi duoc nhap ket qua");
+        }
+        ensureRaceExists(raceId);
+        Referee referee = refereeRepository.findByUserId(user.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User chua co ho so Referee"));
+        if (!raceRefereeRepository.existsByRaceIdAndRefereeId(raceId, referee.getRefereeId())) {
+            throw new IllegalArgumentException("Referee chua duoc phan cong vao race nay");
+        }
+        return referee;
+    }
+
+    private RaceEntry getEligibleEntry(Integer raceId, Integer entryId) {
+        if (entryId == null) {
+            throw new IllegalArgumentException("entryId khong duoc de trong");
+        }
+        RaceEntry entry = raceEntryRepository.findById(entryId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay entry"));
+        if (!entry.getRaceId().equals(raceId)) {
+            throw new IllegalArgumentException("Entry khong thuoc race nay");
+        }
+        if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())
+                && !"Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
+            throw new IllegalArgumentException("Chi nhap ket qua cho entry da duoc duyet");
+        }
+        return entry;
+    }
+
+    private Race ensureOwnedRace(Integer raceId, User organizer) {
+        if (!isApprovedActiveRole(organizer, "Organizer")) {
+            throw new IllegalArgumentException("Chi Organizer moi duoc xu ly ket qua race");
+        }
+        Race race = ensureRaceExists(raceId);
+        tournamentRepository.findByTournamentIdAndCreatedBy(race.getTournamentId(), organizer.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Race khong thuoc Organizer hien tai"));
+        return race;
+    }
+
+    private Race ensureRaceExists(Integer raceId) {
+        if (raceId == null) {
+            throw new IllegalArgumentException("raceId khong hop le");
+        }
+        return raceRepository.findById(raceId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
     }
 
     private List<RaceResult> getRaceResultsOrThrow(Integer raceId) {
@@ -167,45 +244,34 @@ public class RaceResultService {
         return results;
     }
 
-    private void ensureRaceExists(Integer raceId) {
-        if (raceId == null || raceResultRepository.countRaceById(raceId) == 0) {
-            throw new IllegalArgumentException("Khong tim thay race");
-        }
+    private void notifyAssignedReferees(Race race, String reason) {
+        String body = reason == null || reason.isBlank()
+                ? "Ket qua race " + race.getRaceName() + " bi tu choi. Vui long kiem tra lai."
+                : reason.trim();
+        raceRefereeRepository.findByRaceId(race.getRaceId()).forEach(assignment -> {
+            refereeRepository.findById(assignment.getRefereeId()).ifPresent(referee -> {
+                Notification notification = new Notification();
+                notification.setUserId(referee.getUserId());
+                notification.setTitle("Ket qua race bi tu choi");
+                notification.setBody(body);
+                notification.setNotifType("ResultRejected");
+                notification.setRelatedEntity("Race");
+                notification.setRelatedEntityId(race.getRaceId());
+                notification.setIsRead(false);
+                notificationRepository.save(notification);
+            });
+        });
     }
 
-    private void ensureEntryBelongsToRace(Integer raceId, Integer entryId) {
-        if (entryId == null || raceResultRepository.countEntryInRace(raceId, entryId) == 0) {
-            throw new IllegalArgumentException("Entry khong thuoc race nay");
-        }
-    }
-
-    private void ensureOrganizer(Integer organizerId) {
-        if (organizerId == null || raceResultRepository.countOrganizerById(organizerId) == 0) {
-            throw new IllegalArgumentException("Khong tim thay Ban to chuc hop le");
-        }
-    }
-
-    private Integer resolvePosition(RaceResultRequest request) {
-        return request.getPosition() != null ? request.getPosition() : request.getFinishPosition();
-    }
-
-    private BigDecimal resolvePrizeWon(RaceResultRequest request) {
-        if (request.getPrizeWon() != null) {
-            return request.getPrizeWon();
-        }
-
-        if (request.getPoint() != null) {
-            return BigDecimal.valueOf(request.getPoint());
-        }
-
-        return BigDecimal.ZERO;
+    private boolean isApprovedActiveRole(User user, String roleName) {
+        return user != null
+                && user.getRole() != null
+                && roleName.equalsIgnoreCase(user.getRole().getRoleName())
+                && Boolean.TRUE.equals(user.getIsActive())
+                && Boolean.TRUE.equals(user.getIsApproved());
     }
 
     private BigDecimal parseFinishTime(String finishTime) {
-        if (finishTime == null || finishTime.isBlank()) {
-            return null;
-        }
-
         String[] parts = finishTime.split(":");
         try {
             if (parts.length == 3) {
@@ -249,7 +315,6 @@ public class RaceResultService {
         if (position == null) {
             return 0;
         }
-
         return switch (position) {
             case 1 -> 10;
             case 2 -> 7;
@@ -262,13 +327,11 @@ public class RaceResultService {
         if (finishTime == null) {
             return null;
         }
-
         BigDecimal scaled = finishTime.setScale(3, RoundingMode.HALF_UP);
         int totalSeconds = scaled.intValue();
         int hours = totalSeconds / 3600;
         int minutes = (totalSeconds % 3600) / 60;
         BigDecimal seconds = scaled.subtract(BigDecimal.valueOf(hours * 3600L + minutes * 60L));
-
         return "%02d:%02d:%06.3f".formatted(hours, minutes, seconds);
     }
 }

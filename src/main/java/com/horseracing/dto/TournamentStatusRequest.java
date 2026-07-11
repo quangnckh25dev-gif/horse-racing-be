@@ -3,6 +3,7 @@ package com.horseracing.dto;
 public class TournamentStatusRequest {
 
     private String status;
+    private String reason;
 
     public String getStatus() {
         return status;
@@ -10,5 +11,13 @@ public class TournamentStatusRequest {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
     }
 }

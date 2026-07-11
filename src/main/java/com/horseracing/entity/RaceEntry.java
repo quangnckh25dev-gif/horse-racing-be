@@ -36,8 +36,8 @@ public class RaceEntry {
     @Column(name = "RegistrationStatus", nullable = false)
     private String registrationStatus;
 
-    @Column(name = "OwnerConfirmed", nullable = false)
-    private Boolean ownerConfirmed;
+    @Column(name = "OrganizerApproved", nullable = false)
+    private Boolean organizerApproved;
 
     @Column(name = "JockeyConfirmed", nullable = false)
     private Boolean jockeyConfirmed;
@@ -65,8 +65,8 @@ public class RaceEntry {
         if (registrationStatus == null || registrationStatus.isBlank()) {
             registrationStatus = "Pending";
         }
-        if (ownerConfirmed == null) {
-            ownerConfirmed = true;
+        if (organizerApproved == null) {
+            organizerApproved = false;
         }
         if (jockeyConfirmed == null) {
             jockeyConfirmed = false;
@@ -93,8 +93,8 @@ public class RaceEntry {
     public void setLaneNumber(Integer laneNumber) { this.laneNumber = laneNumber; }
     public String getRegistrationStatus() { return registrationStatus; }
     public void setRegistrationStatus(String registrationStatus) { this.registrationStatus = registrationStatus; }
-    public Boolean getOwnerConfirmed() { return ownerConfirmed; }
-    public void setOwnerConfirmed(Boolean ownerConfirmed) { this.ownerConfirmed = ownerConfirmed; }
+    public Boolean getOrganizerApproved() { return organizerApproved; }
+    public void setOrganizerApproved(Boolean organizerApproved) { this.organizerApproved = organizerApproved; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
     public void setJockeyConfirmed(Boolean jockeyConfirmed) { this.jockeyConfirmed = jockeyConfirmed; }
     public Integer getApprovedBy() { return approvedBy; }

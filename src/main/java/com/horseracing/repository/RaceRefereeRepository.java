@@ -14,5 +14,7 @@ public interface RaceRefereeRepository extends JpaRepository<RaceReferee, Intege
 
     boolean existsByRaceIdAndRefereeId(Integer raceId, Integer refereeId);
 
+    boolean existsByRaceIdAndRoleIgnoreCase(Integer raceId, String role);
+
     void deleteByRaceIdAndRefereeId(Integer raceId, Integer refereeId);
 }

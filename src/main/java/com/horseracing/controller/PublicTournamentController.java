@@ -27,7 +27,7 @@ public class PublicTournamentController {
         return ApiResponse.success(
                 200,
                 "Lay danh sach tournament thanh cong",
-                tournamentService.getAllTournaments()
+                tournamentService.getPublicTournaments()
         );
     }
 
