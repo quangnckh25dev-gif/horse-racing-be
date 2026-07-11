@@ -7,6 +7,7 @@ public class WalletResponse {
     private Integer walletId;
     private Integer userId;
     private BigDecimal balance;
+    private String currency;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -15,6 +16,7 @@ public class WalletResponse {
         this.walletId = walletId;
         this.userId = userId;
         this.balance = balance;
+        this.currency = "VND";
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -22,6 +24,7 @@ public class WalletResponse {
     public Integer getWalletId() { return walletId; }
     public Integer getUserId() { return userId; }
     public BigDecimal getBalance() { return balance; }
+    public String getCurrency() { return currency; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

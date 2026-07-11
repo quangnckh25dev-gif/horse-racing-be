@@ -39,14 +39,14 @@ public class RaceEntry {
     @Column(name = "OrganizerApproved", nullable = false)
     private Boolean organizerApproved;
 
-    @Column(name = "JockeyConfirmed", nullable = false)
-    private Boolean jockeyConfirmed;
-
     @Column(name = "ApprovedBy")
     private Integer approvedBy;
 
     @Column(name = "RejectReason")
     private String rejectReason;
+
+    @Column(name = "JockeyConfirmed", nullable = false)
+    private Boolean jockeyConfirmed;
 
     @Column(name = "Odds", nullable = false, precision = 10, scale = 2)
     private BigDecimal odds;
@@ -72,7 +72,7 @@ public class RaceEntry {
             jockeyConfirmed = false;
         }
         if (odds == null) {
-            odds = BigDecimal.valueOf(2.00);
+            odds = BigDecimal.valueOf(2);
         }
     }
 
@@ -95,12 +95,12 @@ public class RaceEntry {
     public void setRegistrationStatus(String registrationStatus) { this.registrationStatus = registrationStatus; }
     public Boolean getOrganizerApproved() { return organizerApproved; }
     public void setOrganizerApproved(Boolean organizerApproved) { this.organizerApproved = organizerApproved; }
-    public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
-    public void setJockeyConfirmed(Boolean jockeyConfirmed) { this.jockeyConfirmed = jockeyConfirmed; }
     public Integer getApprovedBy() { return approvedBy; }
     public void setApprovedBy(Integer approvedBy) { this.approvedBy = approvedBy; }
     public String getRejectReason() { return rejectReason; }
     public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+    public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
+    public void setJockeyConfirmed(Boolean jockeyConfirmed) { this.jockeyConfirmed = jockeyConfirmed; }
     public BigDecimal getOdds() { return odds; }
     public void setOdds(BigDecimal odds) { this.odds = odds; }
     public LocalDateTime getRegisteredAt() { return registeredAt; }

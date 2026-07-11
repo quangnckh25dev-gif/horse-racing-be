@@ -15,11 +15,15 @@ public class RaceResultResponse {
 
     private String jockeyName;
 
-    private Integer position;
+    private Integer finishPosition;
 
     private String finishTime;
 
-    private Integer point;
+    private String penaltyTime;
+
+    private String finalTime;
+
+    private Integer points;
 
     private BigDecimal prizeWon;
 
@@ -33,6 +37,8 @@ public class RaceResultResponse {
 
     private String approvalStatus;
 
+    private String approvalStatusLabel;
+
     private Integer approvedByOrganizer;
 
     private LocalDateTime approvedAt;
@@ -41,38 +47,51 @@ public class RaceResultResponse {
 
     private Boolean published;
 
+    private Boolean officialResult;
+
+    private String resultVisibilityLabel;
+
     private LocalDateTime createdAt;
 
-    public RaceResultResponse(Integer resultId, Integer raceId, Integer entryId, Integer position,
-                              String finishTime, Integer point, BigDecimal prizeWon, Boolean dnf, Boolean dq,
+    public RaceResultResponse(Integer resultId, Integer raceId, Integer entryId, Integer finishPosition,
+                              String finishTime, String penaltyTime, String finalTime, Integer points,
+                              BigDecimal prizeWon, Boolean dnf, Boolean dq,
                               Integer confirmedByRef, LocalDateTime confirmedAt, String approvalStatus,
                               Integer approvedByOrganizer, LocalDateTime approvedAt, LocalDateTime publishedAt,
                               Boolean published, LocalDateTime createdAt) {
         this.resultId = resultId;
         this.raceId = raceId;
         this.entryId = entryId;
-        this.position = position;
+        this.finishPosition = finishPosition;
         this.finishTime = finishTime;
-        this.point = point;
+        this.penaltyTime = penaltyTime;
+        this.finalTime = finalTime;
+        this.points = points;
         this.prizeWon = prizeWon;
         this.dnf = dnf;
         this.dq = dq;
         this.confirmedByRef = confirmedByRef;
         this.confirmedAt = confirmedAt;
         this.approvalStatus = approvalStatus;
+        this.approvalStatusLabel = toApprovalStatusLabel(approvalStatus);
         this.approvedByOrganizer = approvedByOrganizer;
         this.approvedAt = approvedAt;
         this.publishedAt = publishedAt;
         this.published = published;
+        this.officialResult = Boolean.TRUE.equals(published);
+        this.resultVisibilityLabel = Boolean.TRUE.equals(published)
+                ? "Ket qua chinh thuc"
+                : "Ket qua chua public";
         this.createdAt = createdAt;
     }
 
     public RaceResultResponse(Integer resultId, Integer raceId, Integer entryId, String horseName, String jockeyName,
-                              Integer position, String finishTime, Integer point, BigDecimal prizeWon,
+                              Integer finishPosition, String finishTime, String penaltyTime, String finalTime,
+                              Integer points, BigDecimal prizeWon,
                               Boolean dnf, Boolean dq, Integer confirmedByRef, LocalDateTime confirmedAt,
                               String approvalStatus, Integer approvedByOrganizer, LocalDateTime approvedAt,
                               LocalDateTime publishedAt, Boolean published, LocalDateTime createdAt) {
-        this(resultId, raceId, entryId, position, finishTime, point, prizeWon, dnf, dq, confirmedByRef,
+        this(resultId, raceId, entryId, finishPosition, finishTime, penaltyTime, finalTime, points, prizeWon, dnf, dq, confirmedByRef,
                 confirmedAt, approvalStatus, approvedByOrganizer, approvedAt, publishedAt, published, createdAt);
         this.horseName = horseName;
         this.jockeyName = jockeyName;
@@ -98,16 +117,24 @@ public class RaceResultResponse {
         return jockeyName;
     }
 
-    public Integer getPosition() {
-        return position;
+    public Integer getFinishPosition() {
+        return finishPosition;
     }
 
     public String getFinishTime() {
         return finishTime;
     }
 
-    public Integer getPoint() {
-        return point;
+    public String getPenaltyTime() {
+        return penaltyTime;
+    }
+
+    public String getFinalTime() {
+        return finalTime;
+    }
+
+    public Integer getPoints() {
+        return points;
     }
 
     public BigDecimal getPrizeWon() {
@@ -134,6 +161,10 @@ public class RaceResultResponse {
         return approvalStatus;
     }
 
+    public String getApprovalStatusLabel() {
+        return approvalStatusLabel;
+    }
+
     public Integer getApprovedByOrganizer() {
         return approvedByOrganizer;
     }
@@ -150,7 +181,28 @@ public class RaceResultResponse {
         return published;
     }
 
+    public Boolean getOfficialResult() {
+        return officialResult;
+    }
+
+    public String getResultVisibilityLabel() {
+        return resultVisibilityLabel;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    private String toApprovalStatusLabel(String value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "Pending" -> "Cho duyet";
+            case "Approved" -> "Da duyet";
+            case "Rejected" -> "Bi tu choi";
+            case "Published" -> "Da public";
+            default -> value;
+        };
     }
 }

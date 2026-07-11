@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -30,11 +31,17 @@ public class Violation {
     @Column(name = "ViolationType", nullable = false)
     private String violationType;
 
+    @Column(name = "PenaltySeconds", nullable = false, precision = 5, scale = 2)
+    private BigDecimal penaltySeconds;
+
+    @Column(name = "IsDQ", nullable = false)
+    private Boolean isDq;
+
+    @Column(name = "EvidenceImageURL")
+    private String evidenceImageUrl;
+
     @Column(name = "Description")
     private String description;
-
-    @Column(name = "Penalty")
-    private String penalty;
 
     @Column(name = "RecordedAt")
     private LocalDateTime recordedAt;
@@ -87,12 +94,28 @@ public class Violation {
         this.description = description;
     }
 
-    public String getPenalty() {
-        return penalty;
+    public BigDecimal getPenaltySeconds() {
+        return penaltySeconds;
     }
 
-    public void setPenalty(String penalty) {
-        this.penalty = penalty;
+    public void setPenaltySeconds(BigDecimal penaltySeconds) {
+        this.penaltySeconds = penaltySeconds;
+    }
+
+    public Boolean getIsDq() {
+        return isDq;
+    }
+
+    public void setIsDq(Boolean dq) {
+        isDq = dq;
+    }
+
+    public String getEvidenceImageUrl() {
+        return evidenceImageUrl;
+    }
+
+    public void setEvidenceImageUrl(String evidenceImageUrl) {
+        this.evidenceImageUrl = evidenceImageUrl;
     }
 
     public LocalDateTime getRecordedAt() {

@@ -33,6 +33,15 @@ public class RaceMinute {
     @Column(name = "PostRaceNotes")
     private String postRaceNotes;
 
+    @Column(name = "MinutesFileURL")
+    private String minutesFileUrl;
+
+    @Column(name = "SentToOwners", nullable = false)
+    private Boolean sentToOwners;
+
+    @Column(name = "SentAt")
+    private LocalDateTime sentAt;
+
     @Column(name = "CreatedAt")
     private LocalDateTime createdAt;
 
@@ -85,6 +94,30 @@ public class RaceMinute {
 
     public void setPostRaceNotes(String postRaceNotes) {
         this.postRaceNotes = postRaceNotes;
+    }
+
+    public String getMinutesFileUrl() {
+        return minutesFileUrl;
+    }
+
+    public void setMinutesFileUrl(String minutesFileUrl) {
+        this.minutesFileUrl = minutesFileUrl;
+    }
+
+    public Boolean getSentToOwners() {
+        return sentToOwners;
+    }
+
+    public void setSentToOwners(Boolean sentToOwners) {
+        this.sentToOwners = sentToOwners;
+    }
+
+    public LocalDateTime getSentAt() {
+        return sentAt;
+    }
+
+    public void setSentAt(LocalDateTime sentAt) {
+        this.sentAt = sentAt;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -1,9 +1,10 @@
 package com.horseracing.controller;
 
 import com.horseracing.dto.RaceStatusRequest;
+import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
-import com.horseracing.service.RaceService;
 import com.horseracing.service.CurrentUserService;
+import com.horseracing.service.RaceService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -67,10 +68,11 @@ public class RaceController {
             @RequestBody RaceStatusRequest request,
             HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Cap nhat status race thanh cong",
-                raceService.updateStatus(id, request.getStatus(), currentUserService.getCurrentUser(httpRequest))
+                raceService.updateStatusByReferee(id, request.getStatus(), currentUser)
         );
     }
 

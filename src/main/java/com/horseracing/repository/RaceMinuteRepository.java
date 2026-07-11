@@ -2,6 +2,7 @@ package com.horseracing.repository;
 
 import com.horseracing.entity.RaceMinute;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,19 @@ public interface RaceMinuteRepository extends JpaRepository<RaceMinute, Integer>
 
     @Query(value = "SELECT COUNT(1) FROM Referees WHERE RefereeID = :refereeId", nativeQuery = true)
     int countRefereeById(@Param("refereeId") Integer refereeId);
+
+    @Query(value = """
+            SELECT COUNT(1)
+            FROM RaceReferees rr
+            JOIN Referees ref ON rr.RefereeID = ref.RefereeID
+            WHERE rr.RaceID = :raceId AND ref.UserID = :userId
+            """, nativeQuery = true)
+    int countAssignedReferee(@Param("raceId") Integer raceId, @Param("userId") Integer userId);
+
+    @Query(value = "SELECT RefereeID FROM Referees WHERE UserID = :userId", nativeQuery = true)
+    Integer findRefereeIdByUserId(@Param("userId") Integer userId);
+
+    @Modifying
+    @Query(value = "EXEC sp_SendMinutesToOwners :raceId", nativeQuery = true)
+    void sendMinutesToOwners(@Param("raceId") Integer raceId);
 }

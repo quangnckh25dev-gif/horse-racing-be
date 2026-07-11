@@ -119,10 +119,11 @@ public class OrganizerRaceController {
             @PathVariable Integer raceId,
             HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Duyet ket qua race thanh cong",
-                raceResultService.approveResults(raceId, currentUserService.getCurrentUser(httpRequest))
+                raceResultService.approveResults(raceId, currentUser)
         );
     }
 
@@ -132,11 +133,11 @@ public class OrganizerRaceController {
             @RequestBody(required = false) ResultRejectRequest request,
             HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Tu choi ket qua race thanh cong",
-                raceResultService.rejectResults(raceId, request == null ? null : request.reason(),
-                        currentUserService.getCurrentUser(httpRequest))
+                raceResultService.rejectResults(raceId, request == null ? null : request.reason(), currentUser)
         );
     }
 
@@ -145,10 +146,11 @@ public class OrganizerRaceController {
             @PathVariable Integer raceId,
             HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cong bo ket qua race thanh cong",
-                raceResultService.publishResults(raceId, currentUserService.getCurrentUser(httpRequest))
+                "Cong bo ket qua chinh thuc thanh cong",
+                raceResultService.publishResults(raceId, currentUser)
         );
     }
 

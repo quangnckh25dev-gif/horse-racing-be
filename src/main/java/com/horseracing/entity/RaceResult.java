@@ -47,8 +47,17 @@ public class RaceResult {
     @Column(name = "FinishTime", precision = 10, scale = 3)
     private BigDecimal finishTime;
 
+    @Column(name = "PenaltyTime", nullable = false, precision = 10, scale = 3)
+    private BigDecimal penaltyTime;
+
+    @Column(name = "FinalTime", insertable = false, updatable = false, precision = 10, scale = 3)
+    private BigDecimal finalTime;
+
     @Column(name = "PrizeWon", precision = 18, scale = 2)
     private BigDecimal prizeWon;
+
+    @Column(name = "Points", nullable = false)
+    private Integer points;
 
     @Column(name = "DNF", nullable = false)
     private Boolean dnf;
@@ -117,12 +126,36 @@ public class RaceResult {
         this.finishTime = finishTime;
     }
 
+    public BigDecimal getPenaltyTime() {
+        return penaltyTime;
+    }
+
+    public void setPenaltyTime(BigDecimal penaltyTime) {
+        this.penaltyTime = penaltyTime;
+    }
+
+    public BigDecimal getFinalTime() {
+        return finalTime;
+    }
+
+    public void setFinalTime(BigDecimal finalTime) {
+        this.finalTime = finalTime;
+    }
+
     public BigDecimal getPrizeWon() {
         return prizeWon;
     }
 
     public void setPrizeWon(BigDecimal prizeWon) {
         this.prizeWon = prizeWon;
+    }
+
+    public Integer getPoints() {
+        return points;
+    }
+
+    public void setPoints(Integer points) {
+        this.points = points;
     }
 
     public Boolean getDnf() {

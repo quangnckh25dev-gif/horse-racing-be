@@ -9,6 +9,7 @@ import com.horseracing.entity.Jockey;
 import com.horseracing.entity.Notification;
 import com.horseracing.entity.Race;
 import com.horseracing.entity.RaceEntry;
+import com.horseracing.entity.Tournament;
 import com.horseracing.entity.User;
 import com.horseracing.repository.HorseOwnerRepository;
 import com.horseracing.repository.HorseRepository;
@@ -16,13 +17,14 @@ import com.horseracing.repository.JockeyRepository;
 import com.horseracing.repository.NotificationRepository;
 import com.horseracing.repository.RaceEntryRepository;
 import com.horseracing.repository.RaceRepository;
-import com.horseracing.repository.UserRepository;
 import com.horseracing.repository.TournamentRepository;
-import com.horseracing.entity.Tournament;
+import com.horseracing.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
+
 @Service
 public class RaceEntryService {
 
@@ -55,6 +57,11 @@ public class RaceEntryService {
     public List<RaceEntryResponse> getRaceEntries(Integer raceId) {
         ensureRaceExists(raceId);
         return raceEntryRepository.findByRaceId(raceId).stream().map(this::toResponse).toList();
+    }
+
+    public List<RaceEntryResponse> getPublicRaceEntries(Integer raceId) {
+        ensureRaceExists(raceId);
+        return raceEntryRepository.findPublicEntriesByRaceId(raceId).stream().map(this::toResponse).toList();
     }
 
     public List<RaceEntryResponse> getMyEntries(HttpServletRequest httpRequest) {
@@ -101,8 +108,9 @@ public class RaceEntryService {
         entry.setHorseId(horse.getHorseId());
         entry.setLaneNumber(request.getLaneNumber());
         entry.setOrganizerApproved(false);
-        entry.setJockeyConfirmed(false);
         entry.setRegistrationStatus("Pending");
+        entry.setJockeyConfirmed(false);
+        entry.setOdds(BigDecimal.valueOf(2));
 
         RaceEntry saved = raceEntryRepository.save(entry);
         notifyOrganizers(saved, race, horse, user);
@@ -119,7 +127,8 @@ public class RaceEntryService {
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
             throw new IllegalArgumentException("Ban khong co quyen rut entry nay");
         }
-        if ("Approved".equalsIgnoreCase(entry.getRegistrationStatus()) || "Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
+        if ("Approved".equalsIgnoreCase(entry.getRegistrationStatus())
+                || "Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
             throw new IllegalArgumentException("Entry da duoc duyet, khong the rut");
         }
 
@@ -128,13 +137,13 @@ public class RaceEntryService {
         return toResponse(raceEntryRepository.save(entry));
     }
 
-    public RaceEntryResponse approveEntry(Integer raceId, Integer entryId, RaceEntryApproveRequest request, HttpServletRequest httpRequest) {
+    public RaceEntryResponse approveEntry(Integer raceId, Integer entryId, RaceEntryApproveRequest request,
+                                          HttpServletRequest httpRequest) {
         //của buiquangann
         User user = currentUserService.getCurrentUser(httpRequest);
         requireOrganizer(user);
         Race race = getRace(raceId);
-        Tournament tournament = tournamentRepository.findByTournamentIdAndCreatedBy(
-                        race.getTournamentId(), user.getUserId())
+        tournamentRepository.findByTournamentIdAndCreatedBy(race.getTournamentId(), user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Race khong thuoc Organizer hien tai"));
 
         RaceEntry entry = getEntryInRace(raceId, entryId);
@@ -174,7 +183,7 @@ public class RaceEntryService {
 
     private void validateRaceCanReceiveEntry(Race race) {
         if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus()) && !"Scheduled".equalsIgnoreCase(race.getStatus())) {
-            throw new IllegalArgumentException("Vòng đua chưa mở đăng ký");
+            throw new IllegalArgumentException("Race chua mo dang ky");
         }
     }
 
@@ -226,12 +235,14 @@ public class RaceEntryService {
     }
 
     private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {
-        String title = "Có đăng ký thi đấu mới chờ duyệt";
-        String body = ownerUser.getFullName() + " đã đăng ký ngựa "
-                + horse.getHorseName() + " vào vòng đua " + race.getRaceName() + ".";
+        String title = "Co dang ky thi dau moi cho duyet";
+        String body = ownerUser.getFullName() + " da dang ky ngua "
+                + horse.getHorseName() + " vao race " + race.getRaceName() + ".";
 
         Tournament tournament = tournamentRepository.findById(race.getTournamentId()).orElse(null);
-        if (tournament == null || tournament.getCreatedBy() == null) return;
+        if (tournament == null || tournament.getCreatedBy() == null) {
+            return;
+        }
         userRepository.findById(tournament.getCreatedBy()).stream().forEach(user -> {
             Notification notification = new Notification();
             notification.setUserId(user.getUserId());
@@ -266,17 +277,19 @@ public class RaceEntryService {
                 entry.getLaneNumber(),
                 entry.getRegistrationStatus(),
                 entry.getOrganizerApproved(),
-                entry.getJockeyConfirmed(),
                 entry.getApprovedBy(),
                 entry.getRejectReason(),
+                entry.getJockeyConfirmed(),
                 entry.getOdds(),
+                horse == null ? null : horse.getHealthStatus(),
                 entry.getRegisteredAt(),
                 entry.getUpdatedAt()
         );
     }
 
     private void requireOrganizer(User user) {
-        if (user == null || user.getRole() == null || !"Organizer".equals(user.getRole().getRoleName())) {
+        if (user == null || user.getRole() == null || !"Organizer".equalsIgnoreCase(user.getRole().getRoleName())
+                || !Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
             throw new IllegalArgumentException("Chi Organizer moi duoc duyet entry");
         }
     }

@@ -18,6 +18,8 @@ public class RaceSummaryResponse {
     private BigDecimal prizeThird;
     private String status;
     private String statusLabel;
+    private Boolean bettingOpen;
+    private String bettingStatusLabel;
     private LocalDateTime registrationOpen;
     private LocalDateTime registrationClose;
 
@@ -39,6 +41,8 @@ public class RaceSummaryResponse {
         this.prizeThird = prizeThird;
         this.status = status;
         this.statusLabel = toStatusLabel(status);
+        this.bettingOpen = isBettingOpen(status, raceDate);
+        this.bettingStatusLabel = this.bettingOpen ? "Dang mo dat cuoc" : "Da khoa dat cuoc";
         this.registrationOpen = registrationOpen;
         this.registrationClose = registrationClose;
     }
@@ -107,6 +111,14 @@ public class RaceSummaryResponse {
         return statusLabel;
     }
 
+    public Boolean getBettingOpen() {
+        return bettingOpen;
+    }
+
+    public String getBettingStatusLabel() {
+        return bettingStatusLabel;
+    }
+
     public LocalDateTime getRegistrationOpen() {
         return registrationOpen;
     }
@@ -124,12 +136,19 @@ public class RaceSummaryResponse {
             return null;
         }
         return switch (value) {
-            case "Scheduled" -> "Đã lên lịch";
-            case "RegistrationOpen" -> "Mở đăng ký";
-            case "Ongoing" -> "Đang diễn ra";
-            case "Finished" -> "Kết thúc";
-            case "Cancelled" -> "Đã hủy";
+            case "Scheduled" -> "Da len lich";
+            case "RegistrationOpen" -> "Mo dang ky";
+            case "Ongoing" -> "Dang dien ra";
+            case "Finished" -> "Ket thuc";
+            case "Cancelled" -> "Da huy";
             default -> value;
         };
+    }
+
+    private boolean isBettingOpen(String status, LocalDateTime raceDate) {
+        if (!"Scheduled".equals(status) && !"RegistrationOpen".equals(status)) {
+            return false;
+        }
+        return raceDate == null || raceDate.isAfter(LocalDateTime.now());
     }
 }

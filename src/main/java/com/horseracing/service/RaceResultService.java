@@ -15,7 +15,6 @@ import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RaceResultRepository;
 import com.horseracing.repository.RefereeRepository;
 import com.horseracing.repository.TournamentRepository;
-import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +39,6 @@ public class RaceResultService {
     private final RaceRefereeRepository raceRefereeRepository;
     private final TournamentRepository tournamentRepository;
     private final NotificationRepository notificationRepository;
-    private final EntityManager entityManager;
 
     public RaceResultService(RaceResultRepository raceResultRepository,
                              RaceRepository raceRepository,
@@ -48,8 +46,7 @@ public class RaceResultService {
                              RefereeRepository refereeRepository,
                              RaceRefereeRepository raceRefereeRepository,
                              TournamentRepository tournamentRepository,
-                             NotificationRepository notificationRepository,
-                             EntityManager entityManager) {
+                             NotificationRepository notificationRepository) {
         this.raceResultRepository = raceResultRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
@@ -57,12 +54,19 @@ public class RaceResultService {
         this.raceRefereeRepository = raceRefereeRepository;
         this.tournamentRepository = tournamentRepository;
         this.notificationRepository = notificationRepository;
-        this.entityManager = entityManager;
     }
 
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
         ensureRaceExists(raceId);
         return raceResultRepository.findByRaceId(raceId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<RaceResultResponse> getPublishedResultsByRace(Integer raceId) {
+        ensureRaceExists(raceId);
+        return raceResultRepository.findByRaceId(raceId).stream()
+                .filter(result -> STATUS_PUBLISHED.equals(result.getApprovalStatus()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -163,15 +167,8 @@ public class RaceResultService {
             throw new IllegalArgumentException("Ket qua chua duoc Organizer duyet, khong the publish");
         }
 
-        entityManager.createNativeQuery("EXEC sp_PublishRaceResult @RaceID = :raceId")
-                .setParameter("raceId", raceId)
-                .executeUpdate();
-        entityManager.flush();
-        entityManager.clear();
-
-        return raceResultRepository.findByRaceId(raceId).stream()
-                .map(this::toResponse)
-                .toList();
+        raceResultRepository.publishRaceResult(raceId, organizer.getUserId());
+        return getPublishedResultsByRace(raceId);
     }
 
     private void applyRefereeInput(RaceResult result, RaceResultRequest request, Referee referee) {
@@ -183,6 +180,9 @@ public class RaceResultService {
             throw new IllegalArgumentException("finishTime la bat buoc neu horse khong DNF");
         }
         result.setFinishTime(dnf ? null : parseFinishTime(request.getFinishTime()));
+        result.setPenaltyTime(defaultDecimal(result.getPenaltyTime()));
+        result.setPoints(result.getPoints() == null ? 0 : result.getPoints());
+        result.setPrizeWon(defaultDecimal(result.getPrizeWon()));
         result.setDnf(dnf);
         result.setDq(false);
         result.setConfirmedByRef(referee.getRefereeId());
@@ -271,6 +271,10 @@ public class RaceResultService {
                 && Boolean.TRUE.equals(user.getIsApproved());
     }
 
+    private BigDecimal defaultDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
     private BigDecimal parseFinishTime(String finishTime) {
         String[] parts = finishTime.split(":");
         try {
@@ -280,7 +284,6 @@ public class RaceResultService {
                 BigDecimal seconds = new BigDecimal(parts[2]);
                 return hours.add(minutes).add(seconds).setScale(3, RoundingMode.HALF_UP);
             }
-
             return new BigDecimal(finishTime).setScale(3, RoundingMode.HALF_UP);
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException("finishTime phai co dang HH:mm:ss.SSS hoac so giay");
@@ -296,7 +299,9 @@ public class RaceResultService {
                 raceResultRepository.findJockeyNameByEntryId(result.getEntryId()),
                 result.getFinishPosition(),
                 formatFinishTime(result.getFinishTime()),
-                calculatePoint(result.getFinishPosition()),
+                formatFinishTime(result.getPenaltyTime()),
+                formatFinishTime(result.getFinalTime()),
+                result.getPoints(),
                 result.getPrizeWon(),
                 result.getDnf(),
                 result.getDq(),
@@ -309,18 +314,6 @@ public class RaceResultService {
                 STATUS_PUBLISHED.equals(result.getApprovalStatus()),
                 result.getCreatedAt()
         );
-    }
-
-    private Integer calculatePoint(Integer position) {
-        if (position == null) {
-            return 0;
-        }
-        return switch (position) {
-            case 1 -> 10;
-            case 2 -> 7;
-            case 3 -> 5;
-            default -> 0;
-        };
     }
 
     private String formatFinishTime(BigDecimal finishTime) {

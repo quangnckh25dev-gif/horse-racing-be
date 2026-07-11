@@ -32,6 +32,9 @@ public class Bet {
     @Column(name = "BetType", nullable = false)
     private String betType;
 
+    @Column(name = "TargetPosition")
+    private Integer targetPosition;
+
     @Column(name = "Amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
@@ -77,6 +80,8 @@ public class Bet {
     public void setEntryId(Integer entryId) { this.entryId = entryId; }
     public String getBetType() { return betType; }
     public void setBetType(String betType) { this.betType = betType; }
+    public Integer getTargetPosition() { return targetPosition; }
+    public void setTargetPosition(Integer targetPosition) { this.targetPosition = targetPosition; }
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
     public BigDecimal getOdds() { return odds; }

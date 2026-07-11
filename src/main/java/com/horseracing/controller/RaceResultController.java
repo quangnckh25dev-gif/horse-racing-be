@@ -1,6 +1,7 @@
 package com.horseracing.controller;
 
 import com.horseracing.dto.RaceResultRequest;
+import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.CurrentUserService;
 import com.horseracing.service.RaceResultService;
@@ -39,16 +40,26 @@ public class RaceResultController {
         );
     }
 
+    @GetMapping("/published")
+    public ApiResponse<?> getPublishedResults(@PathVariable Integer raceId) {
+        return ApiResponse.success(
+                200,
+                "Lay ket qua da public thanh cong",
+                raceResultService.getPublishedResultsByRace(raceId)
+        );
+    }
+
     @PostMapping
     public ApiResponse<?> createResult(
             @PathVariable Integer raceId,
             @RequestBody RaceResultRequest request,
             HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 201,
                 "Tao ket qua race thanh cong",
-                raceResultService.createResult(raceId, request, currentUserService.getCurrentUser(httpRequest))
+                raceResultService.createResult(raceId, request, currentUser)
         );
     }
 
@@ -59,10 +70,11 @@ public class RaceResultController {
             @RequestBody RaceResultRequest request,
             HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Cap nhat ket qua race thanh cong",
-                raceResultService.updateResult(raceId, resultId, request, currentUserService.getCurrentUser(httpRequest))
+                raceResultService.updateResult(raceId, resultId, request, currentUser)
         );
     }
 
