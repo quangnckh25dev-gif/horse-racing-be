@@ -8,7 +8,6 @@ import com.horseracing.dto.RegisterRequest;
 import com.horseracing.dto.ResetPasswordRequest;
 import com.horseracing.dto.TokenRequest;
 import com.horseracing.dto.ChangePasswordRequest;
-import com.horseracing.dto.UserTokenResponse;
 import com.horseracing.dto.UserResponse;
 import com.horseracing.entity.Role;
 import com.horseracing.entity.User;
@@ -187,17 +186,6 @@ public class AuthService {
         userTokenRepository.save(storedToken);
     }
 
-    public java.util.List<UserTokenResponse> getUserTokens(Integer userId) {
-        if (userId == null || !userRepository.existsById(userId)) {
-            throw new IllegalArgumentException("Khong tim thay user");
-        }
-
-        return userTokenRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(this::toUserTokenResponse)
-                .toList();
-    }
-
     public String forgotPassword(ForgotPasswordRequest request) {
         validateRequired(request.getEmail(), "email khong duoc de trong");
 
@@ -337,17 +325,6 @@ public class AuthService {
         userToken.setExpiresAt(LocalDateTime.now().plusDays(7));
         userToken.setIsRevoked(false);
         userTokenRepository.save(userToken);
-    }
-
-    private UserTokenResponse toUserTokenResponse(UserToken token) {
-        return new UserTokenResponse(
-                token.getTokenId(),
-                token.getUserId(),
-                token.getToken(),
-                token.getExpiresAt(),
-                token.getIsRevoked(),
-                token.getCreatedAt()
-        );
     }
 
     private UserResponse toUserResponse(User user) {
