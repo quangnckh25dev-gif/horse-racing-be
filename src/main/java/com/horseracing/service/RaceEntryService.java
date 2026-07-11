@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class RaceEntryService {
@@ -85,11 +84,11 @@ public class RaceEntryService {
         if (!Boolean.TRUE.equals(horse.getIsActive())) {
             throw new IllegalArgumentException("Horse dang inactive");
         }
-        if (raceEntryRepository.existsByRaceIdAndHorseIdAndRegistrationStatusNot(raceId, horse.getHorseId(), "Withdrawn")) {
+        if (raceEntryRepository.existsActiveRegistration(raceId, horse.getHorseId())) {
             throw new IllegalArgumentException("Horse da dang ky race nay");
         }
 
-        long currentEntries = raceEntryRepository.countByRaceIdAndRegistrationStatusNot(raceId, "Rejected");
+        long currentEntries = raceEntryRepository.countActiveRegistrations(raceId);
         if (race.getMaxParticipants() != null && currentEntries >= race.getMaxParticipants()) {
             throw new IllegalArgumentException("Race da du so luong horse tham gia");
         }
@@ -99,15 +98,8 @@ public class RaceEntryService {
         entry.setHorseId(horse.getHorseId());
         entry.setLaneNumber(request.getLaneNumber());
         entry.setRegistrationStatus("Pending");
+        entry.setJockeyConfirmed(false);
         entry.setOdds(BigDecimal.valueOf(2));
-
-        if (request.getJockeyId() != null) {
-            Jockey jockey = jockeyRepository.findById(request.getJockeyId())
-                    .orElseThrow(() -> new IllegalArgumentException("Khong tim thay jockey"));
-            ensureJockeyUserActive(jockey);
-            entry.setJockeyId(jockey.getJockeyId());
-            entry.setJockeyConfirmed(false);
-        }
 
         RaceEntry saved = raceEntryRepository.save(entry);
         notifyOrganizers(saved, race, horse, user);
@@ -124,7 +116,7 @@ public class RaceEntryService {
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
             throw new IllegalArgumentException("Ban khong co quyen rut entry nay");
         }
-        if ("Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
+        if ("Approved".equalsIgnoreCase(entry.getRegistrationStatus()) || "Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
             throw new IllegalArgumentException("Entry da duoc duyet, khong the rut");
         }
 
@@ -169,7 +161,7 @@ public class RaceEntryService {
 
     private void validateRaceCanReceiveEntry(Race race) {
         if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus()) && !"Scheduled".equalsIgnoreCase(race.getStatus())) {
-            throw new IllegalArgumentException("Vòng đua chưa mở đăng ký");
+            throw new IllegalArgumentException("Race chua mo dang ky");
         }
     }
 
@@ -199,14 +191,6 @@ public class RaceEntryService {
                 .orElseThrow(() -> new IllegalArgumentException("User hien tai chua co ho so HorseOwner"));
     }
 
-    private void ensureJockeyUserActive(Jockey jockey) {
-        User jockeyUser = userRepository.findById(jockey.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua jockey"));
-        if (!Boolean.TRUE.equals(jockeyUser.getIsActive())) {
-            throw new IllegalArgumentException("Jockey dang inactive");
-        }
-    }
-
     private void notifyOwner(RaceEntry entry, boolean approved, String reason) {
         Horse horse = horseRepository.findById(entry.getHorseId()).orElse(null);
         if (horse == null) {
@@ -229,9 +213,9 @@ public class RaceEntryService {
     }
 
     private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {
-        String title = "Có đăng ký thi đấu mới chờ duyệt";
-        String body = ownerUser.getFullName() + " đã đăng ký ngựa "
-                + horse.getHorseName() + " vào vòng đua " + race.getRaceName() + ".";
+        String title = "Co dang ky thi dau moi cho duyet";
+        String body = ownerUser.getFullName() + " da dang ky ngua "
+                + horse.getHorseName() + " vao race " + race.getRaceName() + ".";
 
         userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
             Notification notification = new Notification();

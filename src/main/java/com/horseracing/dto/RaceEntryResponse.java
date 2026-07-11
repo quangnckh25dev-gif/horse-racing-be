@@ -27,8 +27,7 @@ public class RaceEntryResponse {
                              Integer ownerId, String ownerName, Integer jockeyId, String jockeyName,
                              Integer laneNumber, String registrationStatus, Integer approvedBy,
                              String rejectReason, Boolean jockeyConfirmed, BigDecimal odds, String healthStatus,
-                             LocalDateTime registeredAt,
-                             LocalDateTime updatedAt) {
+                             LocalDateTime registeredAt, LocalDateTime updatedAt) {
         this.entryId = entryId;
         this.raceId = raceId;
         this.raceName = raceName;
