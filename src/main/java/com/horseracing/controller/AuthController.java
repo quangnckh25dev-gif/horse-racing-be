@@ -63,11 +63,6 @@ public class AuthController {
         return ApiResponse.success(200, "Dang xuat thanh cong", null);
     }
 
-    @GetMapping("/users/{userId}/tokens")
-    public ApiResponse<?> getUserTokens(@PathVariable Integer userId) {
-        return ApiResponse.success(200, "Lay danh sach token cua user thanh cong", authService.getUserTokens(userId));
-    }
-
     @PostMapping("/forgot-password")
     public ApiResponse<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         String message = authService.forgotPassword(request);
