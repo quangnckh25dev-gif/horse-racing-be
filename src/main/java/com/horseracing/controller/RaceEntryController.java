@@ -32,6 +32,11 @@ public class RaceEntryController {
         return ApiResponse.success(200, "Lay danh sach entry thanh cong", raceEntryService.getRaceEntries(raceId));
     }
 
+    @GetMapping("/api/races/{raceId}/spectator-entries")
+    public ApiResponse<?> getSpectatorRaceEntries(@PathVariable Integer raceId) {
+        return ApiResponse.success(200, "Lay danh sach ngua cho spectator thanh cong", raceEntryService.getPublicRaceEntries(raceId));
+    }
+
     @GetMapping("/api/entries/mine")
     public ApiResponse<?> getMyEntries(HttpServletRequest httpRequest) {
         return ApiResponse.success(200, "Lay danh sach entry cua owner thanh cong", raceEntryService.getMyEntries(httpRequest));

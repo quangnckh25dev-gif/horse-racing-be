@@ -37,6 +37,8 @@ public class RaceResultResponse {
 
     private String approvalStatus;
 
+    private String approvalStatusLabel;
+
     private Integer approvedByOrganizer;
 
     private LocalDateTime approvedAt;
@@ -44,6 +46,10 @@ public class RaceResultResponse {
     private LocalDateTime publishedAt;
 
     private Boolean published;
+
+    private Boolean officialResult;
+
+    private String resultVisibilityLabel;
 
     private LocalDateTime createdAt;
 
@@ -67,10 +73,15 @@ public class RaceResultResponse {
         this.confirmedByRef = confirmedByRef;
         this.confirmedAt = confirmedAt;
         this.approvalStatus = approvalStatus;
+        this.approvalStatusLabel = toApprovalStatusLabel(approvalStatus);
         this.approvedByOrganizer = approvedByOrganizer;
         this.approvedAt = approvedAt;
         this.publishedAt = publishedAt;
         this.published = published;
+        this.officialResult = Boolean.TRUE.equals(published);
+        this.resultVisibilityLabel = Boolean.TRUE.equals(published)
+                ? "Ket qua chinh thuc"
+                : "Ket qua chua public";
         this.createdAt = createdAt;
     }
 
@@ -150,6 +161,10 @@ public class RaceResultResponse {
         return approvalStatus;
     }
 
+    public String getApprovalStatusLabel() {
+        return approvalStatusLabel;
+    }
+
     public Integer getApprovedByOrganizer() {
         return approvedByOrganizer;
     }
@@ -166,7 +181,28 @@ public class RaceResultResponse {
         return published;
     }
 
+    public Boolean getOfficialResult() {
+        return officialResult;
+    }
+
+    public String getResultVisibilityLabel() {
+        return resultVisibilityLabel;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    private String toApprovalStatusLabel(String value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "Pending" -> "Cho duyet";
+            case "Approved" -> "Da duyet";
+            case "Rejected" -> "Bi tu choi";
+            case "Published" -> "Da public";
+            default -> value;
+        };
     }
 }
