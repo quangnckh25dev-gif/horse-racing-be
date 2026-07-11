@@ -22,13 +22,13 @@ public class Tournament {
     @Column(name = "TournamentID")
     private Integer tournamentId;
 
-    @Column(name = "TournamentName", nullable = false)
+    @Column(name = "TournamentName", nullable = false, length = 200)
     private String tournamentName;
 
-    @Column(name = "Description")
+    @Column(name = "Description", length = 1000)
     private String description;
 
-    @Column(name = "Location")
+    @Column(name = "Location", length = 300)
     private String location;
 
     @Column(name = "StartDate", nullable = false)
@@ -37,14 +37,29 @@ public class Tournament {
     @Column(name = "EndDate", nullable = false)
     private LocalDate endDate;
 
-    @Column(name = "PrizeFund", precision = 18, scale = 2)
-    private BigDecimal prizeFund;
+    @Column(name = "BudgetTotal", precision = 18, scale = 2)
+    private BigDecimal budgetTotal;
 
-    @Column(name = "Status", nullable = false)
+    @Column(name = "MaxHorses")
+    private Integer maxHorses;
+
+    @Column(name = "MaxParticipants")
+    private Integer maxParticipants;
+
+    @Column(name = "Status", nullable = false, length = 30)
     private String status;
 
-    @Column(name = "CreatedByAdmin")
-    private Integer createdByAdmin;
+    @Column(name = "CreatedBy")
+    private Integer createdBy;
+
+    @Column(name = "ApprovedByAdmin")
+    private Integer approvedByAdmin;
+
+    @Column(name = "ApprovedAt")
+    private LocalDateTime approvedAt;
+
+    @Column(name = "RejectReason", length = 500)
+    private String rejectReason;
 
     @Column(name = "CreatedAt")
     private LocalDateTime createdAt;
@@ -53,108 +68,46 @@ public class Tournament {
     private LocalDateTime updatedAt;
 
     @PrePersist
-    public void prePersist() {
+    void prePersist() {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
-        if (status == null || status.isBlank()) {
-            status = "Draft";
-        }
-        if (prizeFund == null) {
-            prizeFund = BigDecimal.ZERO;
-        }
+        status = status == null || status.isBlank() ? "Draft" : status;
+        budgetTotal = budgetTotal == null ? BigDecimal.ZERO : budgetTotal;
     }
 
     @PreUpdate
-    public void preUpdate() {
+    void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
 
-    public Integer getTournamentId() {
-        return tournamentId;
-    }
-
-    public void setTournamentId(Integer tournamentId) {
-        this.tournamentId = tournamentId;
-    }
-
-    public String getTournamentName() {
-        return tournamentName;
-    }
-
-    public void setTournamentName(String tournamentName) {
-        this.tournamentName = tournamentName;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
-
-    public BigDecimal getPrizeFund() {
-        return prizeFund;
-    }
-
-    public void setPrizeFund(BigDecimal prizeFund) {
-        this.prizeFund = prizeFund;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Integer getCreatedByAdmin() {
-        return createdByAdmin;
-    }
-
-    public void setCreatedByAdmin(Integer createdByAdmin) {
-        this.createdByAdmin = createdByAdmin;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public Integer getTournamentId() { return tournamentId; }
+    public String getTournamentName() { return tournamentName; }
+    public void setTournamentName(String tournamentName) { this.tournamentName = tournamentName; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+    public BigDecimal getBudgetTotal() { return budgetTotal; }
+    public void setBudgetTotal(BigDecimal budgetTotal) { this.budgetTotal = budgetTotal; }
+    public Integer getMaxHorses() { return maxHorses; }
+    public void setMaxHorses(Integer maxHorses) { this.maxHorses = maxHorses; }
+    public Integer getMaxParticipants() { return maxParticipants; }
+    public void setMaxParticipants(Integer maxParticipants) { this.maxParticipants = maxParticipants; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public Integer getCreatedBy() { return createdBy; }
+    public void setCreatedBy(Integer createdBy) { this.createdBy = createdBy; }
+    public Integer getApprovedByAdmin() { return approvedByAdmin; }
+    public void setApprovedByAdmin(Integer approvedByAdmin) { this.approvedByAdmin = approvedByAdmin; }
+    public LocalDateTime getApprovedAt() { return approvedAt; }
+    public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
+    public String getRejectReason() { return rejectReason; }
+    public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

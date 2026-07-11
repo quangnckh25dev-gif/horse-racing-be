@@ -3,14 +3,19 @@ package com.horseracing.service;
 import com.horseracing.dto.RaceRequest;
 import com.horseracing.dto.RaceSummaryResponse;
 import com.horseracing.entity.Race;
+import com.horseracing.entity.RaceStatusHistory;
+import com.horseracing.entity.Referee;
 import com.horseracing.entity.Round;
 import com.horseracing.entity.Tournament;
 import com.horseracing.entity.User;
+import com.horseracing.repository.RaceRefereeRepository;
 import com.horseracing.repository.RaceRepository;
+import com.horseracing.repository.RaceStatusHistoryRepository;
+import com.horseracing.repository.RefereeRepository;
 import com.horseracing.repository.RoundRepository;
 import com.horseracing.repository.TournamentRepository;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,13 +32,22 @@ public class RaceService {
     private final RaceRepository raceRepository;
     private final TournamentRepository tournamentRepository;
     private final RoundRepository roundRepository;
+    private final RefereeRepository refereeRepository;
+    private final RaceRefereeRepository raceRefereeRepository;
+    private final RaceStatusHistoryRepository statusHistoryRepository;
 
     public RaceService(RaceRepository raceRepository,
                        TournamentRepository tournamentRepository,
-                       RoundRepository roundRepository) {
+                       RoundRepository roundRepository,
+                       RefereeRepository refereeRepository,
+                       RaceRefereeRepository raceRefereeRepository,
+                       RaceStatusHistoryRepository statusHistoryRepository) {
         this.raceRepository = raceRepository;
         this.tournamentRepository = tournamentRepository;
         this.roundRepository = roundRepository;
+        this.refereeRepository = refereeRepository;
+        this.raceRefereeRepository = raceRefereeRepository;
+        this.statusHistoryRepository = statusHistoryRepository;
     }
 
     public List<RaceSummaryResponse> getRaces(Integer tournamentId, Integer roundId, String status) {
@@ -73,55 +87,73 @@ public class RaceService {
         return toResponse(getRaceOrThrow(raceId));
     }
 
-    public RaceSummaryResponse createRace(RaceRequest request) {
-        validateRaceRequest(request);
+    @Transactional
+    //của buiquangann
+    public RaceSummaryResponse createRace(RaceRequest request, User organizer) {
+        validateRaceRequest(request, organizer);
 
         Race race = new Race();
         applyRequest(race, request);
-        race.setStatus(resolveStatus(request.getStatus(), "Scheduled"));
+        race.setStatus("Scheduled");
 
         return toResponse(raceRepository.save(race));
     }
 
-    public RaceSummaryResponse updateRace(Integer raceId, RaceRequest request) {
-        validateRaceRequest(request);
+    @Transactional
+    public RaceSummaryResponse updateRace(Integer raceId, RaceRequest request, User organizer) {
+        validateRaceRequest(request, organizer);
 
         Race race = getRaceOrThrow(raceId);
+        ensureOwnedTournament(race.getTournamentId(), organizer);
+        if (!Set.of("Scheduled", "RegistrationOpen").contains(race.getStatus())) {
+            throw new IllegalArgumentException("Khong the sua race da bat dau hoac ket thuc");
+        }
         applyRequest(race, request);
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            race.setStatus(resolveStatus(request.getStatus(), race.getStatus()));
+
+        return toResponse(raceRepository.save(race));
+    }
+
+    @Transactional
+    //của buiquangann
+    public RaceSummaryResponse updateStatus(Integer raceId, String status, User refereeUser) {
+        requireRole(refereeUser, "Referee");
+        Race race = getRaceOrThrow(raceId);
+        Referee referee = refereeRepository.findByUserId(refereeUser.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User chua co ho so Referee"));
+        if (!raceRefereeRepository.existsByRaceIdAndRefereeId(raceId, referee.getRefereeId())) {
+            throw new IllegalArgumentException("Referee chua duoc phan cong vao race nay");
         }
 
-        return toResponse(raceRepository.save(race));
-    }
+        String newStatus = resolveStatus(status, race.getStatus());
+        if (race.getStatus() != null && race.getStatus().equals(newStatus)) {
+            return toResponse(race);
+        }
+        validateTransition(race.getStatus(), newStatus);
 
-    public RaceSummaryResponse updateStatus(Integer raceId, String status) {
-        Race race = getRaceOrThrow(raceId);
-        race.setStatus(resolveStatus(status, race.getStatus()));
+        RaceStatusHistory history = new RaceStatusHistory();
+        history.setRaceId(raceId);
+        history.setOldStatus(race.getStatus());
+        history.setNewStatus(newStatus);
+        history.setChangedBy(refereeUser.getUserId());
+
+        race.setStatus(newStatus);
+        statusHistoryRepository.save(history);
         return toResponse(raceRepository.save(race));
     }
 
     @Transactional
     public RaceSummaryResponse updateStatusByReferee(Integer raceId, String status, User currentUser) {
-        ensureRefereeCanUpdateRaceStatus(raceId, currentUser);
-
-        Race race = getRaceOrThrow(raceId);
-        String oldStatus = race.getStatus();
-        String newStatus = resolveStatus(status, oldStatus);
-        if (oldStatus != null && oldStatus.equals(newStatus)) {
-            return toResponse(race);
-        }
-
-        race.setStatus(newStatus);
-        Race saved = raceRepository.save(race);
-        raceRepository.insertStatusHistory(raceId, oldStatus, newStatus, currentUser.getUserId());
-        return toResponse(saved);
+        return updateStatus(raceId, status, currentUser);
     }
 
-    public void deleteRace(Integer raceId) {
+    @Transactional
+    public void deleteRace(Integer raceId, User organizer) {
         Race race = getRaceOrThrow(raceId);
-        race.setStatus("Cancelled");
-        raceRepository.save(race);
+        Tournament tournament = ensureOwnedTournament(race.getTournamentId(), organizer);
+        if (!"Draft".equals(tournament.getStatus()) || !"Scheduled".equals(race.getStatus())) {
+            throw new IllegalArgumentException("Chi duoc xoa race Scheduled khi tournament con Draft");
+        }
+        raceRepository.delete(race);
     }
 
     public RaceSummaryResponse getSchedule(Integer raceId) {
@@ -132,7 +164,6 @@ public class RaceService {
         if (raceId == null) {
             throw new IllegalArgumentException("Race id khong hop le");
         }
-
         return raceRepository.findById(raceId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
     }
@@ -141,7 +172,6 @@ public class RaceService {
         if (tournamentId == null) {
             throw new IllegalArgumentException("TournamentID khong duoc de trong");
         }
-
         return tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
     }
@@ -151,7 +181,7 @@ public class RaceService {
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay round"));
     }
 
-    private void validateRaceRequest(RaceRequest request) {
+    private void validateRaceRequest(RaceRequest request, User organizer) {
         if (request == null) {
             throw new IllegalArgumentException("Du lieu race khong duoc de trong");
         }
@@ -161,7 +191,7 @@ public class RaceService {
         if (request.getRaceDate() == null) {
             throw new IllegalArgumentException("RaceDate khong duoc de trong");
         }
-        Tournament tournament = ensureTournamentExists(request.getTournamentId());
+        Tournament tournament = ensureOwnedTournament(request.getTournamentId(), organizer);
         if (request.getRoundId() != null) {
             Round round = ensureRoundExists(request.getRoundId());
             if (!round.getTournamentId().equals(request.getTournamentId())) {
@@ -228,31 +258,43 @@ public class RaceService {
     private String resolveStatus(String status, String defaultStatus) {
         String resolved = (status == null || status.isBlank()) ? defaultStatus : normalizeStatus(status);
         if (!VALID_STATUSES.contains(resolved)) {
-            throw new IllegalArgumentException("Trạng thái vòng đua không hợp lệ. Chỉ chấp nhận: Đã lên lịch, Mở đăng ký, Đang diễn ra, Kết thúc, Đã hủy");
+            throw new IllegalArgumentException("Trang thai vong dua khong hop le");
         }
         return resolved;
+    }
+
+    private Tournament ensureOwnedTournament(Integer tournamentId, User organizer) {
+        requireRole(organizer, "Organizer");
+        return tournamentRepository.findByTournamentIdAndCreatedBy(tournamentId, organizer.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Tournament khong thuoc Organizer hien tai"));
+    }
+
+    private void requireRole(User user, String role) {
+        if (user == null || user.getRole() == null || !role.equalsIgnoreCase(user.getRole().getRoleName())
+                || !Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
+            throw new IllegalArgumentException("Ban khong co quyen thuc hien thao tac nay");
+        }
+    }
+
+    private void validateTransition(String oldStatus, String newStatus) {
+        boolean valid = ("Scheduled".equals(oldStatus) && Set.of("RegistrationOpen", "Ongoing", "Cancelled").contains(newStatus))
+                || ("RegistrationOpen".equals(oldStatus) && Set.of("Ongoing", "Cancelled").contains(newStatus))
+                || ("Ongoing".equals(oldStatus) && Set.of("Finished", "Cancelled").contains(newStatus));
+        if (!valid) {
+            throw new IllegalArgumentException("Chuyen trang thai race khong hop le");
+        }
     }
 
     private String normalizeStatus(String status) {
         String normalized = status.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "scheduled", "đã lên lịch", "da len lich" -> "Scheduled";
-            case "registrationopen", "registration open", "mở đăng ký", "mo dang ky" -> "RegistrationOpen";
-            case "ongoing", "đang diễn ra", "dang dien ra" -> "Ongoing";
-            case "finished", "kết thúc", "ket thuc" -> "Finished";
-            case "cancelled", "canceled", "đã hủy", "da huy" -> "Cancelled";
+            case "scheduled", "da len lich" -> "Scheduled";
+            case "registrationopen", "registration open", "mo dang ky" -> "RegistrationOpen";
+            case "ongoing", "dang dien ra" -> "Ongoing";
+            case "finished", "ket thuc" -> "Finished";
+            case "cancelled", "canceled", "da huy" -> "Cancelled";
             default -> status.trim();
         };
-    }
-
-    private void ensureRefereeCanUpdateRaceStatus(Integer raceId, User currentUser) {
-        if (currentUser == null || currentUser.getRole() == null
-                || !"Referee".equalsIgnoreCase(currentUser.getRole().getRoleName())) {
-            throw new IllegalArgumentException("Chi Referee moi duoc cap nhat trang thai race");
-        }
-        if (raceRepository.countAssignedReferee(raceId, currentUser.getUserId()) == 0) {
-            throw new IllegalArgumentException("Referee chua duoc phan cong cho race nay");
-        }
     }
 
     private RaceSummaryResponse toResponse(Race race) {

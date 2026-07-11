@@ -1,5 +1,6 @@
 package com.horseracing.service;
 
+import com.horseracing.dto.ChangePasswordRequest;
 import com.horseracing.dto.ForgotPasswordRequest;
 import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.LoginResponse;
@@ -7,23 +8,21 @@ import com.horseracing.dto.OptionResponse;
 import com.horseracing.dto.RegisterRequest;
 import com.horseracing.dto.ResetPasswordRequest;
 import com.horseracing.dto.TokenRequest;
-import com.horseracing.dto.ChangePasswordRequest;
 import com.horseracing.dto.UserResponse;
 import com.horseracing.entity.Role;
 import com.horseracing.entity.User;
 import com.horseracing.entity.UserToken;
 import com.horseracing.repository.RoleRepository;
 import com.horseracing.repository.SystemConfigRepository;
-import com.horseracing.repository.UserTokenRepository;
 import com.horseracing.repository.UserRepository;
+import com.horseracing.repository.UserTokenRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Locale;
 import java.util.List;
-import java.util.UUID;
+import java.util.Locale;
 
 @Service
 public class AuthService {
@@ -56,12 +55,11 @@ public class AuthService {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username da ton tai");
         }
-
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email da ton tai");
         }
-
-        if (request.getPhone() != null && !request.getPhone().isBlank() && userRepository.existsByPhone(request.getPhone())) {
+        if (request.getPhone() != null && !request.getPhone().isBlank()
+                && userRepository.existsByPhone(request.getPhone())) {
             throw new IllegalArgumentException("So dien thoai da ton tai");
         }
 
@@ -76,7 +74,7 @@ public class AuthService {
         user.setPhone(request.getPhone());
         user.setRole(role);
         user.setIsActive(true);
-        user.setIsApproved(false); // Changed to false for Admin approval
+        user.setIsApproved(false);
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -100,21 +98,17 @@ public class AuthService {
 
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Sai username hoac password"));
-
         ensureSystemAvailableFor(user);
 
         if (Boolean.TRUE.equals(user.getIsLocked())) {
             throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
         }
-
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new IllegalArgumentException("Tai khoan dang bi khoa");
         }
-
         if (!Boolean.TRUE.equals(user.getIsApproved())) {
             throw new IllegalArgumentException("Tai khoan chua duoc duyet");
         }
-
         if (!matchesPassword(request.getPassword(), user.getPasswordHash())) {
             int failedAttempts = user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0;
             failedAttempts++;
@@ -126,11 +120,9 @@ public class AuthService {
                 throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
             }
             userRepository.save(user);
-            int remaining = 5 - failedAttempts;
-            throw new IllegalArgumentException("Sai mat khau. Con " + remaining + " lan thu.");
+            throw new IllegalArgumentException("Sai mat khau. Con " + (5 - failedAttempts) + " lan thu.");
         }
 
-        // Login successful
         user.setFailedLoginAttempts(0);
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
@@ -149,16 +141,13 @@ public class AuthService {
 
         UserToken storedToken = userTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token khong hop le"));
-
         if (Boolean.TRUE.equals(storedToken.getIsRevoked()) || storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Refresh token da het han hoac da bi thu hoi");
         }
 
         User user = userRepository.findById(storedToken.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua token"));
-
         ensureSystemAvailableFor(user);
-
         if (!Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
             throw new IllegalArgumentException("Tai khoan khong duoc phep refresh token");
         }
@@ -177,10 +166,8 @@ public class AuthService {
     @Transactional
     public void logout(TokenRequest request) {
         validateRequired(request.getRefreshToken(), "refreshToken khong duoc de trong");
-
         UserToken storedToken = userTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token khong hop le"));
-
         storedToken.setIsRevoked(true);
         userTokenRepository.save(storedToken);
     }
@@ -190,17 +177,14 @@ public class AuthService {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan voi email nay"));
-
         String resetToken = String.format("%06d", new java.util.Random().nextInt(1000000));
         user.setResetToken(resetToken);
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // Gửi email thực tế
         emailService.sendResetTokenEmail(user.getEmail(), resetToken);
-        
-        return "Mã xác nhận đã được gửi đến email của bạn";
+        return "Ma xac nhan da duoc gui den email cua ban";
     }
 
     public UserResponse resetPasswordWithToken(ResetPasswordRequest request) {
@@ -209,7 +193,6 @@ public class AuthService {
 
         User user = userRepository.findByResetToken(request.getToken())
                 .orElseThrow(() -> new IllegalArgumentException("Token khong hop le hoac khong tim thay"));
-
         if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Token da het han");
         }
@@ -218,7 +201,6 @@ public class AuthService {
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
         user.setUpdatedAt(LocalDateTime.now());
-
         return toUserResponse(userRepository.save(user));
     }
 
@@ -228,14 +210,12 @@ public class AuthService {
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan"));
-
         if (!matchesPassword(request.getOldPassword(), user.getPasswordHash())) {
             throw new IllegalArgumentException("Mat khau cu khong chinh xac");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdatedAt(LocalDateTime.now());
-
         return toUserResponse(userRepository.save(user));
     }
 
@@ -269,7 +249,8 @@ public class AuthService {
             case "jockey", "nai ngua", "ky si" -> "Jockey";
             case "referee", "trong tai" -> "Referee";
             case "spectator", "khan gia" -> "Spectator";
-            case "organizer", "ban to chuc" -> "Organizer";
+            case "organizer", "organizerhead", "organizermember",
+                    "truong ban to chuc", "thanh vien ban to chuc", "ban to chuc" -> "Organizer";
             case "admin" -> "Admin";
             default -> roleName.trim();
         };
@@ -295,18 +276,18 @@ public class AuthService {
         if (until == null) {
             throw new IllegalArgumentException("He thong dang bao tri. Chi admin duoc phep dang nhap.");
         }
-        throw new IllegalArgumentException("He thong dang bao tri. Du kien mo lai vao " + until + ". Chi admin duoc phep dang nhap.");
+        throw new IllegalArgumentException("He thong dang bao tri. Du kien mo lai vao " + until
+                + ". Chi admin duoc phep dang nhap.");
     }
 
     private boolean matchesPassword(String rawPassword, String storedPassword) {
         if (storedPassword == null || storedPassword.isBlank()) {
             return false;
         }
-
-        if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$") || storedPassword.startsWith("$2y$")) {
+        if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$")
+                || storedPassword.startsWith("$2y$")) {
             return passwordEncoder.matches(rawPassword, storedPassword);
         }
-
         return rawPassword.equals(storedPassword);
     }
 

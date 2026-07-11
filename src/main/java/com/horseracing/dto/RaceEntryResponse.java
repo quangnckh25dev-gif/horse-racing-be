@@ -15,6 +15,7 @@ public class RaceEntryResponse {
     private String jockeyName;
     private Integer laneNumber;
     private String registrationStatus;
+    private Boolean organizerApproved;
     private Integer approvedBy;
     private String rejectReason;
     private Boolean jockeyConfirmed;
@@ -25,9 +26,9 @@ public class RaceEntryResponse {
 
     public RaceEntryResponse(Integer entryId, Integer raceId, String raceName, Integer horseId, String horseName,
                              Integer ownerId, String ownerName, Integer jockeyId, String jockeyName,
-                             Integer laneNumber, String registrationStatus, Integer approvedBy,
-                             String rejectReason, Boolean jockeyConfirmed, BigDecimal odds, String healthStatus,
-                             LocalDateTime registeredAt, LocalDateTime updatedAt) {
+                             Integer laneNumber, String registrationStatus, Boolean organizerApproved,
+                             Integer approvedBy, String rejectReason, Boolean jockeyConfirmed, BigDecimal odds,
+                             String healthStatus, LocalDateTime registeredAt, LocalDateTime updatedAt) {
         this.entryId = entryId;
         this.raceId = raceId;
         this.raceName = raceName;
@@ -39,6 +40,7 @@ public class RaceEntryResponse {
         this.jockeyName = jockeyName;
         this.laneNumber = laneNumber;
         this.registrationStatus = registrationStatus;
+        this.organizerApproved = organizerApproved;
         this.approvedBy = approvedBy;
         this.rejectReason = rejectReason;
         this.jockeyConfirmed = jockeyConfirmed;
@@ -59,6 +61,7 @@ public class RaceEntryResponse {
     public String getJockeyName() { return jockeyName; }
     public Integer getLaneNumber() { return laneNumber; }
     public String getRegistrationStatus() { return registrationStatus; }
+    public Boolean getOrganizerApproved() { return organizerApproved; }
     public Integer getApprovedBy() { return approvedBy; }
     public String getRejectReason() { return rejectReason; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }

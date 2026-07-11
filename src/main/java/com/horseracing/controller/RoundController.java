@@ -1,64 +1,44 @@
 package com.horseracing.controller;
 
 import com.horseracing.dto.RoundRequest;
+import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
+import com.horseracing.service.CurrentUserService;
 import com.horseracing.service.RoundService;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin")
-@CrossOrigin("*")
+@RequestMapping("/api/organizer")
 public class RoundController {
-
+    //của buiquangann
     private final RoundService roundService;
+    private final CurrentUserService currentUserService;
 
-    public RoundController(RoundService roundService) {
+    public RoundController(RoundService roundService, CurrentUserService currentUserService) {
         this.roundService = roundService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping("/tournaments/{tournamentId}/rounds")
-    public ApiResponse<?> createRound(
-            @PathVariable Integer tournamentId,
-            @RequestBody RoundRequest request
-    ) {
-        return ApiResponse.success(
-                201,
-                "Tao round thanh cong",
-                roundService.createRound(tournamentId, request)
-        );
+    public ApiResponse<?> create(@PathVariable Integer tournamentId, @RequestBody RoundRequest request,
+                                 HttpServletRequest httpRequest) {
+        User organizer = currentUserService.getCurrentUser(httpRequest);
+        return ApiResponse.success(201, "Tao round thanh cong",
+                roundService.createRound(tournamentId, request, organizer));
     }
 
-    @PutMapping("/rounds/{id}")
-    public ApiResponse<?> updateRound(
-            @PathVariable Integer id,
-            @RequestBody RoundRequest request
-    ) {
-        return ApiResponse.success(
-                200,
-                "Cap nhat round thanh cong",
-                roundService.updateRound(id, request)
-        );
+    @PutMapping("/rounds/{roundId}")
+    public ApiResponse<?> update(@PathVariable Integer roundId, @RequestBody RoundRequest request,
+                                 HttpServletRequest httpRequest) {
+        User organizer = currentUserService.getCurrentUser(httpRequest);
+        return ApiResponse.success(200, "Cap nhat round thanh cong",
+                roundService.updateRound(roundId, request, organizer));
     }
 
-    @DeleteMapping("/rounds/{id}")
-    public ApiResponse<?> deleteRound(@PathVariable Integer id) {
-        roundService.deleteRound(id);
+    @DeleteMapping("/rounds/{roundId}")
+    public ApiResponse<?> delete(@PathVariable Integer roundId, HttpServletRequest httpRequest) {
+        roundService.deleteRound(roundId, currentUserService.getCurrentUser(httpRequest));
         return ApiResponse.success(200, "Xoa round thanh cong", null);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<?> handleBadRequest(IllegalArgumentException ex) {
-        return ApiResponse.error(400, ex.getMessage());
     }
 }

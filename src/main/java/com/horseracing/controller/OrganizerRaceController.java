@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @CrossOrigin("*")
 public class OrganizerRaceController {
 
+    //của buiquangann
     private final RaceService raceService;
     private final RaceRefereeService raceRefereeService;
     private final RaceResultService raceResultService;
@@ -43,68 +44,73 @@ public class OrganizerRaceController {
     }
 
     @PostMapping("/races")
-    public ApiResponse<?> createRace(@RequestBody RaceRequest request) {
+    public ApiResponse<?> createRace(@RequestBody RaceRequest request, HttpServletRequest httpRequest) {
+        User organizer = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 201,
                 "Tao race thanh cong",
-                raceService.createRace(request)
+                raceService.createRace(request, organizer)
         );
     }
 
     @PutMapping("/races/{id}")
     public ApiResponse<?> updateRace(
             @PathVariable Integer id,
-            @RequestBody RaceRequest request
+            @RequestBody RaceRequest request,
+            HttpServletRequest httpRequest
     ) {
+        User organizer = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Cap nhat race thanh cong",
-                raceService.updateRace(id, request)
+                raceService.updateRace(id, request, organizer)
         );
     }
 
     @DeleteMapping("/races/{id}")
-    public ApiResponse<?> deleteRace(@PathVariable Integer id) {
-        raceService.deleteRace(id);
+    public ApiResponse<?> deleteRace(@PathVariable Integer id, HttpServletRequest httpRequest) {
+        raceService.deleteRace(id, currentUserService.getCurrentUser(httpRequest));
         return ApiResponse.success(200, "Xoa race thanh cong", null);
     }
 
     @GetMapping("/referees")
-    public ApiResponse<?> getReferees() {
+    public ApiResponse<?> getReferees(HttpServletRequest httpRequest) {
         return ApiResponse.success(
                 200,
                 "Lay danh sach referee thanh cong",
-                raceRefereeService.getReferees()
+                raceRefereeService.getReferees(currentUserService.getCurrentUser(httpRequest))
         );
     }
 
     @GetMapping("/races/{id}/referees")
-    public ApiResponse<?> getRaceReferees(@PathVariable Integer id) {
+    public ApiResponse<?> getRaceReferees(@PathVariable Integer id, HttpServletRequest httpRequest) {
         return ApiResponse.success(
                 200,
                 "Lay danh sach referee da phan cong thanh cong",
-                raceRefereeService.getRaceReferees(id)
+                raceRefereeService.getRaceReferees(id, currentUserService.getCurrentUser(httpRequest))
         );
     }
 
     @PostMapping("/races/{id}/referees")
     public ApiResponse<?> assignReferee(
             @PathVariable Integer id,
-            @RequestBody RaceRefereeRequest request
+            @RequestBody RaceRefereeRequest request,
+            HttpServletRequest httpRequest
     ) {
         return ApiResponse.success(
                 201,
                 "Phan cong referee thanh cong",
-                raceRefereeService.assignReferee(id, request)
+                raceRefereeService.assignReferee(id, request, currentUserService.getCurrentUser(httpRequest))
         );
     }
 
     @DeleteMapping("/races/{id}/referees/{refereeId}")
     public ApiResponse<?> removeReferee(
             @PathVariable Integer id,
-            @PathVariable Integer refereeId
+            @PathVariable Integer refereeId,
+            HttpServletRequest httpRequest
     ) {
-        raceRefereeService.removeReferee(id, refereeId);
+        raceRefereeService.removeReferee(id, refereeId, currentUserService.getCurrentUser(httpRequest));
         return ApiResponse.success(200, "Huy phan cong referee thanh cong", null);
     }
 
@@ -124,13 +130,14 @@ public class OrganizerRaceController {
     @PutMapping("/races/{raceId}/results/reject")
     public ApiResponse<?> rejectResults(
             @PathVariable Integer raceId,
+            @RequestBody(required = false) ResultRejectRequest request,
             HttpServletRequest httpRequest
     ) {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Tu choi ket qua race thanh cong",
-                raceResultService.rejectResults(raceId, currentUser)
+                raceResultService.rejectResults(raceId, request == null ? null : request.reason(), currentUser)
         );
     }
 
@@ -145,6 +152,9 @@ public class OrganizerRaceController {
                 "Cong bo ket qua chinh thuc thanh cong",
                 raceResultService.publishResults(raceId, currentUser)
         );
+    }
+
+    public record ResultRejectRequest(String reason) {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

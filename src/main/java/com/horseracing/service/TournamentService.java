@@ -1,29 +1,32 @@
 package com.horseracing.service;
 
 import com.horseracing.dto.RaceSummaryResponse;
-import com.horseracing.dto.OptionResponse;
 import com.horseracing.dto.RoundSummaryResponse;
 import com.horseracing.dto.TournamentDetailResponse;
 import com.horseracing.dto.TournamentRequest;
 import com.horseracing.dto.TournamentResponse;
-import com.horseracing.dto.TournamentStatusTransitionResponse;
 import com.horseracing.entity.Race;
 import com.horseracing.entity.Round;
 import com.horseracing.entity.Tournament;
+import com.horseracing.entity.User;
 import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RoundRepository;
 import com.horseracing.repository.TournamentRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 @Service
+@Transactional(readOnly = true)
 public class TournamentService {
 
-    private static final Set<String> VALID_STATUSES = Set.of("Draft", "Open", "Ongoing", "Finished", "Cancelled");
+    private static final String DRAFT = "Draft";
+    private static final String PENDING_APPROVAL = "PendingApproval";
+    private static final Set<String> PUBLIC_STATUSES = Set.of("Open", "Ongoing", "Finished", "Cancelled");
 
     private final TournamentRepository tournamentRepository;
     private final RoundRepository roundRepository;
@@ -37,227 +40,194 @@ public class TournamentService {
         this.raceRepository = raceRepository;
     }
 
-    public List<TournamentResponse> getAllTournaments() {
-        return tournamentRepository.findAll()
-                .stream()
-                .map(this::toTournamentResponse)
+    public List<TournamentResponse> getPublicTournaments() {
+        return tournamentRepository.findAll().stream()
+                .filter(tournament -> PUBLIC_STATUSES.contains(tournament.getStatus()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<TournamentResponse> getAdminTournaments(String status) {
+        List<Tournament> tournaments = status == null || status.isBlank()
+                ? tournamentRepository.findAll()
+                : tournamentRepository.findByStatus(status.trim());
+        return tournaments.stream().map(this::toResponse).toList();
+    }
+
+    public List<TournamentResponse> getMyTournaments(User organizer) {
+        requireOrganizer(organizer);
+        return tournamentRepository.findByCreatedByOrderByCreatedAtDesc(organizer.getUserId()).stream()
+                .map(this::toResponse)
                 .toList();
     }
 
     public TournamentDetailResponse getTournamentDetail(Integer tournamentId) {
         Tournament tournament = getTournamentOrThrow(tournamentId);
-        List<RoundSummaryResponse> rounds = roundRepository.findByTournamentIdOrderByRoundOrderAsc(tournamentId)
-                .stream()
-                .map(this::toRoundSummary)
-                .toList();
-        List<RaceSummaryResponse> races = raceRepository.findByTournamentId(tournamentId)
-                .stream()
-                .map(this::toRaceSummary)
-                .toList();
+        return buildDetail(tournament);
+    }
 
-        return toTournamentDetailResponse(tournament, rounds, races);
+    public TournamentDetailResponse getOwnedTournamentDetail(Integer tournamentId, User organizer) {
+        requireOrganizer(organizer);
+        return buildDetail(getOwnedTournamentOrThrow(tournamentId, organizer.getUserId()));
     }
 
     public List<RoundSummaryResponse> getTournamentRounds(Integer tournamentId) {
         getTournamentOrThrow(tournamentId);
-        return roundRepository.findByTournamentIdOrderByRoundOrderAsc(tournamentId)
-                .stream()
+        return roundRepository.findByTournamentIdOrderByRoundOrderAsc(tournamentId).stream()
                 .map(this::toRoundSummary)
                 .toList();
     }
 
-    public TournamentResponse createTournament(TournamentRequest request) {
-        validateTournamentRequest(request);
+    @Transactional
+    //của buiquangann
+    public TournamentResponse createTournament(TournamentRequest request, User organizer) {
+        requireOrganizer(organizer);
+        validateDates(request);
 
         Tournament tournament = new Tournament();
         applyRequest(tournament, request);
-        tournament.setStatus(resolveStatus(request.getStatus(), "Draft"));
-
-        return toTournamentResponse(tournamentRepository.save(tournament));
+        tournament.setStatus(DRAFT);
+        tournament.setCreatedBy(organizer.getUserId());
+        return toResponse(tournamentRepository.save(tournament));
     }
 
-    public TournamentResponse updateTournament(Integer tournamentId, TournamentRequest request) {
-        validateTournamentRequest(request);
+    @Transactional
+    public TournamentResponse updateTournament(Integer tournamentId, TournamentRequest request, User organizer) {
+        requireOrganizer(organizer);
+        validateDates(request);
+        Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
+        ensureDraft(tournament, "Chi co the cap nhat giai dau dang o trang thai Draft");
 
-        Tournament tournament = getTournamentOrThrow(tournamentId);
         applyRequest(tournament, request);
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            tournament.setStatus(resolveStatus(request.getStatus(), tournament.getStatus()));
+        tournament.setRejectReason(null);
+        return toResponse(tournamentRepository.save(tournament));
+    }
+
+    @Transactional
+    //của buiquangann
+    public TournamentResponse submitTournament(Integer tournamentId, User organizer) {
+        requireOrganizer(organizer);
+        Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
+        ensureDraft(tournament, "Chi co the gui duyet giai dau dang o trang thai Draft");
+        tournament.setStatus(PENDING_APPROVAL);
+        tournament.setRejectReason(null);
+        return toResponse(tournamentRepository.save(tournament));
+    }
+
+    @Transactional
+    public TournamentResponse reviewTournament(Integer tournamentId, String requestedStatus,
+                                               String reason, User admin) {
+        requireAdmin(admin);
+        Tournament tournament = getTournamentOrThrow(tournamentId);
+        if (!PENDING_APPROVAL.equals(tournament.getStatus())) {
+            throw new IllegalArgumentException("Chi co the duyet giai dau dang cho phe duyet");
         }
-
-        return toTournamentResponse(tournamentRepository.save(tournament));
+        if ("Open".equals(requestedStatus)) {
+            tournament.setStatus("Open");
+            tournament.setApprovedByAdmin(admin.getUserId());
+            tournament.setApprovedAt(LocalDateTime.now());
+            tournament.setRejectReason(null);
+        } else if (DRAFT.equals(requestedStatus)) {
+            if (reason == null || reason.isBlank()) {
+                throw new IllegalArgumentException("reason la bat buoc khi tu choi giai dau");
+            }
+            tournament.setStatus(DRAFT);
+            tournament.setApprovedByAdmin(null);
+            tournament.setApprovedAt(null);
+            tournament.setRejectReason(reason.trim());
+        } else {
+            throw new IllegalArgumentException("Admin chi duoc chuyen trang thai sang Open hoac Draft");
+        }
+        return toResponse(tournamentRepository.save(tournament));
     }
 
-    public TournamentResponse updateStatus(Integer tournamentId, String status) {
-        Tournament tournament = getTournamentOrThrow(tournamentId);
-        tournament.setStatus(resolveStatus(status, tournament.getStatus()));
-        return toTournamentResponse(tournamentRepository.save(tournament));
-    }
-
-    public TournamentStatusTransitionResponse getStatusTransitions(Integer tournamentId) {
-        Tournament tournament = getTournamentOrThrow(tournamentId);
-        String status = tournament.getStatus();
-        return new TournamentStatusTransitionResponse(
-                status,
-                toStatusLabel(status),
-                nextStatuses(status)
-        );
-    }
-
-    public void deleteTournament(Integer tournamentId) {
-        Tournament tournament = getTournamentOrThrow(tournamentId);
-        tournament.setStatus("Cancelled");
-        tournamentRepository.save(tournament);
+    private TournamentDetailResponse buildDetail(Tournament tournament) {
+        Integer tournamentId = tournament.getTournamentId();
+        List<RoundSummaryResponse> rounds = roundRepository.findByTournamentIdOrderByRoundOrderAsc(tournamentId)
+                .stream().map(this::toRoundSummary).toList();
+        List<RaceSummaryResponse> races = raceRepository.findByTournamentId(tournamentId)
+                .stream().map(this::toRaceSummary).toList();
+        return new TournamentDetailResponse(toResponse(tournament), rounds, races);
     }
 
     private Tournament getTournamentOrThrow(Integer tournamentId) {
         if (tournamentId == null) {
-            throw new IllegalArgumentException("Tournament id khong hop le");
+            throw new IllegalArgumentException("tournamentId khong hop le");
         }
-
         return tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
     }
 
-    private void validateTournamentRequest(TournamentRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("Du lieu tournament khong duoc de trong");
-        }
-        if (request.getTournamentName() == null || request.getTournamentName().isBlank()) {
-            throw new IllegalArgumentException("TournamentName khong duoc de trong");
-        }
-        if (request.getStartDate() == null || request.getEndDate() == null) {
-            throw new IllegalArgumentException("StartDate va EndDate khong duoc de trong");
-        }
+    private Tournament getOwnedTournamentOrThrow(Integer tournamentId, Integer organizerId) {
+        return tournamentRepository.findByTournamentIdAndCreatedBy(tournamentId, organizerId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament thuoc Organizer hien tai"));
+    }
+
+    private void validateDates(TournamentRequest request) {
         if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("EndDate phai lon hon hoac bang StartDate");
+            throw new IllegalArgumentException("endDate phai lon hon hoac bang startDate");
         }
-        if (request.getPrizeFund() != null && request.getPrizeFund().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("PrizeFund khong duoc am");
+    }
+
+    private void ensureDraft(Tournament tournament, String message) {
+        if (!DRAFT.equals(tournament.getStatus())) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private void requireOrganizer(User user) {
+        requireRole(user, "Organizer");
+    }
+
+    private void requireAdmin(User user) {
+        requireRole(user, "Admin");
+    }
+
+    private void requireRole(User user, String role) {
+        if (user == null || user.getRole() == null || !role.equals(user.getRole().getRoleName())) {
+            throw new IllegalArgumentException("Ban khong co quyen thuc hien thao tac nay");
+        }
+        if (!Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
+            throw new IllegalArgumentException("Tai khoan chua duoc kich hoat hoac phe duyet");
         }
     }
 
     private void applyRequest(Tournament tournament, TournamentRequest request) {
-        tournament.setTournamentName(request.getTournamentName());
-        tournament.setDescription(request.getDescription());
-        tournament.setLocation(request.getLocation());
+        tournament.setTournamentName(request.getTournamentName().trim());
+        tournament.setDescription(trimToNull(request.getDescription()));
+        tournament.setLocation(trimToNull(request.getLocation()));
         tournament.setStartDate(request.getStartDate());
         tournament.setEndDate(request.getEndDate());
-        tournament.setPrizeFund(request.getPrizeFund() == null ? BigDecimal.ZERO : request.getPrizeFund());
-        tournament.setCreatedByAdmin(request.getCreatedByAdmin());
+        tournament.setBudgetTotal(request.getBudgetTotal() == null ? BigDecimal.ZERO : request.getBudgetTotal());
+        tournament.setMaxHorses(request.getMaxHorses());
+        tournament.setMaxParticipants(request.getMaxParticipants());
     }
 
-    private String resolveStatus(String status, String defaultStatus) {
-        String resolved = (status == null || status.isBlank()) ? defaultStatus : normalizeStatus(status);
-        if (!VALID_STATUSES.contains(resolved)) {
-            throw new IllegalArgumentException("Trạng thái giải đấu không hợp lệ. Chỉ chấp nhận: Nháp, Mở đăng ký, Đang diễn ra, Kết thúc, Đã hủy");
-        }
-        return resolved;
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private String normalizeStatus(String status) {
-        String normalized = status.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "draft", "nháp", "nhap" -> "Draft";
-            case "open", "mở đăng ký", "mo dang ky", "registrationopen" -> "Open";
-            case "ongoing", "đang diễn ra", "dang dien ra" -> "Ongoing";
-            case "finished", "kết thúc", "ket thuc" -> "Finished";
-            case "cancelled", "canceled", "đã hủy", "da huy" -> "Cancelled";
-            default -> status.trim();
-        };
-    }
-
-    private List<OptionResponse> nextStatuses(String status) {
-        return switch (status == null ? "" : status) {
-            case "Draft" -> List.of(new OptionResponse("Open", "Mở đăng ký"));
-            case "Open" -> List.of(
-                    new OptionResponse("Ongoing", "Bắt đầu"),
-                    new OptionResponse("Cancelled", "Hủy")
-            );
-            case "Ongoing" -> List.of(
-                    new OptionResponse("Finished", "Kết thúc"),
-                    new OptionResponse("Cancelled", "Hủy")
-            );
-            default -> List.of();
-        };
-    }
-
-    private String toStatusLabel(String status) {
-        return switch (status == null ? "" : status) {
-            case "Draft" -> "Nháp";
-            case "Open" -> "Mở đăng ký";
-            case "Ongoing" -> "Đang diễn ra";
-            case "Finished" -> "Kết thúc";
-            case "Cancelled" -> "Đã hủy";
-            default -> status;
-        };
-    }
-
-    private TournamentResponse toTournamentResponse(Tournament tournament) {
+    private TournamentResponse toResponse(Tournament tournament) {
         return new TournamentResponse(
-                tournament.getTournamentId(),
-                tournament.getTournamentName(),
-                tournament.getDescription(),
-                tournament.getLocation(),
-                tournament.getStartDate(),
-                tournament.getEndDate(),
-                tournament.getPrizeFund(),
-                tournament.getStatus(),
-                tournament.getCreatedByAdmin(),
-                tournament.getCreatedAt(),
+                tournament.getTournamentId(), tournament.getTournamentName(), tournament.getDescription(),
+                tournament.getLocation(), tournament.getStartDate(), tournament.getEndDate(),
+                tournament.getBudgetTotal(), tournament.getMaxHorses(), tournament.getMaxParticipants(),
+                tournament.getStatus(), tournament.getCreatedBy(), tournament.getApprovedByAdmin(),
+                tournament.getApprovedAt(), tournament.getRejectReason(), tournament.getCreatedAt(),
                 tournament.getUpdatedAt()
         );
     }
 
-    private TournamentDetailResponse toTournamentDetailResponse(Tournament tournament,
-                                                               List<RoundSummaryResponse> rounds,
-                                                               List<RaceSummaryResponse> races) {
-        return new TournamentDetailResponse(
-                tournament.getTournamentId(),
-                tournament.getTournamentName(),
-                tournament.getDescription(),
-                tournament.getLocation(),
-                tournament.getStartDate(),
-                tournament.getEndDate(),
-                tournament.getPrizeFund(),
-                tournament.getStatus(),
-                tournament.getCreatedByAdmin(),
-                tournament.getCreatedAt(),
-                tournament.getUpdatedAt(),
-                rounds,
-                races
-        );
-    }
-
     private RoundSummaryResponse toRoundSummary(Round round) {
-        return new RoundSummaryResponse(
-                round.getRoundId(),
-                round.getTournamentId(),
-                round.getRoundName(),
-                round.getRoundOrder(),
-                round.getStartDate(),
-                round.getEndDate(),
-                round.getDescription(),
-                round.getCreatedAt()
-        );
+        return new RoundSummaryResponse(round.getRoundId(), round.getTournamentId(), round.getRoundName(),
+                round.getRoundOrder(), round.getStartDate(), round.getEndDate(), round.getDescription(),
+                round.getCreatedAt());
     }
 
     private RaceSummaryResponse toRaceSummary(Race race) {
-        return new RaceSummaryResponse(
-                race.getRaceId(),
-                race.getTournamentId(),
-                race.getRoundId(),
-                race.getRaceName(),
-                race.getRaceDate(),
-                race.getTrackLength(),
-                race.getTrackType(),
-                race.getMaxParticipants(),
-                race.getPrizeFirst(),
-                race.getPrizeSecond(),
-                race.getPrizeThird(),
-                race.getStatus(),
-                race.getRegistrationOpen(),
-                race.getRegistrationClose()
-        );
+        return new RaceSummaryResponse(race.getRaceId(), race.getTournamentId(), race.getRoundId(),
+                race.getRaceName(), race.getRaceDate(), race.getTrackLength(), race.getTrackType(),
+                race.getMaxParticipants(), race.getPrizeFirst(), race.getPrizeSecond(), race.getPrizeThird(),
+                race.getStatus(), race.getRegistrationOpen(), race.getRegistrationClose());
     }
 }
