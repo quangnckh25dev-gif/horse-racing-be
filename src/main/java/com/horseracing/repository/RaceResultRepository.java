@@ -2,6 +2,7 @@ package com.horseracing.repository;
 
 import com.horseracing.entity.RaceResult;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +20,17 @@ public interface RaceResultRepository extends JpaRepository<RaceResult, Integer>
 
     @Query(value = "SELECT COUNT(1) FROM RaceEntries WHERE RaceID = :raceId AND EntryID = :entryId", nativeQuery = true)
     int countEntryInRace(@Param("raceId") Integer raceId, @Param("entryId") Integer entryId);
+
+    @Query(value = """
+            SELECT COUNT(1)
+            FROM RaceReferees rr
+            JOIN Referees ref ON rr.RefereeID = ref.RefereeID
+            WHERE rr.RaceID = :raceId AND ref.UserID = :userId
+            """, nativeQuery = true)
+    int countAssignedReferee(@Param("raceId") Integer raceId, @Param("userId") Integer userId);
+
+    @Query(value = "SELECT RefereeID FROM Referees WHERE UserID = :userId", nativeQuery = true)
+    Integer findRefereeIdByUserId(@Param("userId") Integer userId);
 
     @Query(value = """
             SELECT h.HorseName
@@ -39,6 +51,10 @@ public interface RaceResultRepository extends JpaRepository<RaceResult, Integer>
 
     @Query(value = "SELECT COUNT(1) FROM Users u JOIN Roles r ON u.RoleID = r.RoleID "
             + "WHERE u.UserID = :organizerId AND u.IsActive = 1 AND u.IsApproved = 1 "
-            + "AND r.RoleName IN ('OrganizerHead', 'OrganizerMember')", nativeQuery = true)
+            + "AND r.RoleName = 'Organizer'", nativeQuery = true)
     int countOrganizerById(@Param("organizerId") Integer organizerId);
+
+    @Modifying
+    @Query(value = "EXEC sp_PublishRaceResult :raceId, :organizerId", nativeQuery = true)
+    void publishRaceResult(@Param("raceId") Integer raceId, @Param("organizerId") Integer organizerId);
 }

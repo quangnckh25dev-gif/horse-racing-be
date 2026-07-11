@@ -1,5 +1,6 @@
 package com.horseracing.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class ViolationResponse {
@@ -9,22 +10,24 @@ public class ViolationResponse {
     private Integer entryId;
     private Integer refereeId;
     private String violationType;
+    private BigDecimal penaltySeconds;
+    private Boolean isDq;
+    private String evidenceImageUrl;
     private String description;
-    private String penalty;
-
-    private String penaltyLabel;
     private LocalDateTime recordedAt;
 
     public ViolationResponse(Integer violationId, Integer raceId, Integer entryId, Integer refereeId,
-                             String violationType, String description, String penalty, LocalDateTime recordedAt) {
+                             String violationType, BigDecimal penaltySeconds, Boolean isDq,
+                             String evidenceImageUrl, String description, LocalDateTime recordedAt) {
         this.violationId = violationId;
         this.raceId = raceId;
         this.entryId = entryId;
         this.refereeId = refereeId;
         this.violationType = violationType;
+        this.penaltySeconds = penaltySeconds;
+        this.isDq = isDq;
+        this.evidenceImageUrl = evidenceImageUrl;
         this.description = description;
-        this.penalty = penalty;
-        this.penaltyLabel = penalty;
         this.recordedAt = recordedAt;
     }
 
@@ -48,16 +51,20 @@ public class ViolationResponse {
         return violationType;
     }
 
+    public BigDecimal getPenaltySeconds() {
+        return penaltySeconds;
+    }
+
+    public Boolean getIsDq() {
+        return isDq;
+    }
+
+    public String getEvidenceImageUrl() {
+        return evidenceImageUrl;
+    }
+
     public String getDescription() {
         return description;
-    }
-
-    public String getPenalty() {
-        return penalty;
-    }
-
-    public String getPenaltyLabel() {
-        return penaltyLabel;
     }
 
     public LocalDateTime getRecordedAt() {

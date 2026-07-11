@@ -10,11 +10,15 @@ public class RaceMinuteResponse {
     private String content;
     private String preRaceChecks;
     private String postRaceNotes;
+    private String minutesFileUrl;
+    private Boolean sentToOwners;
+    private LocalDateTime sentAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public RaceMinuteResponse(Integer minuteId, Integer raceId, Integer refereeId, String content,
-                              String preRaceChecks, String postRaceNotes,
+                              String preRaceChecks, String postRaceNotes, String minutesFileUrl,
+                              Boolean sentToOwners, LocalDateTime sentAt,
                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.minuteId = minuteId;
         this.raceId = raceId;
@@ -22,6 +26,9 @@ public class RaceMinuteResponse {
         this.content = content;
         this.preRaceChecks = preRaceChecks;
         this.postRaceNotes = postRaceNotes;
+        this.minutesFileUrl = minutesFileUrl;
+        this.sentToOwners = sentToOwners;
+        this.sentAt = sentAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -48,6 +55,18 @@ public class RaceMinuteResponse {
 
     public String getPostRaceNotes() {
         return postRaceNotes;
+    }
+
+    public String getMinutesFileUrl() {
+        return minutesFileUrl;
+    }
+
+    public Boolean getSentToOwners() {
+        return sentToOwners;
+    }
+
+    public LocalDateTime getSentAt() {
+        return sentAt;
     }
 
     public LocalDateTime getCreatedAt() {

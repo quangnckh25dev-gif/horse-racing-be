@@ -3,10 +3,12 @@ package com.horseracing.service;
 import com.horseracing.dto.ViolationOptionResponse;
 import com.horseracing.dto.ViolationRequest;
 import com.horseracing.dto.ViolationResponse;
+import com.horseracing.entity.User;
 import com.horseracing.entity.Violation;
 import com.horseracing.repository.ViolationRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -14,27 +16,11 @@ import java.util.Map;
 @Service
 public class ViolationService {
 
-    private static final int DEFAULT_REFEREE_ID = 1;
-    private static final Map<String, String> PENALTY_BY_VIOLATION = Map.ofEntries(
-            Map.entry("XuatPhatSom", "Cảnh cáo và cộng 5 giây vào thành tích"),
-            Map.entry("ChaySaiLan", "Phạt 10 giây"),
-            Map.entry("CanTroDoiThu", "Hủy kết quả vòng đua"),
-            Map.entry("VuotRaKhoiDuongDua", "Hủy kết quả vòng đua"),
-            Map.entry("DungRoiTiepTucSaiQuyDinh", "Phạt 15 giây"),
-            Map.entry("SuDungThietBiCam", "Loại khỏi cuộc đua"),
-            Map.entry("BaoHanhNguocDaiNgua", "Loại khỏi giải đấu"),
-            Map.entry("KhongTuanThuTrongTai", "Cảnh cáo hoặc loại khỏi cuộc đua")
-    );
-
-    private static final Map<String, String> LABEL_BY_VIOLATION = Map.ofEntries(
-            Map.entry("XuatPhatSom", "Xuất phát sớm"),
-            Map.entry("ChaySaiLan", "Chạy sai làn"),
-            Map.entry("CanTroDoiThu", "Cản trở đối thủ"),
-            Map.entry("VuotRaKhoiDuongDua", "Vượt ra khỏi đường đua"),
-            Map.entry("DungRoiTiepTucSaiQuyDinh", "Dừng rồi tiếp tục sai quy định"),
-            Map.entry("SuDungThietBiCam", "Sử dụng thiết bị cấm"),
-            Map.entry("BaoHanhNguocDaiNgua", "Bạo hành hoặc ngược đãi ngựa"),
-            Map.entry("KhongTuanThuTrongTai", "Không tuân thủ trọng tài")
+    private static final Map<String, ViolationRule> RULE_BY_VIOLATION = Map.ofEntries(
+            Map.entry("XuatPhatSai", new ViolationRule("Xuat phat sai", BigDecimal.valueOf(3), false)),
+            Map.entry("LanLane", new ViolationRule("Lan lane", BigDecimal.valueOf(5), false)),
+            Map.entry("CanDuong", new ViolationRule("Can duong", BigDecimal.valueOf(10), false)),
+            Map.entry("ViPhamNang", new ViolationRule("Vi pham nang", BigDecimal.ZERO, true))
     );
 
     private final ViolationRepository violationRepository;
@@ -52,110 +38,126 @@ public class ViolationService {
     }
 
     public List<ViolationOptionResponse> getViolationOptions() {
-        return PENALTY_BY_VIOLATION.entrySet()
+        return RULE_BY_VIOLATION.entrySet()
                 .stream()
                 .map(entry -> new ViolationOptionResponse(
                         entry.getKey(),
-                        LABEL_BY_VIOLATION.get(entry.getKey()),
-                        entry.getValue()
+                        entry.getValue().label(),
+                        entry.getValue().penaltySeconds(),
+                        entry.getValue().isDq()
                 ))
                 .toList();
     }
 
-    public ViolationResponse createViolation(Integer raceId, ViolationRequest request) {
+    public ViolationResponse createViolation(Integer raceId, ViolationRequest request, User currentUser) {
         ensureRaceExists(raceId);
+        Integer refereeId = ensureAssignedReferee(raceId, currentUser);
+        validateRequest(request);
         ensureEntryBelongsToRace(raceId, request.getEntryId());
         String violationType = normalizeViolationType(request.getViolationType());
-
-        Integer refereeId = resolveRefereeId(request.getRefereeId());
+        ViolationRule rule = RULE_BY_VIOLATION.get(violationType);
 
         Violation violation = new Violation();
         violation.setRaceId(raceId);
         violation.setEntryId(request.getEntryId());
         violation.setRefereeId(refereeId);
         violation.setViolationType(violationType);
+        violation.setPenaltySeconds(rule.penaltySeconds());
+        violation.setIsDq(rule.isDq());
+        violation.setEvidenceImageUrl(request.getEvidenceImageUrl());
         violation.setDescription(request.getDescription());
-        violation.setPenalty(resolvePenalty(violationType, request.getPenalty()));
         violation.setRecordedAt(LocalDateTime.now());
 
         return toResponse(violationRepository.save(violation));
     }
 
-    public ViolationResponse updateViolation(Integer violationId, ViolationRequest request) {
+    public ViolationResponse updateViolation(Integer violationId, ViolationRequest request, User currentUser) {
+        if (request == null) {
+            throw new IllegalArgumentException("Du lieu vi pham khong hop le");
+        }
         Violation violation = violationRepository.findById(violationId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vi phạm"));
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay vi pham"));
+        Integer refereeId = ensureAssignedReferee(violation.getRaceId(), currentUser);
+        violation.setRefereeId(refereeId);
 
         if (request.getEntryId() != null) {
             ensureEntryBelongsToRace(violation.getRaceId(), request.getEntryId());
             violation.setEntryId(request.getEntryId());
         }
 
-        if (request.getRefereeId() != null) {
-            violation.setRefereeId(resolveRefereeId(request.getRefereeId()));
-        }
-
         if (request.getViolationType() != null) {
-            violation.setViolationType(normalizeViolationType(request.getViolationType()));
+            String violationType = normalizeViolationType(request.getViolationType());
+            ViolationRule rule = RULE_BY_VIOLATION.get(violationType);
+            violation.setViolationType(violationType);
+            violation.setPenaltySeconds(rule.penaltySeconds());
+            violation.setIsDq(rule.isDq());
         }
 
+        violation.setEvidenceImageUrl(request.getEvidenceImageUrl());
         violation.setDescription(request.getDescription());
-        violation.setPenalty(resolvePenalty(violation.getViolationType(), request.getPenalty()));
 
         return toResponse(violationRepository.save(violation));
     }
 
-    public void deleteViolation(Integer violationId) {
-        if (!violationRepository.existsById(violationId)) {
-            throw new IllegalArgumentException("Không tìm thấy vi phạm");
-        }
-
+    public void deleteViolation(Integer violationId, User currentUser) {
+        Violation violation = violationRepository.findById(violationId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay vi pham"));
+        ensureAssignedReferee(violation.getRaceId(), currentUser);
         violationRepository.deleteById(violationId);
     }
 
     private void ensureRaceExists(Integer raceId) {
         if (raceId == null || violationRepository.countRaceById(raceId) == 0) {
-            throw new IllegalArgumentException("Không tìm thấy vòng đua");
+            throw new IllegalArgumentException("Khong tim thay race");
         }
     }
 
     private void ensureEntryBelongsToRace(Integer raceId, Integer entryId) {
         if (entryId == null || violationRepository.countEntryInRace(raceId, entryId) == 0) {
-            throw new IllegalArgumentException("Entry không thuộc vòng đua này");
+            throw new IllegalArgumentException("Entry khong thuoc race nay");
         }
     }
 
-    private Integer resolveRefereeId(Integer refereeId) {
-        Integer resolvedRefereeId = refereeId == null ? DEFAULT_REFEREE_ID : refereeId;
-        if (violationRepository.countRefereeById(resolvedRefereeId) == 0) {
-            throw new IllegalArgumentException("Không tìm thấy trọng tài");
+    private Integer ensureAssignedReferee(Integer raceId, User currentUser) {
+        if (currentUser == null || currentUser.getRole() == null
+                || !"Referee".equalsIgnoreCase(currentUser.getRole().getRoleName())) {
+            throw new IllegalArgumentException("Chi Referee moi duoc ghi vi pham");
         }
+        if (violationRepository.countAssignedReferee(raceId, currentUser.getUserId()) == 0) {
+            throw new IllegalArgumentException("Referee chua duoc phan cong cho race nay");
+        }
+        Integer refereeId = violationRepository.findRefereeIdByUserId(currentUser.getUserId());
+        if (refereeId == null) {
+            throw new IllegalArgumentException("User hien tai chua co ho so Referee");
+        }
+        return refereeId;
+    }
 
-        return resolvedRefereeId;
+    private void validateRequest(ViolationRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Du lieu vi pham khong hop le");
+        }
+        if (request.getEntryId() == null) {
+            throw new IllegalArgumentException("entryId khong duoc de trong");
+        }
     }
 
     private String normalizeViolationType(String violationType) {
         if (violationType == null || violationType.isBlank()) {
-            throw new IllegalArgumentException("Loại vi phạm không được để trống");
+            throw new IllegalArgumentException("Loai vi pham khong duoc de trong");
         }
 
         String trimmed = violationType.trim();
-        if (PENALTY_BY_VIOLATION.containsKey(trimmed)) {
+        if (RULE_BY_VIOLATION.containsKey(trimmed)) {
             return trimmed;
         }
 
-        return LABEL_BY_VIOLATION.entrySet()
+        return RULE_BY_VIOLATION.entrySet()
                 .stream()
-                .filter(entry -> entry.getValue().equalsIgnoreCase(trimmed))
+                .filter(entry -> entry.getValue().label().equalsIgnoreCase(trimmed))
                 .map(Map.Entry::getKey)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Loại vi phạm không hợp lệ"));
-    }
-
-    private String resolvePenalty(String violationType, String requestedPenalty) {
-        if (requestedPenalty != null && !requestedPenalty.isBlank()) {
-            return requestedPenalty.trim();
-        }
-        return PENALTY_BY_VIOLATION.get(violationType);
+                .orElseThrow(() -> new IllegalArgumentException("Loai vi pham khong hop le"));
     }
 
     private ViolationResponse toResponse(Violation violation) {
@@ -165,9 +167,14 @@ public class ViolationService {
                 violation.getEntryId(),
                 violation.getRefereeId(),
                 violation.getViolationType(),
+                violation.getPenaltySeconds(),
+                violation.getIsDq(),
+                violation.getEvidenceImageUrl(),
                 violation.getDescription(),
-                violation.getPenalty(),
                 violation.getRecordedAt()
         );
+    }
+
+    private record ViolationRule(String label, BigDecimal penaltySeconds, boolean isDq) {
     }
 }

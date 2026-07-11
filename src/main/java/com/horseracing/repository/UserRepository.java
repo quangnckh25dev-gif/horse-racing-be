@@ -29,7 +29,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
             select u from User u
             where u.isActive = true
               and u.isApproved = true
-              and u.role.roleName in ('Admin', 'OrganizerHead', 'OrganizerMember')
+              and u.role.roleName in ('Admin', 'Organizer')
             """)
     java.util.List<User> findActiveOrganizersAndAdmins();
 }

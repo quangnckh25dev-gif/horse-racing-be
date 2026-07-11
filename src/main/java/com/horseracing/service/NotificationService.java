@@ -50,9 +50,13 @@ public class NotificationService {
         return toResponse(notificationRepository.save(notification));
     }
 
-    public NotificationResponse markAsRead(Integer notificationId) {
+    public NotificationResponse markAsRead(Integer notificationId, Integer currentUserId) {
+        ensureUserExists(currentUserId);
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay notification"));
+        if (!currentUserId.equals(notification.getUserId())) {
+            throw new IllegalArgumentException("Notification khong thuoc user hien tai");
+        }
 
         notification.setIsRead(true);
         return toResponse(notificationRepository.save(notification));

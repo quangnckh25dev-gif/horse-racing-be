@@ -1,8 +1,11 @@
 package com.horseracing.controller;
 
 import com.horseracing.dto.NotificationRequest;
+import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
+import com.horseracing.service.CurrentUserService;
 import com.horseracing.service.NotificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,26 +22,30 @@ import org.springframework.web.bind.annotation.RestController;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final CurrentUserService currentUserService;
 
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(NotificationService notificationService, CurrentUserService currentUserService) {
         this.notificationService = notificationService;
+        this.currentUserService = currentUserService;
     }
 
-    @GetMapping("/api/users/{userId}/notifications")
-    public ApiResponse<?> getUserNotifications(@PathVariable Integer userId) {
+    @GetMapping("/api/notifications/me")
+    public ApiResponse<?> getMyNotifications(HttpServletRequest request) {
+        User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
                 "Lay danh sach notification thanh cong",
-                notificationService.getUserNotifications(userId)
+                notificationService.getUserNotifications(currentUser.getUserId())
         );
     }
 
-    @GetMapping("/api/users/{userId}/notifications/unread-count")
-    public ApiResponse<?> countUnreadNotifications(@PathVariable Integer userId) {
+    @GetMapping("/api/notifications/me/unread-count")
+    public ApiResponse<?> countMyUnreadNotifications(HttpServletRequest request) {
+        User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
                 "Lay so notification chua doc thanh cong",
-                notificationService.countUnreadNotifications(userId)
+                notificationService.countUnreadNotifications(currentUser.getUserId())
         );
     }
 
@@ -52,20 +59,22 @@ public class NotificationController {
     }
 
     @PutMapping("/api/notifications/{notificationId}/read")
-    public ApiResponse<?> markAsRead(@PathVariable Integer notificationId) {
+    public ApiResponse<?> markAsRead(@PathVariable Integer notificationId, HttpServletRequest request) {
+        User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
                 "Danh dau notification da doc thanh cong",
-                notificationService.markAsRead(notificationId)
+                notificationService.markAsRead(notificationId, currentUser.getUserId())
         );
     }
 
-    @PutMapping("/api/users/{userId}/notifications/read-all")
-    public ApiResponse<?> markAllAsRead(@PathVariable Integer userId) {
+    @PutMapping("/api/notifications/me/read-all")
+    public ApiResponse<?> markMyAllAsRead(HttpServletRequest request) {
+        User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
                 "Danh dau tat ca notification da doc thanh cong",
-                notificationService.markAllAsRead(userId)
+                notificationService.markAllAsRead(currentUser.getUserId())
         );
     }
 

@@ -85,12 +85,11 @@ public class AuthService {
 
     public List<OptionResponse> getRegisterRoleOptions() {
         return List.of(
-                new OptionResponse("HorseOwner", "Chủ ngựa"),
-                new OptionResponse("Jockey", "Kỵ sĩ"),
-                new OptionResponse("Referee", "Trọng tài"),
-                new OptionResponse("Spectator", "Khán giả"),
-                new OptionResponse("OrganizerHead", "Trưởng ban tổ chức"),
-                new OptionResponse("OrganizerMember", "Thành viên ban tổ chức")
+                new OptionResponse("HorseOwner", "Chu ngua"),
+                new OptionResponse("Jockey", "Ky si"),
+                new OptionResponse("Referee", "Trong tai"),
+                new OptionResponse("Spectator", "Khan gia"),
+                new OptionResponse("Organizer", "Ban to chuc")
         );
     }
 
@@ -245,7 +244,7 @@ public class AuthService {
             Role role = roleRepository.findById(request.getRoleId())
                     .orElseThrow(() -> new IllegalArgumentException("roleId khong ton tai"));
             if ("Admin".equalsIgnoreCase(role.getRoleName())) {
-                throw new IllegalArgumentException("Không được đăng ký trực tiếp role Admin");
+                throw new IllegalArgumentException("Khong duoc dang ky truc tiep role Admin");
             }
             return role;
         }
@@ -256,7 +255,7 @@ public class AuthService {
         }
         roleName = normalizeRoleName(roleName);
         if ("Admin".equalsIgnoreCase(roleName)) {
-            throw new IllegalArgumentException("Không được đăng ký trực tiếp role Admin");
+            throw new IllegalArgumentException("Khong duoc dang ky truc tiep role Admin");
         }
 
         return roleRepository.findByRoleName(roleName)
@@ -266,12 +265,11 @@ public class AuthService {
     private String normalizeRoleName(String roleName) {
         String normalized = roleName.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "horseowner", "owner", "chủ ngựa", "chu ngua" -> "HorseOwner";
-            case "jockey", "nài ngựa", "nai ngua", "kỵ sĩ", "ky si" -> "Jockey";
-            case "referee", "trọng tài", "trong tai" -> "Referee";
-            case "spectator", "khán giả", "khan gia" -> "Spectator";
-            case "organizerhead", "trưởng ban tổ chức", "truong ban to chuc" -> "OrganizerHead";
-            case "organizermember", "thành viên ban tổ chức", "thanh vien ban to chuc" -> "OrganizerMember";
+            case "horseowner", "owner", "chu ngua" -> "HorseOwner";
+            case "jockey", "nai ngua", "ky si" -> "Jockey";
+            case "referee", "trong tai" -> "Referee";
+            case "spectator", "khan gia" -> "Spectator";
+            case "organizer", "ban to chuc" -> "Organizer";
             case "admin" -> "Admin";
             default -> roleName.trim();
         };
@@ -295,9 +293,9 @@ public class AuthService {
                 .filter(value -> !value.isBlank())
                 .orElse(null);
         if (until == null) {
-            throw new IllegalArgumentException("Hệ thống đang bảo trì. Chỉ admin được phép đăng nhập.");
+            throw new IllegalArgumentException("He thong dang bao tri. Chi admin duoc phep dang nhap.");
         }
-        throw new IllegalArgumentException("Hệ thống đang bảo trì. Dự kiến mở lại vào " + until + ". Chỉ admin được phép đăng nhập.");
+        throw new IllegalArgumentException("He thong dang bao tri. Du kien mo lai vao " + until + ". Chi admin duoc phep dang nhap.");
     }
 
     private boolean matchesPassword(String rawPassword, String storedPassword) {

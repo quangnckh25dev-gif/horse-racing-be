@@ -20,7 +20,9 @@ import com.horseracing.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
+
 @Service
 public class RaceEntryService {
 
@@ -95,9 +97,9 @@ public class RaceEntryService {
         entry.setRaceId(raceId);
         entry.setHorseId(horse.getHorseId());
         entry.setLaneNumber(request.getLaneNumber());
-        entry.setOwnerConfirmed(true);
-        entry.setJockeyConfirmed(false);
         entry.setRegistrationStatus("Pending");
+        entry.setJockeyConfirmed(false);
+        entry.setOdds(BigDecimal.valueOf(2));
 
         RaceEntry saved = raceEntryRepository.save(entry);
         notifyOrganizers(saved, race, horse, user);
@@ -125,8 +127,8 @@ public class RaceEntryService {
 
     public RaceEntryResponse approveEntry(Integer raceId, Integer entryId, RaceEntryApproveRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
-        if (!currentUserService.isAdmin(user)) {
-            throw new IllegalArgumentException("Chi Admin moi duoc duyet entry");
+        if (!isOrganizer(user)) {
+            throw new IllegalArgumentException("Chi Ban to chuc moi duoc duyet entry");
         }
 
         RaceEntry entry = getEntryInRace(raceId, entryId);
@@ -159,7 +161,7 @@ public class RaceEntryService {
 
     private void validateRaceCanReceiveEntry(Race race) {
         if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus()) && !"Scheduled".equalsIgnoreCase(race.getStatus())) {
-            throw new IllegalArgumentException("Vòng đua chưa mở đăng ký");
+            throw new IllegalArgumentException("Race chua mo dang ky");
         }
     }
 
@@ -211,9 +213,9 @@ public class RaceEntryService {
     }
 
     private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {
-        String title = "Có đăng ký thi đấu mới chờ duyệt";
-        String body = ownerUser.getFullName() + " đã đăng ký ngựa "
-                + horse.getHorseName() + " vào vòng đua " + race.getRaceName() + ".";
+        String title = "Co dang ky thi dau moi cho duyet";
+        String body = ownerUser.getFullName() + " da dang ky ngua "
+                + horse.getHorseName() + " vao race " + race.getRaceName() + ".";
 
         userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
             Notification notification = new Notification();
@@ -248,13 +250,19 @@ public class RaceEntryService {
                 jockeyUser == null ? null : jockeyUser.getFullName(),
                 entry.getLaneNumber(),
                 entry.getRegistrationStatus(),
-                entry.getOwnerConfirmed(),
-                entry.getJockeyConfirmed(),
                 entry.getApprovedBy(),
                 entry.getRejectReason(),
+                entry.getJockeyConfirmed(),
                 entry.getOdds(),
+                horse == null ? null : horse.getHealthStatus(),
                 entry.getRegisteredAt(),
                 entry.getUpdatedAt()
         );
+    }
+
+    private boolean isOrganizer(User user) {
+        return user != null
+                && user.getRole() != null
+                && "Organizer".equalsIgnoreCase(user.getRole().getRoleName());
     }
 }

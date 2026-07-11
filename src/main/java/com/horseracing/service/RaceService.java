@@ -5,9 +5,11 @@ import com.horseracing.dto.RaceSummaryResponse;
 import com.horseracing.entity.Race;
 import com.horseracing.entity.Round;
 import com.horseracing.entity.Tournament;
+import com.horseracing.entity.User;
 import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RoundRepository;
 import com.horseracing.repository.TournamentRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -97,6 +99,23 @@ public class RaceService {
         Race race = getRaceOrThrow(raceId);
         race.setStatus(resolveStatus(status, race.getStatus()));
         return toResponse(raceRepository.save(race));
+    }
+
+    @Transactional
+    public RaceSummaryResponse updateStatusByReferee(Integer raceId, String status, User currentUser) {
+        ensureRefereeCanUpdateRaceStatus(raceId, currentUser);
+
+        Race race = getRaceOrThrow(raceId);
+        String oldStatus = race.getStatus();
+        String newStatus = resolveStatus(status, oldStatus);
+        if (oldStatus != null && oldStatus.equals(newStatus)) {
+            return toResponse(race);
+        }
+
+        race.setStatus(newStatus);
+        Race saved = raceRepository.save(race);
+        raceRepository.insertStatusHistory(raceId, oldStatus, newStatus, currentUser.getUserId());
+        return toResponse(saved);
     }
 
     public void deleteRace(Integer raceId) {
@@ -224,6 +243,16 @@ public class RaceService {
             case "cancelled", "canceled", "đã hủy", "da huy" -> "Cancelled";
             default -> status.trim();
         };
+    }
+
+    private void ensureRefereeCanUpdateRaceStatus(Integer raceId, User currentUser) {
+        if (currentUser == null || currentUser.getRole() == null
+                || !"Referee".equalsIgnoreCase(currentUser.getRole().getRoleName())) {
+            throw new IllegalArgumentException("Chi Referee moi duoc cap nhat trang thai race");
+        }
+        if (raceRepository.countAssignedReferee(raceId, currentUser.getUserId()) == 0) {
+            throw new IllegalArgumentException("Referee chua duoc phan cong cho race nay");
+        }
     }
 
     private RaceSummaryResponse toResponse(Race race) {

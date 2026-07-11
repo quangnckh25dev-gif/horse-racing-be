@@ -19,4 +19,15 @@ public interface ViolationRepository extends JpaRepository<Violation, Integer> {
 
     @Query(value = "SELECT COUNT(1) FROM Referees WHERE RefereeID = :refereeId", nativeQuery = true)
     int countRefereeById(@Param("refereeId") Integer refereeId);
+
+    @Query(value = """
+            SELECT COUNT(1)
+            FROM RaceReferees rr
+            JOIN Referees ref ON rr.RefereeID = ref.RefereeID
+            WHERE rr.RaceID = :raceId AND ref.UserID = :userId
+            """, nativeQuery = true)
+    int countAssignedReferee(@Param("raceId") Integer raceId, @Param("userId") Integer userId);
+
+    @Query(value = "SELECT RefereeID FROM Referees WHERE UserID = :userId", nativeQuery = true)
+    Integer findRefereeIdByUserId(@Param("userId") Integer userId);
 }

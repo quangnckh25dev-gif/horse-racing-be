@@ -2,23 +2,23 @@ package com.horseracing.controller;
 
 import com.horseracing.dto.RaceRefereeRequest;
 import com.horseracing.dto.RaceRequest;
-import com.horseracing.dto.RaceStatusRequest;
+import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
+import com.horseracing.service.CurrentUserService;
 import com.horseracing.service.RaceRefereeService;
 import com.horseracing.service.RaceResultService;
 import com.horseracing.service.RaceService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,13 +30,16 @@ public class OrganizerRaceController {
     private final RaceService raceService;
     private final RaceRefereeService raceRefereeService;
     private final RaceResultService raceResultService;
+    private final CurrentUserService currentUserService;
 
     public OrganizerRaceController(RaceService raceService,
                                    RaceRefereeService raceRefereeService,
-                                   RaceResultService raceResultService) {
+                                   RaceResultService raceResultService,
+                                   CurrentUserService currentUserService) {
         this.raceService = raceService;
         this.raceRefereeService = raceRefereeService;
         this.raceResultService = raceResultService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping("/races")
@@ -64,18 +67,6 @@ public class OrganizerRaceController {
     public ApiResponse<?> deleteRace(@PathVariable Integer id) {
         raceService.deleteRace(id);
         return ApiResponse.success(200, "Xoa race thanh cong", null);
-    }
-
-    @PatchMapping("/races/{id}/status")
-    public ApiResponse<?> updateRaceStatus(
-            @PathVariable Integer id,
-            @RequestBody RaceStatusRequest request
-    ) {
-        return ApiResponse.success(
-                200,
-                "Cap nhat status race thanh cong",
-                raceService.updateStatus(id, request.getStatus())
-        );
     }
 
     @GetMapping("/referees")
@@ -120,36 +111,39 @@ public class OrganizerRaceController {
     @PutMapping("/races/{raceId}/results/approve")
     public ApiResponse<?> approveResults(
             @PathVariable Integer raceId,
-            @RequestParam Integer organizerId
+            HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Duyet ket qua race thanh cong",
-                raceResultService.approveResults(raceId, organizerId)
+                raceResultService.approveResults(raceId, currentUser)
         );
     }
 
     @PutMapping("/races/{raceId}/results/reject")
     public ApiResponse<?> rejectResults(
             @PathVariable Integer raceId,
-            @RequestParam Integer organizerId
+            HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Tu choi ket qua race thanh cong",
-                raceResultService.rejectResults(raceId, organizerId)
+                raceResultService.rejectResults(raceId, currentUser)
         );
     }
 
     @PostMapping("/races/{raceId}/results/publish")
     public ApiResponse<?> publishResults(
             @PathVariable Integer raceId,
-            @RequestParam Integer organizerId
+            HttpServletRequest httpRequest
     ) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Cong bo ket qua race thanh cong",
-                raceResultService.publishResults(raceId, organizerId)
+                raceResultService.publishResults(raceId, currentUser)
         );
     }
 
