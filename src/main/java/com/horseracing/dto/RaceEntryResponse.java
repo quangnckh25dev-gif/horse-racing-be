@@ -1,5 +1,6 @@
 package com.horseracing.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class RaceEntryResponse {
@@ -16,15 +17,17 @@ public class RaceEntryResponse {
     private String registrationStatus;
     private Boolean ownerConfirmed;
     private Boolean jockeyConfirmed;
-    private Boolean adminApproved;
+    private Integer approvedBy;
+    private String rejectReason;
+    private BigDecimal odds;
     private LocalDateTime registeredAt;
     private LocalDateTime updatedAt;
 
     public RaceEntryResponse(Integer entryId, Integer raceId, String raceName, Integer horseId, String horseName,
                              Integer ownerId, String ownerName, Integer jockeyId, String jockeyName,
                              Integer laneNumber, String registrationStatus, Boolean ownerConfirmed,
-                             Boolean jockeyConfirmed, Boolean adminApproved, LocalDateTime registeredAt,
-                             LocalDateTime updatedAt) {
+                             Boolean jockeyConfirmed, Integer approvedBy, String rejectReason, BigDecimal odds,
+                             LocalDateTime registeredAt, LocalDateTime updatedAt) {
         this.entryId = entryId;
         this.raceId = raceId;
         this.raceName = raceName;
@@ -38,7 +41,9 @@ public class RaceEntryResponse {
         this.registrationStatus = registrationStatus;
         this.ownerConfirmed = ownerConfirmed;
         this.jockeyConfirmed = jockeyConfirmed;
-        this.adminApproved = adminApproved;
+        this.approvedBy = approvedBy;
+        this.rejectReason = rejectReason;
+        this.odds = odds;
         this.registeredAt = registeredAt;
         this.updatedAt = updatedAt;
     }
@@ -56,7 +61,9 @@ public class RaceEntryResponse {
     public String getRegistrationStatus() { return registrationStatus; }
     public Boolean getOwnerConfirmed() { return ownerConfirmed; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
-    public Boolean getAdminApproved() { return adminApproved; }
+    public Integer getApprovedBy() { return approvedBy; }
+    public String getRejectReason() { return rejectReason; }
+    public BigDecimal getOdds() { return odds; }
     public LocalDateTime getRegisteredAt() { return registeredAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

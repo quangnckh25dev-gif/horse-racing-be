@@ -9,6 +9,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -41,8 +42,14 @@ public class RaceEntry {
     @Column(name = "JockeyConfirmed", nullable = false)
     private Boolean jockeyConfirmed;
 
-    @Column(name = "AdminApproved", nullable = false)
-    private Boolean adminApproved;
+    @Column(name = "ApprovedBy")
+    private Integer approvedBy;
+
+    @Column(name = "RejectReason")
+    private String rejectReason;
+
+    @Column(name = "Odds", nullable = false, precision = 10, scale = 2)
+    private BigDecimal odds;
 
     @Column(name = "RegisteredAt")
     private LocalDateTime registeredAt;
@@ -64,8 +71,8 @@ public class RaceEntry {
         if (jockeyConfirmed == null) {
             jockeyConfirmed = false;
         }
-        if (adminApproved == null) {
-            adminApproved = false;
+        if (odds == null) {
+            odds = BigDecimal.valueOf(2.00);
         }
     }
 
@@ -90,8 +97,12 @@ public class RaceEntry {
     public void setOwnerConfirmed(Boolean ownerConfirmed) { this.ownerConfirmed = ownerConfirmed; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
     public void setJockeyConfirmed(Boolean jockeyConfirmed) { this.jockeyConfirmed = jockeyConfirmed; }
-    public Boolean getAdminApproved() { return adminApproved; }
-    public void setAdminApproved(Boolean adminApproved) { this.adminApproved = adminApproved; }
+    public Integer getApprovedBy() { return approvedBy; }
+    public void setApprovedBy(Integer approvedBy) { this.approvedBy = approvedBy; }
+    public String getRejectReason() { return rejectReason; }
+    public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+    public BigDecimal getOdds() { return odds; }
+    public void setOdds(BigDecimal odds) { this.odds = odds; }
     public LocalDateTime getRegisteredAt() { return registeredAt; }
     public void setRegisteredAt(LocalDateTime registeredAt) { this.registeredAt = registeredAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

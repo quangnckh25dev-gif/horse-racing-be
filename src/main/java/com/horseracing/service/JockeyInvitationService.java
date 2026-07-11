@@ -21,6 +21,7 @@ import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,6 +59,7 @@ public class JockeyInvitationService {
         this.currentUserService = currentUserService;
     }
 
+    @Transactional
     public JockeyInvitationResponse sendInvitation(Integer entryId, JockeyInvitationRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         HorseOwner owner = getOwnerByUserId(user.getUserId());
@@ -71,8 +73,14 @@ public class JockeyInvitationService {
         if (request == null || request.getJockeyId() == null) {
             throw new IllegalArgumentException("jockeyId khong duoc de trong");
         }
-        if (!"Pending".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Chi entry Pending moi duoc moi jockey");
+        if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
+            throw new IllegalArgumentException("Chi entry da duoc BTC duyet moi duoc moi jockey");
+        }
+        if (Boolean.TRUE.equals(entry.getJockeyConfirmed()) || entry.getJockeyId() != null) {
+            throw new IllegalArgumentException("Entry nay da co jockey xac nhan");
+        }
+        if (invitationRepository.existsByEntryIdAndStatus(entryId, "Pending")) {
+            throw new IllegalArgumentException("Entry nay dang co loi moi jockey cho phan hoi");
         }
 
         Jockey jockey = jockeyRepository.findById(request.getJockeyId())
@@ -116,6 +124,7 @@ public class JockeyInvitationService {
                 .toList();
     }
 
+    @Transactional
     public JockeyInvitationResponse respondInvitation(Integer invitationId, JockeyInvitationRespondRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Jockey jockey = jockeyRepository.findByUserId(user.getUserId())
@@ -139,8 +148,15 @@ public class JockeyInvitationService {
 
         if ("Accepted".equals(status)) {
             RaceEntry entry = getEntry(invitation.getEntryId());
+            if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
+                throw new IllegalArgumentException("Chi entry da duoc BTC duyet moi duoc nhan loi moi");
+            }
+            if (Boolean.TRUE.equals(entry.getJockeyConfirmed()) || entry.getJockeyId() != null) {
+                throw new IllegalArgumentException("Entry nay da co jockey xac nhan");
+            }
             entry.setJockeyId(jockey.getJockeyId());
             entry.setJockeyConfirmed(true);
+            entry.setRegistrationStatus("Ready");
             raceEntryRepository.save(entry);
         }
 

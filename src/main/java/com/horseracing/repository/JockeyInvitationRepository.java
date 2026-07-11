@@ -11,4 +11,6 @@ public interface JockeyInvitationRepository extends JpaRepository<JockeyInvitati
     List<JockeyInvitation> findByInvitedByOwnerOrderByInvitedAtDesc(Integer invitedByOwner);
 
     boolean existsByEntryIdAndJockeyIdAndStatus(Integer entryId, Integer jockeyId, String status);
+
+    boolean existsByEntryIdAndStatus(Integer entryId, String status);
 }
