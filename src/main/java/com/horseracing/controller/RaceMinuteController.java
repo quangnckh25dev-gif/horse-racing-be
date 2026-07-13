@@ -76,6 +76,16 @@ public class RaceMinuteController {
         );
     }
 
+    @PostMapping("/api/races/{raceId}/minutes/handoff")
+    public ApiResponse<?> handoffMinutesToOrganizer(@PathVariable Integer raceId, HttpServletRequest httpRequest) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
+        return ApiResponse.success(
+                200,
+                "Ban giao ket qua va bien ban cho BTC thanh cong",
+                raceMinuteService.handoffMinutesToOrganizer(raceId, currentUser)
+        );
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<?> handleBadRequest(IllegalArgumentException ex) {
