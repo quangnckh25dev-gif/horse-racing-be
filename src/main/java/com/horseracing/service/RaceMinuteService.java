@@ -2,9 +2,12 @@ package com.horseracing.service;
 
 import com.horseracing.dto.RaceMinuteRequest;
 import com.horseracing.dto.RaceMinuteResponse;
+import com.horseracing.entity.Notification;
 import com.horseracing.entity.RaceMinute;
 import com.horseracing.entity.User;
+import com.horseracing.repository.NotificationRepository;
 import com.horseracing.repository.RaceMinuteRepository;
+import com.horseracing.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,9 +17,15 @@ import java.time.LocalDateTime;
 public class RaceMinuteService {
 
     private final RaceMinuteRepository raceMinuteRepository;
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
 
-    public RaceMinuteService(RaceMinuteRepository raceMinuteRepository) {
+    public RaceMinuteService(RaceMinuteRepository raceMinuteRepository,
+                             NotificationRepository notificationRepository,
+                             UserRepository userRepository) {
         this.raceMinuteRepository = raceMinuteRepository;
+        this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
     }
 
     public RaceMinuteResponse getMinutesByRace(Integer raceId) {
@@ -84,6 +93,32 @@ public class RaceMinuteService {
         raceMinuteRepository.sendMinutesToOwners(raceId);
         return toResponse(raceMinuteRepository.findByRaceId(raceId)
                 .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban")));
+    }
+
+    @Transactional
+    public RaceMinuteResponse handoffMinutesToOrganizer(Integer raceId, User currentUser) {
+        ensureRaceExists(raceId);
+        ensureAssignedReferee(raceId, currentUser);
+
+        RaceMinute minute = raceMinuteRepository.findByRaceId(raceId)
+                .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban"));
+        if (minute.getMinutesFileUrl() == null || minute.getMinutesFileUrl().isBlank()) {
+            throw new IllegalArgumentException("Can co minutesFileUrl truoc khi ban giao cho BTC");
+        }
+
+        userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
+            Notification notification = new Notification();
+            notification.setUserId(user.getUserId());
+            notification.setTitle("Ket qua race san sang de BTC duyet");
+            notification.setBody("Referee da ban giao ket qua va bien ban cho race #" + raceId + ".");
+            notification.setNotifType("ResultReadyForReview");
+            notification.setRelatedEntityId(raceId);
+            notification.setRelatedEntity("Race");
+            notification.setIsRead(false);
+            notificationRepository.save(notification);
+        });
+
+        return toResponse(minute);
     }
 
     private void ensureRaceExists(Integer raceId) {
