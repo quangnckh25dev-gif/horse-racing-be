@@ -44,6 +44,16 @@ public class RaceController {
         );
     }
 
+    @GetMapping("/assigned")
+    public ApiResponse<?> getAssignedRaces(HttpServletRequest httpRequest) {
+        User currentUser = currentUserService.getCurrentUser(httpRequest);
+        return ApiResponse.success(
+                200,
+                "Lay danh sach race duoc phan cong thanh cong",
+                raceService.getAssignedRacesForReferee(currentUser)
+        );
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<?> getRaceDetail(@PathVariable Integer id) {
         return ApiResponse.success(

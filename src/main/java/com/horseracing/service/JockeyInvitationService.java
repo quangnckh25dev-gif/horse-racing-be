@@ -163,6 +163,25 @@ public class JockeyInvitationService {
         return toResponse(invitationRepository.save(invitation));
     }
 
+    @Transactional
+    public JockeyInvitationResponse cancelInvitation(Integer invitationId, HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        HorseOwner owner = getOwnerByUserId(user.getUserId());
+        JockeyInvitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay invitation"));
+
+        if (!owner.getOwnerId().equals(invitation.getInvitedByOwner())) {
+            throw new IllegalArgumentException("Ban khong co quyen huy invitation nay");
+        }
+        if (!"Pending".equalsIgnoreCase(invitation.getStatus())) {
+            throw new IllegalArgumentException("Chi loi moi dang cho phan hoi moi huy duoc");
+        }
+
+        invitation.setStatus("Cancelled");
+        invitation.setRespondedAt(LocalDateTime.now());
+        return toResponse(invitationRepository.save(invitation));
+    }
+
     private String normalizeResponseStatus(String status) {
         if ("Accepted".equalsIgnoreCase(status) || "Accept".equalsIgnoreCase(status)) {
             return "Accepted";

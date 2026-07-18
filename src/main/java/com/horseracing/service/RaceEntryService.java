@@ -157,7 +157,9 @@ public class RaceEntryService {
         if (Boolean.TRUE.equals(request.getApproved())) {
             Horse horse = horseRepository.findById(entry.getHorseId())
                     .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
-            if (!"Hoạt động".equals(horse.getHealthStatus())) {
+            // Chấp nhận cả 'Active' lẫn 'Hoạt động' — đồng bộ với HorseService.normalizeStatus. KHONG XOA!
+            String hs = horse.getHealthStatus() == null ? "" : horse.getHealthStatus().trim();
+            if (!"Hoạt động".equals(hs) && !"Active".equalsIgnoreCase(hs) && !"Hoat dong".equalsIgnoreCase(hs)) {
                 throw new IllegalArgumentException("Chi duyet ngua co healthStatus = Hoat dong");
             }
             entry.setRegistrationStatus("Approved");

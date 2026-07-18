@@ -353,9 +353,15 @@ public class BettingService {
 
     private BigDecimal normalizeOdds(BigDecimal odds) {
         BigDecimal maxOdds = readConfigDecimal("ODDS_MAX", DEFAULT_ODDS_MAX);
+        // San ODDS_MIN 1.1: PLACE/SHOW nhan he so < 1 nen odds co the <= 1
+        // => placeBet tu chan ("odds phai lon hon 1") va nguoi thang van lo tien. KHONG XOA!
+        BigDecimal minOdds = readConfigDecimal("ODDS_MIN", BigDecimal.valueOf(1.1));
         BigDecimal value = odds == null ? DEFAULT_ODDS : odds;
         if (value.compareTo(maxOdds) > 0) {
             value = maxOdds;
+        }
+        if (value.compareTo(minOdds) < 0) {
+            value = minOdds;
         }
         return value.setScale(2, RoundingMode.HALF_UP);
     }
