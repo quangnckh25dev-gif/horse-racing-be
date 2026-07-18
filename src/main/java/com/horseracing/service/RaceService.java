@@ -87,6 +87,14 @@ public class RaceService {
         return toResponse(getRaceOrThrow(raceId));
     }
 
+    public List<RaceSummaryResponse> getAssignedRacesForReferee(User refereeUser) {
+        requireRole(refereeUser, "Referee");
+        return raceRepository.findAssignedRacesByRefereeUserId(refereeUser.getUserId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional
     //của buiquangann
     public RaceSummaryResponse createRace(RaceRequest request, User organizer) {

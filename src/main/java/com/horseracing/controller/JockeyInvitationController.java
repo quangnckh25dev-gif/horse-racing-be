@@ -7,6 +7,7 @@ import com.horseracing.service.JockeyInvitationService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -44,6 +45,12 @@ public class JockeyInvitationController {
     @GetMapping("/api/invitations/sent")
     public ApiResponse<?> getSentInvitations(HttpServletRequest httpRequest) {
         return ApiResponse.success(200, "Lay danh sach invitation da gui thanh cong", invitationService.getSentInvitations(httpRequest));
+    }
+
+    // Owner thu hồi lời mời đang Pending (status → Cancelled)
+    @DeleteMapping("/api/invitations/{invitationId}")
+    public ApiResponse<?> cancelInvitation(@PathVariable Integer invitationId, HttpServletRequest httpRequest) {
+        return ApiResponse.success(200, "Huy loi moi thanh cong", invitationService.cancelInvitation(invitationId, httpRequest));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
