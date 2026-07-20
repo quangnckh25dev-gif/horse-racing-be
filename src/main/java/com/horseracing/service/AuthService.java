@@ -83,11 +83,11 @@ public class AuthService {
 
     public List<OptionResponse> getRegisterRoleOptions() {
         return List.of(
-                new OptionResponse("HorseOwner", "Chu ngua"),
-                new OptionResponse("Jockey", "Ky si"),
-                new OptionResponse("Referee", "Trong tai"),
-                new OptionResponse("Spectator", "Khan gia"),
-                new OptionResponse("Organizer", "Ban to chuc")
+                new OptionResponse("HorseOwner", "Horse Owner"),
+                new OptionResponse("Jockey", "Jockey"),
+                new OptionResponse("Referee", "Referee"),
+                new OptionResponse("Spectator", "Spectator"),
+                new OptionResponse("Organizer", "Organizer")
         );
     }
 

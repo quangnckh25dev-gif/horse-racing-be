@@ -23,7 +23,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class RaceEntryService {
@@ -139,7 +141,7 @@ public class RaceEntryService {
 
     public RaceEntryResponse approveEntry(Integer raceId, Integer entryId, RaceEntryApproveRequest request,
                                           HttpServletRequest httpRequest) {
-        //của buiquangann
+        // Organizer approves or rejects a race entry.
         User user = currentUserService.getCurrentUser(httpRequest);
         requireOrganizer(user);
         Race race = getRace(raceId);
@@ -157,9 +159,8 @@ public class RaceEntryService {
         if (Boolean.TRUE.equals(request.getApproved())) {
             Horse horse = horseRepository.findById(entry.getHorseId())
                     .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
-            // Chấp nhận cả 'Active' lẫn 'Hoạt động' — đồng bộ với HorseService.normalizeStatus. KHONG XOA!
             String hs = horse.getHealthStatus() == null ? "" : horse.getHealthStatus().trim();
-            if (!"Hoạt động".equals(hs) && !"Active".equalsIgnoreCase(hs) && !"Hoat dong".equalsIgnoreCase(hs)) {
+            if (!isActiveHorseStatus(hs)) {
                 throw new IllegalArgumentException("Only horses with healthStatus = Active can be approved.");
             }
             entry.setRegistrationStatus("Approved");
@@ -239,6 +240,13 @@ public class RaceEntryService {
         notification.setRelatedEntity("RaceEntry");
         notification.setIsRead(false);
         notificationRepository.save(notification);
+    }
+
+    private boolean isActiveHorseStatus(String status) {
+        String normalized = Normalizer.normalize(status == null ? "" : status.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+        return "active".equals(normalized) || "hoat dong".equals(normalized);
     }
 
     private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {

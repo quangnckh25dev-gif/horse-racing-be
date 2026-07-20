@@ -60,10 +60,10 @@ public class BetOptionResponse {
             return null;
         }
         return switch (value) {
-            case "WIN" -> "Ve nhat";
+            case "WIN" -> "Win";
             case "PLACE" -> "Top 2";
             case "SHOW" -> "Top 3";
-            case "EXACT" -> "Dung vi tri";
+            case "EXACT" -> "Exact Position";
             default -> value;
         };
     }

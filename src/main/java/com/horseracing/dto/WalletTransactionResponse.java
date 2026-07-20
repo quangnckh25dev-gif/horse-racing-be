@@ -50,9 +50,9 @@ public class WalletTransactionResponse {
             return null;
         }
         return switch (value) {
-            case "Deposit" -> "Nap tien";
-            case "BetPlaced" -> "Dat cuoc";
-            case "BetWon" -> "Thang cuoc";
+            case "Deposit" -> "Deposit";
+            case "BetPlaced" -> "Bet Placed";
+            case "BetWon" -> "Bet Won";
             default -> value;
         };
     }
