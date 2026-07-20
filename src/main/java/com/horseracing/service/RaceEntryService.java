@@ -157,7 +157,9 @@ public class RaceEntryService {
         if (Boolean.TRUE.equals(request.getApproved())) {
             Horse horse = horseRepository.findById(entry.getHorseId())
                     .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
-            if (!"Hoạt động".equals(horse.getHealthStatus())) {
+            // Chấp nhận cả 'Active' lẫn 'Hoạt động' — đồng bộ với HorseService.normalizeStatus. KHONG XOA!
+            String hs = horse.getHealthStatus() == null ? "" : horse.getHealthStatus().trim();
+            if (!"Hoạt động".equals(hs) && !"Active".equalsIgnoreCase(hs) && !"Hoat dong".equalsIgnoreCase(hs)) {
                 throw new IllegalArgumentException("Chi duyet ngua co healthStatus = Hoat dong");
             }
             entry.setRegistrationStatus("Approved");
@@ -182,8 +184,13 @@ public class RaceEntryService {
     }
 
     private void validateRaceCanReceiveEntry(Race race) {
-        if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus()) && !"Scheduled".equalsIgnoreCase(race.getStatus())) {
+        if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
             throw new IllegalArgumentException("Race chua mo dang ky");
+        }
+        Tournament tournament = tournamentRepository.findById(race.getTournamentId())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
+        if (!"Open".equalsIgnoreCase(tournament.getStatus())) {
+            throw new IllegalArgumentException("Tournament chua duoc Admin duyet mo dang ky");
         }
     }
 

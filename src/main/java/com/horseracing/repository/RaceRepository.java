@@ -27,6 +27,39 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
     boolean existsByRoundId(Integer roundId);
 
     @Query(value = """
+            SELECT r.*
+            FROM Races r
+            JOIN Tournaments t ON t.TournamentID = r.TournamentID
+            WHERE t.Status IN ('Open', 'Ongoing', 'Finished', 'Cancelled')
+              AND (:tournamentId IS NULL OR r.TournamentID = :tournamentId)
+              AND (:roundId IS NULL OR r.RoundID = :roundId)
+              AND (:status IS NULL OR r.Status = :status)
+            ORDER BY r.RaceDate ASC
+            """, nativeQuery = true)
+    List<Race> findPublicRaces(@Param("tournamentId") Integer tournamentId,
+                               @Param("roundId") Integer roundId,
+                               @Param("status") String status);
+
+    @Query(value = """
+            SELECT r.*
+            FROM Races r
+            JOIN Tournaments t ON t.TournamentID = r.TournamentID
+            WHERE t.CreatedBy = :organizerUserId
+            ORDER BY r.RaceDate ASC
+            """, nativeQuery = true)
+    List<Race> findByOrganizerUserId(@Param("organizerUserId") Integer organizerUserId);
+
+    @Query(value = """
+            SELECT r.*
+            FROM Races r
+            JOIN RaceReferees rr ON rr.RaceID = r.RaceID
+            JOIN Referees ref ON ref.RefereeID = rr.RefereeID
+            WHERE ref.UserID = :userId
+            ORDER BY r.RaceDate ASC
+            """, nativeQuery = true)
+    List<Race> findAssignedRacesByRefereeUserId(@Param("userId") Integer userId);
+
+    @Query(value = """
             SELECT COUNT(1)
             FROM RaceReferees rr
             JOIN Referees ref ON rr.RefereeID = ref.RefereeID

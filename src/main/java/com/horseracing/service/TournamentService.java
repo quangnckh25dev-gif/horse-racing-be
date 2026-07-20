@@ -127,6 +127,11 @@ public class TournamentService {
             tournament.setApprovedByAdmin(admin.getUserId());
             tournament.setApprovedAt(LocalDateTime.now());
             tournament.setRejectReason(null);
+            raceRepository.findByTournamentId(tournamentId).forEach(race -> {
+                if ("Scheduled".equals(race.getStatus())) {
+                    race.setStatus("RegistrationOpen");
+                }
+            });
         } else if (DRAFT.equals(requestedStatus)) {
             if (reason == null || reason.isBlank()) {
                 throw new IllegalArgumentException("reason la bat buoc khi tu choi giai dau");

@@ -39,6 +39,7 @@ public class RaceResultService {
     private final RaceRefereeRepository raceRefereeRepository;
     private final TournamentRepository tournamentRepository;
     private final NotificationRepository notificationRepository;
+    private final RaceRankingService raceRankingService;
 
     public RaceResultService(RaceResultRepository raceResultRepository,
                              RaceRepository raceRepository,
@@ -46,7 +47,8 @@ public class RaceResultService {
                              RefereeRepository refereeRepository,
                              RaceRefereeRepository raceRefereeRepository,
                              TournamentRepository tournamentRepository,
-                             NotificationRepository notificationRepository) {
+                             NotificationRepository notificationRepository,
+                             RaceRankingService raceRankingService) {
         this.raceResultRepository = raceResultRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
@@ -54,17 +56,22 @@ public class RaceResultService {
         this.raceRefereeRepository = raceRefereeRepository;
         this.tournamentRepository = tournamentRepository;
         this.notificationRepository = notificationRepository;
+        this.raceRankingService = raceRankingService;
     }
 
+    @Transactional
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
         ensureRaceExists(raceId);
+        raceRankingService.recalculateRace(raceId);
         return raceResultRepository.findByRaceId(raceId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @Transactional
     public List<RaceResultResponse> getPublishedResultsByRace(Integer raceId) {
         ensureRaceExists(raceId);
+        raceRankingService.recalculateRace(raceId);
         return raceResultRepository.findByRaceId(raceId).stream()
                 .filter(result -> STATUS_PUBLISHED.equals(result.getApprovalStatus()))
                 .map(this::toResponse)
@@ -89,7 +96,9 @@ public class RaceResultService {
         result.setApprovalStatus(STATUS_PENDING);
         result.setCreatedAt(LocalDateTime.now());
 
-        return toResponse(raceResultRepository.save(result));
+        RaceResult saved = raceResultRepository.save(result);
+        raceRankingService.recalculateRace(raceId);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -112,7 +121,9 @@ public class RaceResultService {
         result.setApprovedAt(null);
         result.setPublishedAt(null);
 
-        return toResponse(raceResultRepository.save(result));
+        RaceResult saved = raceResultRepository.save(result);
+        raceRankingService.recalculateRace(raceId);
+        return toResponse(saved);
     }
 
     @Transactional

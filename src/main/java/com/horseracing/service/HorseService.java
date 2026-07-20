@@ -136,7 +136,7 @@ public class HorseService {
         //của buiquangann
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
-        ensureCanManageHorseHealth(user);
+        ensureCanUpdateHorseStatus(user, horse);
 
         if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
             throw new IllegalArgumentException("status khong duoc de trong");
@@ -266,10 +266,13 @@ public class HorseService {
         String normalized = normalizeStatus(status);
         if ("ACTIVE".equals(normalized)) {
             horse.setHealthStatus(HEALTH_ACTIVE);
+            horse.setIsActive(true);
         } else if ("INJURED".equals(normalized)) {
             horse.setHealthStatus(HEALTH_INJURED);
+            horse.setIsActive(true);
         } else {
             horse.setHealthStatus(HEALTH_INACTIVE);
+            horse.setIsActive(false);
         }
         horse.setHealthUpdatedBy(organizer.getUserId());
         horse.setHealthUpdatedAt(LocalDateTime.now());
@@ -307,19 +310,29 @@ public class HorseService {
                 horse.getRegisterCode(),
                 horse.getHealthStatus(),
                 horse.getPhotoUrl(),
-                resolveStatusLabel(horse),
+                resolveStatusCode(horse),
                 active,
                 horse.getCreatedAt(),
                 horse.getUpdatedAt()
         );
     }
 
-    private String resolveStatusLabel(Horse horse) {
+    private String resolveStatusCode(Horse horse) {
         String healthStatus = horse.getHealthStatus();
         if (healthStatus != null && "INJURED".equals(normalizeStatus(healthStatus))) {
-            return HEALTH_INJURED;
+            return "Injured";
         }
-        return Boolean.TRUE.equals(horse.getIsActive()) ? HEALTH_ACTIVE : HEALTH_INACTIVE;
+        if (healthStatus != null && "INACTIVE".equals(normalizeStatus(healthStatus))) {
+            return "Inactive";
+        }
+        return Boolean.TRUE.equals(horse.getIsActive()) ? "Active" : "Inactive";
+    }
+
+    private void ensureCanUpdateHorseStatus(User user, Horse horse) {
+        if (isOrganizer(user)) {
+            return;
+        }
+        ensureOwnerOwnsHorse(user, horse);
     }
 
     private void ensureCanManageHorseHealth(User user) {
