@@ -26,7 +26,7 @@ public class AuditLogController {
     public ApiResponse<?> getLogs(HttpServletRequest request) {
         return ApiResponse.success(
                 200,
-                "Lay audit log thanh cong",
+                "Audit logs loaded successfully",
                 auditLogService.getLogs(request)
         );
     }

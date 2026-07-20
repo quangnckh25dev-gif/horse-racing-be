@@ -26,7 +26,7 @@ public class PublicTournamentController {
     public ApiResponse<?> getTournaments() {
         return ApiResponse.success(
                 200,
-                "Lay danh sach tournament thanh cong",
+                "Tournaments loaded successfully",
                 tournamentService.getPublicTournaments()
         );
     }
@@ -35,7 +35,7 @@ public class PublicTournamentController {
     public ApiResponse<?> getTournamentDetail(@PathVariable Integer id) {
         return ApiResponse.success(
                 200,
-                "Lay chi tiet tournament thanh cong",
+                "Tournament detail loaded successfully",
                 tournamentService.getTournamentDetail(id)
         );
     }
@@ -44,7 +44,7 @@ public class PublicTournamentController {
     public ApiResponse<?> getTournamentRounds(@PathVariable Integer id) {
         return ApiResponse.success(
                 200,
-                "Lay danh sach round cua tournament thanh cong",
+                "Tournament rounds loaded successfully",
                 tournamentService.getTournamentRounds(id)
         );
     }

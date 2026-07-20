@@ -34,7 +34,7 @@ public class NotificationController {
         User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
-                "Lay danh sach notification thanh cong",
+                "Notifications loaded successfully",
                 notificationService.getUserNotifications(currentUser.getUserId())
         );
     }
@@ -44,7 +44,7 @@ public class NotificationController {
         User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
-                "Lay so notification chua doc thanh cong",
+                "Unread notification count loaded successfully",
                 notificationService.countUnreadNotifications(currentUser.getUserId())
         );
     }
@@ -53,7 +53,7 @@ public class NotificationController {
     public ApiResponse<?> createNotification(@RequestBody NotificationRequest request) {
         return ApiResponse.success(
                 201,
-                "Tao notification thanh cong",
+                "Notification created successfully",
                 notificationService.createNotification(request)
         );
     }
@@ -63,7 +63,7 @@ public class NotificationController {
         User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
-                "Danh dau notification da doc thanh cong",
+                "Notification marked as read successfully",
                 notificationService.markAsRead(notificationId, currentUser.getUserId())
         );
     }
@@ -73,7 +73,7 @@ public class NotificationController {
         User currentUser = currentUserService.getCurrentUser(request);
         return ApiResponse.success(
                 200,
-                "Danh dau tat ca notification da doc thanh cong",
+                "All notifications marked as read successfully",
                 notificationService.markAllAsRead(currentUser.getUserId())
         );
     }

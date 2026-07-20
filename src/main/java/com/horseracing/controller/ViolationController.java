@@ -32,33 +32,33 @@ public class ViolationController {
 
     @GetMapping("/api/violations/options")
     public ApiResponse<?> getViolationOptions() {
-        return ApiResponse.success(200, "Lay danh sach loai vi pham thanh cong", violationService.getViolationOptions());
+        return ApiResponse.success(200, "Violation types loaded successfully", violationService.getViolationOptions());
     }
 
     @GetMapping("/api/races/{raceId}/violations")
     public ApiResponse<?> getViolations(@PathVariable Integer raceId) {
-        return ApiResponse.success(200, "Lay danh sach vi pham thanh cong", violationService.getViolationsByRace(raceId));
+        return ApiResponse.success(200, "Violations loaded successfully", violationService.getViolationsByRace(raceId));
     }
 
     @PostMapping("/api/races/{raceId}/violations")
     public ApiResponse<?> createViolation(@PathVariable Integer raceId, @RequestBody ViolationRequest request,
                                           HttpServletRequest httpRequest) {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(201, "Tao vi pham thanh cong", violationService.createViolation(raceId, request, currentUser));
+        return ApiResponse.success(201, "Violation created successfully", violationService.createViolation(raceId, request, currentUser));
     }
 
     @PutMapping("/api/violations/{violationId}")
     public ApiResponse<?> updateViolation(@PathVariable Integer violationId, @RequestBody ViolationRequest request,
                                           HttpServletRequest httpRequest) {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Cap nhat vi pham thanh cong", violationService.updateViolation(violationId, request, currentUser));
+        return ApiResponse.success(200, "Violation updated successfully", violationService.updateViolation(violationId, request, currentUser));
     }
 
     @DeleteMapping("/api/violations/{violationId}")
     public ApiResponse<?> deleteViolation(@PathVariable Integer violationId, HttpServletRequest httpRequest) {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         violationService.deleteViolation(violationId, currentUser);
-        return ApiResponse.success(200, "Xoa vi pham thanh cong", null);
+        return ApiResponse.success(200, "Violation deleted successfully", null);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

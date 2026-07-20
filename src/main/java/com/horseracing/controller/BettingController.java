@@ -26,22 +26,22 @@ public class BettingController {
 
     @GetMapping("/api/races/{raceId}/bet-options")
     public ApiResponse<?> getBetOptions(@PathVariable Integer raceId) {
-        return ApiResponse.success(200, "Lay lua chon dat cuoc thanh cong", bettingService.getBetOptions(raceId));
+        return ApiResponse.success(200, "Bet options loaded successfully", bettingService.getBetOptions(raceId));
     }
 
     @GetMapping("/api/races/{raceId}/bets")
     public ApiResponse<?> getMineByRace(@PathVariable Integer raceId, HttpServletRequest request) {
-        return ApiResponse.success(200, "Lay ve cuoc cua toi thanh cong", bettingService.getMineByRace(raceId, request));
+        return ApiResponse.success(200, "My bets loaded successfully", bettingService.getMineByRace(raceId, request));
     }
 
     @PostMapping("/api/races/{raceId}/bets")
     public ApiResponse<?> placeBet(@PathVariable Integer raceId, @RequestBody BetRequest body, HttpServletRequest request) {
-        return ApiResponse.success(201, "Dat cuoc thanh cong", bettingService.placeBet(raceId, body, request));
+        return ApiResponse.success(201, "Bet placed successfully", bettingService.placeBet(raceId, body, request));
     }
 
     @GetMapping("/api/bets/history")
     public ApiResponse<?> getMyHistory(HttpServletRequest request) {
-        return ApiResponse.success(200, "Lay lich su dat cuoc thanh cong", bettingService.getMyHistory(request));
+        return ApiResponse.success(200, "Bet history loaded successfully", bettingService.getMyHistory(request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

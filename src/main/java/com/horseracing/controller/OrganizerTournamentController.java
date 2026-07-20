@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/organizer/tournaments")
 public class OrganizerTournamentController {
 
-    //của buiquangann
+    // Organizer tournament management APIs.
     private final TournamentService tournamentService;
     private final CurrentUserService currentUserService;
 
@@ -35,14 +35,14 @@ public class OrganizerTournamentController {
     @GetMapping
     public ApiResponse<?> getMyTournaments(HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Lay danh sach tournament cua Organizer thanh cong",
+        return ApiResponse.success(200, "Organizer tournaments loaded successfully",
                 tournamentService.getMyTournaments(organizer));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<?> getMyTournament(@PathVariable Integer id, HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Lay chi tiet tournament thanh cong",
+        return ApiResponse.success(200, "Tournament detail loaded successfully",
                 tournamentService.getOwnedTournamentDetail(id, organizer));
     }
 
@@ -51,7 +51,7 @@ public class OrganizerTournamentController {
     public ApiResponse<?> createTournament(@Valid @RequestBody TournamentRequest request,
                                            HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(201, "Tao tournament thanh cong",
+        return ApiResponse.success(201, "Tournament created successfully",
                 tournamentService.createTournament(request, organizer));
     }
 
@@ -60,14 +60,14 @@ public class OrganizerTournamentController {
                                            @Valid @RequestBody TournamentRequest request,
                                            HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Cap nhat tournament thanh cong",
+        return ApiResponse.success(200, "Tournament updated successfully",
                 tournamentService.updateTournament(id, request, organizer));
     }
 
     @PutMapping("/{id}/submit")
     public ApiResponse<?> submitTournament(@PathVariable Integer id, HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Gui tournament cho Admin phe duyet thanh cong",
+        return ApiResponse.success(200, "Tournament submitted for admin approval successfully",
                 tournamentService.submitTournament(id, organizer));
     }
 

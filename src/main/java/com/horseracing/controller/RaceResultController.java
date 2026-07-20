@@ -35,7 +35,7 @@ public class RaceResultController {
     public ApiResponse<?> getResults(@PathVariable Integer raceId) {
         return ApiResponse.success(
                 200,
-                "Lay ket qua race thanh cong",
+                "Race results loaded successfully",
                 raceResultService.getResultsByRace(raceId)
         );
     }
@@ -44,7 +44,7 @@ public class RaceResultController {
     public ApiResponse<?> getPublishedResults(@PathVariable Integer raceId) {
         return ApiResponse.success(
                 200,
-                "Lay ket qua da public thanh cong",
+                "Published race results loaded successfully",
                 raceResultService.getPublishedResultsByRace(raceId)
         );
     }
@@ -58,7 +58,7 @@ public class RaceResultController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 201,
-                "Tao ket qua race thanh cong",
+                "Race result created successfully",
                 raceResultService.createResult(raceId, request, currentUser)
         );
     }
@@ -73,7 +73,7 @@ public class RaceResultController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cap nhat ket qua race thanh cong",
+                "Race result updated successfully",
                 raceResultService.updateResult(raceId, resultId, request, currentUser)
         );
     }

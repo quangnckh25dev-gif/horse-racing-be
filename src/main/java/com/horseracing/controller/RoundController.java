@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/organizer")
 public class RoundController {
-    //của buiquangann
+    // Round management APIs.
     private final RoundService roundService;
     private final CurrentUserService currentUserService;
 
@@ -24,7 +24,7 @@ public class RoundController {
     public ApiResponse<?> create(@PathVariable Integer tournamentId, @RequestBody RoundRequest request,
                                  HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(201, "Tao round thanh cong",
+        return ApiResponse.success(201, "Round created successfully",
                 roundService.createRound(tournamentId, request, organizer));
     }
 
@@ -32,13 +32,13 @@ public class RoundController {
     public ApiResponse<?> update(@PathVariable Integer roundId, @RequestBody RoundRequest request,
                                  HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Cap nhat round thanh cong",
+        return ApiResponse.success(200, "Round updated successfully",
                 roundService.updateRound(roundId, request, organizer));
     }
 
     @DeleteMapping("/rounds/{roundId}")
     public ApiResponse<?> delete(@PathVariable Integer roundId, HttpServletRequest httpRequest) {
         roundService.deleteRound(roundId, currentUserService.getCurrentUser(httpRequest));
-        return ApiResponse.success(200, "Xoa round thanh cong", null);
+        return ApiResponse.success(200, "Round deleted successfully", null);
     }
 }

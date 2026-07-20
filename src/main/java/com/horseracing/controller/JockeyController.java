@@ -25,12 +25,12 @@ public class JockeyController {
 
     @GetMapping("/api/jockeys")
     public ApiResponse<?> getJockeys() {
-        return ApiResponse.success(200, "Lay danh sach jockey thanh cong", jockeyLookupService.getActiveJockeys());
+        return ApiResponse.success(200, "Jockeys loaded successfully", jockeyLookupService.getActiveJockeys());
     }
 
     @GetMapping("/api/jockeys/{jockeyId}/stats")
     public ApiResponse<?> getJockeyStats(@PathVariable Integer jockeyId) {
-        return ApiResponse.success(200, "Lay thong ke jockey thanh cong", statsService.getJockeyStats(jockeyId));
+        return ApiResponse.success(200, "Jockey statistics loaded successfully", statsService.getJockeyStats(jockeyId));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

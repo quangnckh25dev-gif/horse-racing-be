@@ -29,43 +29,43 @@ public class WalletController {
 
     @GetMapping("/api/wallets/me")
     public ApiResponse<?> getMyWallet(HttpServletRequest request) {
-        return ApiResponse.success(200, "Lay vi cua toi thanh cong", walletService.getMyWallet(request));
+        return ApiResponse.success(200, "My wallet loaded successfully", walletService.getMyWallet(request));
     }
 
     @PostMapping("/api/wallets/deposit")
     public ApiResponse<?> deposit(@RequestBody WalletDepositRequest body, HttpServletRequest request) {
-        return ApiResponse.success(201, "Tao yeu cau nap tien thanh cong", walletService.deposit(body, request));
+        return ApiResponse.success(201, "Deposit request created successfully", walletService.deposit(body, request));
     }
 
     @PostMapping("/api/wallets/deposit-requests")
     public ApiResponse<?> createDepositRequest(@RequestBody DepositRequestCreateRequest body, HttpServletRequest request) {
-        return ApiResponse.success(201, "Tao yeu cau nap tien thanh cong", walletService.createDepositRequest(body, request));
+        return ApiResponse.success(201, "Deposit request created successfully", walletService.createDepositRequest(body, request));
     }
 
     @GetMapping("/api/wallets/deposit-requests/mine")
     public ApiResponse<?> getMyDepositRequests(HttpServletRequest request) {
-        return ApiResponse.success(200, "Lay danh sach yeu cau nap tien cua toi thanh cong", walletService.getMyDepositRequests(request));
+        return ApiResponse.success(200, "My deposit requests loaded successfully", walletService.getMyDepositRequests(request));
     }
 
     @GetMapping("/api/admin/deposit-requests")
     public ApiResponse<?> getAllDepositRequests(HttpServletRequest request) {
-        return ApiResponse.success(200, "Lay danh sach yeu cau nap tien thanh cong", walletService.getAllDepositRequests(request));
+        return ApiResponse.success(200, "Deposit requests loaded successfully", walletService.getAllDepositRequests(request));
     }
 
     @PutMapping("/api/admin/deposit-requests/{id}/approve")
     public ApiResponse<?> approveDepositRequest(@PathVariable Integer id, HttpServletRequest request) {
-        return ApiResponse.success(200, "Duyet yeu cau nap tien thanh cong", walletService.approveDepositRequest(id, request));
+        return ApiResponse.success(200, "Deposit request approved successfully", walletService.approveDepositRequest(id, request));
     }
 
     @PutMapping("/api/admin/deposit-requests/{id}/reject")
     public ApiResponse<?> rejectDepositRequest(@PathVariable Integer id, @RequestBody DepositRequestRejectRequest body,
                                                HttpServletRequest request) {
-        return ApiResponse.success(200, "Tu choi yeu cau nap tien thanh cong", walletService.rejectDepositRequest(id, body, request));
+        return ApiResponse.success(200, "Deposit request rejected successfully", walletService.rejectDepositRequest(id, body, request));
     }
 
     @GetMapping("/api/wallets/transactions")
     public ApiResponse<?> getMyTransactions(HttpServletRequest request) {
-        return ApiResponse.success(200, "Lay lich su giao dich vi thanh cong", walletService.getMyTransactions(request));
+        return ApiResponse.success(200, "Wallet transaction history loaded successfully", walletService.getMyTransactions(request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
