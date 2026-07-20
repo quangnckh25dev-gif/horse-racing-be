@@ -39,7 +39,7 @@ public class RaceController {
     ) {
         return ApiResponse.success(
                 200,
-                "Lay danh sach race thanh cong",
+                "Races loaded successfully",
                 raceService.getRaces(tournamentId, roundId, status)
         );
     }
@@ -49,7 +49,7 @@ public class RaceController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Lay danh sach race duoc phan cong thanh cong",
+                "Assigned races loaded successfully",
                 raceService.getAssignedRacesForReferee(currentUser)
         );
     }
@@ -58,7 +58,7 @@ public class RaceController {
     public ApiResponse<?> getRaceDetail(@PathVariable Integer id) {
         return ApiResponse.success(
                 200,
-                "Lay chi tiet race thanh cong",
+                "Race detail loaded successfully",
                 raceService.getRaceDetail(id)
         );
     }
@@ -67,7 +67,7 @@ public class RaceController {
     public ApiResponse<?> getRaceSchedule(@PathVariable Integer id) {
         return ApiResponse.success(
                 200,
-                "Lay lich thi dau race thanh cong",
+                "Race schedule loaded successfully",
                 raceService.getSchedule(id)
         );
     }
@@ -81,7 +81,7 @@ public class RaceController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cap nhat status race thanh cong",
+                "Race status updated successfully",
                 raceService.updateStatusByReferee(id, request.getStatus(), currentUser)
         );
     }

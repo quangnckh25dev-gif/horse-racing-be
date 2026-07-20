@@ -19,27 +19,27 @@ public class AdminUserController {
 
     @GetMapping("/pending")
     public ApiResponse<?> getPendingUsers() {
-        return ApiResponse.success(200, "Lay danh sach cho duyet thanh cong", adminUserService.getPendingUsers());
+        return ApiResponse.success(200, "Pending users loaded successfully", adminUserService.getPendingUsers());
     }
 
     @GetMapping
     public ApiResponse<?> getAllActiveUsers() {
-        return ApiResponse.success(200, "Lay danh sach tat ca user thanh cong", adminUserService.getAllActiveUsers());
+        return ApiResponse.success(200, "Users loaded successfully", adminUserService.getAllActiveUsers());
     }
 
     @PutMapping("/{id}/approve")
     public ApiResponse<?> approveUser(@PathVariable Integer id, @RequestParam(defaultValue = "1") Integer adminId) {
-        return ApiResponse.success(200, "Duyet user thanh cong", adminUserService.approveUser(id, adminId));
+        return ApiResponse.success(200, "User approved successfully", adminUserService.approveUser(id, adminId));
     }
 
     @PutMapping("/{id}/reject")
     public ApiResponse<?> rejectUser(@PathVariable Integer id, @RequestParam(defaultValue = "1") Integer adminId) {
-        return ApiResponse.success(200, "Tu choi user thanh cong", adminUserService.rejectUser(id, adminId));
+        return ApiResponse.success(200, "User rejected successfully", adminUserService.rejectUser(id, adminId));
     }
 
     @PutMapping("/{id}/role")
     public ApiResponse<?> changeUserRole(@PathVariable Integer id, @RequestBody RoleChangeRequest request, @RequestParam(defaultValue = "1") Integer adminId) {
-        return ApiResponse.success(200, "Doi role thanh cong", adminUserService.changeUserRole(id, request.getRoleName(), adminId));
+        return ApiResponse.success(200, "User role changed successfully", adminUserService.changeUserRole(id, request.getRoleName(), adminId));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

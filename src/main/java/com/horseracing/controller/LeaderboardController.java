@@ -24,7 +24,7 @@ public class LeaderboardController {
     public ApiResponse<?> getTournamentJockeyLeaderboard(@PathVariable Integer tournamentId) {
         return ApiResponse.success(
                 200,
-                "Lay bang xep hang jockey theo giai thanh cong",
+                "Tournament jockey leaderboard loaded successfully",
                 leaderboardService.getTournamentJockeyLeaderboard(tournamentId)
         );
     }
@@ -33,7 +33,7 @@ public class LeaderboardController {
     public ApiResponse<?> getTournamentHorseLeaderboard(@PathVariable Integer tournamentId) {
         return ApiResponse.success(
                 200,
-                "Lay bang xep hang ngua theo giai thanh cong",
+                "Tournament horse leaderboard loaded successfully",
                 leaderboardService.getTournamentHorseLeaderboard(tournamentId)
         );
     }
@@ -42,7 +42,7 @@ public class LeaderboardController {
     public ApiResponse<?> getGlobalJockeyLeaderboard() {
         return ApiResponse.success(
                 200,
-                "Lay bang xep hang jockey toan he thong thanh cong",
+                "System jockey leaderboard loaded successfully",
                 leaderboardService.getGlobalJockeyLeaderboard()
         );
     }
@@ -51,7 +51,7 @@ public class LeaderboardController {
     public ApiResponse<?> getGlobalHorseLeaderboard() {
         return ApiResponse.success(
                 200,
-                "Lay bang xep hang ngua toan he thong thanh cong",
+                "System horse leaderboard loaded successfully",
                 leaderboardService.getGlobalHorseLeaderboard()
         );
     }

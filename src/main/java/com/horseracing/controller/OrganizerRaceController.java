@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @CrossOrigin("*")
 public class OrganizerRaceController {
 
-    //của buiquangann
+    // Organizer race management APIs.
     private final RaceService raceService;
     private final RaceRefereeService raceRefereeService;
     private final RaceResultService raceResultService;
@@ -48,7 +48,7 @@ public class OrganizerRaceController {
         User organizer = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Lay danh sach race cua Organizer thanh cong",
+                "Organizer races loaded successfully",
                 raceService.getOrganizerRaces(organizer)
         );
     }
@@ -58,7 +58,7 @@ public class OrganizerRaceController {
         User organizer = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 201,
-                "Tao race thanh cong",
+                "Race created successfully",
                 raceService.createRace(request, organizer)
         );
     }
@@ -72,7 +72,7 @@ public class OrganizerRaceController {
         User organizer = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cap nhat race thanh cong",
+                "Race updated successfully",
                 raceService.updateRace(id, request, organizer)
         );
     }
@@ -80,14 +80,14 @@ public class OrganizerRaceController {
     @DeleteMapping("/races/{id}")
     public ApiResponse<?> deleteRace(@PathVariable Integer id, HttpServletRequest httpRequest) {
         raceService.deleteRace(id, currentUserService.getCurrentUser(httpRequest));
-        return ApiResponse.success(200, "Xoa race thanh cong", null);
+        return ApiResponse.success(200, "Race deleted successfully", null);
     }
 
     @GetMapping("/referees")
     public ApiResponse<?> getReferees(HttpServletRequest httpRequest) {
         return ApiResponse.success(
                 200,
-                "Lay danh sach referee thanh cong",
+                "Referees loaded successfully",
                 raceRefereeService.getReferees(currentUserService.getCurrentUser(httpRequest))
         );
     }
@@ -96,7 +96,7 @@ public class OrganizerRaceController {
     public ApiResponse<?> getRaceReferees(@PathVariable Integer id, HttpServletRequest httpRequest) {
         return ApiResponse.success(
                 200,
-                "Lay danh sach referee da phan cong thanh cong",
+                "Assigned referees loaded successfully",
                 raceRefereeService.getRaceReferees(id, currentUserService.getCurrentUser(httpRequest))
         );
     }
@@ -109,7 +109,7 @@ public class OrganizerRaceController {
     ) {
         return ApiResponse.success(
                 201,
-                "Phan cong referee thanh cong",
+                "Referee assigned successfully",
                 raceRefereeService.assignReferee(id, request, currentUserService.getCurrentUser(httpRequest))
         );
     }
@@ -121,7 +121,7 @@ public class OrganizerRaceController {
             HttpServletRequest httpRequest
     ) {
         raceRefereeService.removeReferee(id, refereeId, currentUserService.getCurrentUser(httpRequest));
-        return ApiResponse.success(200, "Huy phan cong referee thanh cong", null);
+        return ApiResponse.success(200, "Referee assignment removed successfully", null);
     }
 
     @PutMapping("/races/{raceId}/results/approve")
@@ -132,7 +132,7 @@ public class OrganizerRaceController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Duyet ket qua race thanh cong",
+                "Race results approved successfully",
                 raceResultService.approveResults(raceId, currentUser)
         );
     }
@@ -146,7 +146,7 @@ public class OrganizerRaceController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Tu choi ket qua race thanh cong",
+                "Race results rejected successfully",
                 raceResultService.rejectResults(raceId, request == null ? null : request.reason(), currentUser)
         );
     }
@@ -159,7 +159,7 @@ public class OrganizerRaceController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cong bo ket qua chinh thuc thanh cong",
+                "Official race results published successfully",
                 raceResultService.publishResults(raceId, currentUser)
         );
     }

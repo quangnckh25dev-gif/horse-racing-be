@@ -34,33 +34,33 @@ public class AuthController {
 
     @PostMapping("/register")
     public ApiResponse<?> register(@RequestBody RegisterRequest request) {
-        return ApiResponse.success(201, "Tao tai khoan thanh cong", authService.register(request));
+        return ApiResponse.success(201, "Account created successfully", authService.register(request));
     }
 
     @GetMapping("/register-roles")
     public ApiResponse<?> getRegisterRoles() {
-        return ApiResponse.success(200, "Lấy danh sách vai trò đăng ký thành công", authService.getRegisterRoleOptions());
+        return ApiResponse.success(200, "Registration roles loaded successfully", authService.getRegisterRoleOptions());
     }
 
     @PostMapping("/create-account")
     public ApiResponse<?> createAccount(@RequestBody RegisterRequest request) {
-        return ApiResponse.success(201, "Tao tai khoan thanh cong", authService.register(request));
+        return ApiResponse.success(201, "Account created successfully", authService.register(request));
     }
 
     @PostMapping("/login")
     public ApiResponse<?> login(@RequestBody LoginRequest request) {
-        return ApiResponse.success(200, "Dang nhap thanh cong", authService.login(request));
+        return ApiResponse.success(200, "Login successful", authService.login(request));
     }
 
     @PostMapping("/refresh")
     public ApiResponse<?> refresh(@RequestBody TokenRequest request) {
-        return ApiResponse.success(200, "Refresh token thanh cong", authService.refreshToken(request));
+        return ApiResponse.success(200, "Token refreshed successfully", authService.refreshToken(request));
     }
 
     @PostMapping("/logout")
     public ApiResponse<?> logout(@RequestBody TokenRequest request) {
         authService.logout(request);
-        return ApiResponse.success(200, "Dang xuat thanh cong", null);
+        return ApiResponse.success(200, "Logout successful", null);
     }
 
     @PostMapping("/forgot-password")
@@ -71,22 +71,22 @@ public class AuthController {
 
     @PostMapping("/reset-password")
     public ApiResponse<?> resetPassword(@RequestBody ResetPasswordRequest request) {
-        return ApiResponse.success(200, "Dat lai mat khau thanh cong", authService.resetPasswordWithToken(request));
+        return ApiResponse.success(200, "Password reset successfully", authService.resetPasswordWithToken(request));
     }
 
     @PostMapping("/change-password")
     public ApiResponse<?> changePassword(jakarta.servlet.http.HttpServletRequest httpRequest, @RequestBody ChangePasswordRequest request) {
         String authHeader = httpRequest.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ApiResponse.error(401, "Thieu token hoac token khong hop le");
+            return ApiResponse.error(401, "Missing or invalid token");
         }
         
         try {
             String token = authHeader.substring(7);
             String username = jwtService.extractClaims(token).getSubject();
-            return ApiResponse.success(200, "Doi mat khau thanh cong", authService.changePassword(username, request));
+            return ApiResponse.success(200, "Password changed successfully", authService.changePassword(username, request));
         } catch (Exception e) {
-            return ApiResponse.error(401, "Token khong hop le hoac da het han");
+            return ApiResponse.error(401, "Invalid or expired token");
         }
     }
 

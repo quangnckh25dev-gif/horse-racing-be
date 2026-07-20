@@ -30,7 +30,7 @@ public class SystemConfigController {
     public ApiResponse<?> getConfigs(HttpServletRequest request) {
         return ApiResponse.success(
                 200,
-                "Lay cau hinh he thong thanh cong",
+                "System configs loaded successfully",
                 systemConfigService.getConfigs(request)
         );
     }
@@ -43,7 +43,7 @@ public class SystemConfigController {
     ) {
         return ApiResponse.success(
                 200,
-                "Cap nhat cau hinh thanh cong",
+                "System config updated successfully",
                 systemConfigService.updateConfig(key, body, request)
         );
     }

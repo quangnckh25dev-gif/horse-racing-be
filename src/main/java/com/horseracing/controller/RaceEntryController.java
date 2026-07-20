@@ -29,43 +29,43 @@ public class RaceEntryController {
 
     @GetMapping("/api/races/{raceId}/entries")
     public ApiResponse<?> getRaceEntries(@PathVariable Integer raceId) {
-        return ApiResponse.success(200, "Lay danh sach entry thanh cong", raceEntryService.getRaceEntries(raceId));
+        return ApiResponse.success(200, "Race entries loaded successfully", raceEntryService.getRaceEntries(raceId));
     }
 
     @GetMapping("/api/races/{raceId}/spectator-entries")
     public ApiResponse<?> getSpectatorRaceEntries(@PathVariable Integer raceId) {
-        return ApiResponse.success(200, "Lay danh sach ngua cho spectator thanh cong", raceEntryService.getPublicRaceEntries(raceId));
+        return ApiResponse.success(200, "Spectator race entries loaded successfully", raceEntryService.getPublicRaceEntries(raceId));
     }
 
     @GetMapping("/api/entries/mine")
     public ApiResponse<?> getMyEntries(HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Lay danh sach entry cua owner thanh cong", raceEntryService.getMyEntries(httpRequest));
+        return ApiResponse.success(200, "Owner entries loaded successfully", raceEntryService.getMyEntries(httpRequest));
     }
 
     @GetMapping("/api/entries/mine/approved")
     public ApiResponse<?> getMyApprovedEntries(HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Lấy danh sách entry đã được duyệt thành công", raceEntryService.getMyApprovedEntries(httpRequest));
+        return ApiResponse.success(200, "Approved entries loaded successfully", raceEntryService.getMyApprovedEntries(httpRequest));
     }
 
     @PostMapping("/api/races/{raceId}/entries")
     public ApiResponse<?> registerHorse(@PathVariable Integer raceId, @RequestBody RaceEntryRequest request, HttpServletRequest httpRequest) {
-        return ApiResponse.success(201, "Dang ky horse vao race thanh cong", raceEntryService.registerHorse(raceId, request, httpRequest));
+        return ApiResponse.success(201, "Horse registered for race successfully", raceEntryService.registerHorse(raceId, request, httpRequest));
     }
 
     @DeleteMapping("/api/races/{raceId}/entries/{entryId}")
     public ApiResponse<?> withdrawEntry(@PathVariable Integer raceId, @PathVariable Integer entryId, HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Rut entry thanh cong", raceEntryService.withdrawEntry(raceId, entryId, httpRequest));
+        return ApiResponse.success(200, "Entry withdrawn successfully", raceEntryService.withdrawEntry(raceId, entryId, httpRequest));
     }
 
     @PatchMapping("/api/races/{raceId}/entries/{entryId}/approve")
     public ApiResponse<?> approveEntry(@PathVariable Integer raceId, @PathVariable Integer entryId,
                                        @RequestBody RaceEntryApproveRequest request, HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Duyet entry thanh cong", raceEntryService.approveEntry(raceId, entryId, request, httpRequest));
+        return ApiResponse.success(200, "Entry approval updated successfully", raceEntryService.approveEntry(raceId, entryId, request, httpRequest));
     }
 
     @GetMapping("/api/entries/{entryId}")
     public ApiResponse<?> getEntry(@PathVariable Integer entryId) {
-        return ApiResponse.success(200, "Lay chi tiet entry thanh cong", raceEntryService.getEntry(entryId));
+        return ApiResponse.success(200, "Entry detail loaded successfully", raceEntryService.getEntry(entryId));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

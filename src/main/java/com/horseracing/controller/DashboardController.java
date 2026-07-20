@@ -18,6 +18,6 @@ public class DashboardController {
 
     @GetMapping("/api/admin/dashboard")
     public ApiResponse<?> getDashboard() {
-        return ApiResponse.success(200, "Lay dashboard thanh cong", dashboardService.getDashboard());
+        return ApiResponse.success(200, "Dashboard loaded successfully", dashboardService.getDashboard());
     }
 }

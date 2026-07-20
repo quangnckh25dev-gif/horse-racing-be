@@ -33,14 +33,14 @@ public class TournamentController {
     public ApiResponse<?> getTournaments(@RequestParam(required = false) String status,
                                          HttpServletRequest httpRequest) {
         requireAdmin(httpRequest);
-        return ApiResponse.success(200, "Lay danh sach tournament thanh cong",
+        return ApiResponse.success(200, "Tournaments loaded successfully",
                 tournamentService.getAdminTournaments(status));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<?> getTournamentDetail(@PathVariable Integer id, HttpServletRequest httpRequest) {
         requireAdmin(httpRequest);
-        return ApiResponse.success(200, "Lay chi tiet tournament thanh cong",
+        return ApiResponse.success(200, "Tournament detail loaded successfully",
                 tournamentService.getTournamentDetail(id));
     }
 
@@ -49,7 +49,7 @@ public class TournamentController {
                                            @RequestBody TournamentStatusRequest request,
                                            HttpServletRequest httpRequest) {
         User admin = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Cap nhat trang thai tournament thanh cong",
+        return ApiResponse.success(200, "Tournament status updated successfully",
                 tournamentService.reviewTournament(id, request.getStatus(), request.getReason(), admin));
     }
 

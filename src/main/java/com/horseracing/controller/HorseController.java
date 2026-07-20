@@ -33,48 +33,48 @@ public class HorseController {
 
     @GetMapping("/api/horses")
     public ApiResponse<?> getHorses(HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Lay danh sach horse thanh cong", horseService.getHorses(httpRequest));
+        return ApiResponse.success(200, "Horses loaded successfully", horseService.getHorses(httpRequest));
     }
 
     @GetMapping("/api/horses/options")
     public ApiResponse<?> getHorseOptions() {
-        return ApiResponse.success(200, "Lấy danh sách tùy chọn ngựa thành công", horseService.getHorseOptions());
+        return ApiResponse.success(200, "Horse options loaded successfully", horseService.getHorseOptions());
     }
 
     @GetMapping("/api/horses/{horseId}")
     public ApiResponse<?> getHorse(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Lay chi tiet horse thanh cong", horseService.getHorse(horseId, httpRequest));
+        return ApiResponse.success(200, "Horse detail loaded successfully", horseService.getHorse(horseId, httpRequest));
     }
 
     @PostMapping("/api/horses")
     public ApiResponse<?> createHorse(@RequestBody HorseRequest request, HttpServletRequest httpRequest) {
-        return ApiResponse.success(201, "Tao horse thanh cong", horseService.createHorse(request, httpRequest));
+        return ApiResponse.success(201, "Horse created successfully", horseService.createHorse(request, httpRequest));
     }
 
     @PutMapping("/api/horses/{horseId}")
     public ApiResponse<?> updateHorse(@PathVariable Integer horseId, @RequestBody HorseRequest request, HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Cap nhat horse thanh cong", horseService.updateHorse(horseId, request, httpRequest));
+        return ApiResponse.success(200, "Horse updated successfully", horseService.updateHorse(horseId, request, httpRequest));
     }
 
     @PatchMapping({"/api/horses/{horseId}/health", "/api/horses/{horseId}/status"})
     public ApiResponse<?> updateHorseStatus(@PathVariable Integer horseId, @RequestBody HorseStatusRequest request, HttpServletRequest httpRequest) {
-        //của buiquangann
-        return ApiResponse.success(200, "Cap nhat trang thai horse thanh cong", horseService.updateHorseStatus(horseId, request, httpRequest));
+        // Horse owner updates horse status.
+        return ApiResponse.success(200, "Horse status updated successfully", horseService.updateHorseStatus(horseId, request, httpRequest));
     }
 
     @GetMapping({"/api/horses/{horseId}/health-records", "/api/horses/{horseId}/health"})
     public ApiResponse<?> getHealthHistory(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Lay lich su suc khoe horse thanh cong", horseService.getHealthHistory(horseId, httpRequest));
+        return ApiResponse.success(200, "Horse health history loaded successfully", horseService.getHealthHistory(horseId, httpRequest));
     }
 
     @GetMapping("/api/horses/{horseId}/stats")
     public ApiResponse<?> getHorseStats(@PathVariable Integer horseId) {
-        return ApiResponse.success(200, "Lay thong ke horse thanh cong", statsService.getHorseStats(horseId));
+        return ApiResponse.success(200, "Horse statistics loaded successfully", statsService.getHorseStats(horseId));
     }
 
     @PostMapping({"/api/horses/{horseId}/health-records", "/api/horses/{horseId}/health"})
     public ApiResponse<?> addHealthRecord(@PathVariable Integer horseId, @RequestBody HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
-        return ApiResponse.success(201, "Them ho so suc khoe horse thanh cong", horseService.addHealthRecord(horseId, request, httpRequest));
+        return ApiResponse.success(201, "Horse health record added successfully", horseService.addHealthRecord(horseId, request, httpRequest));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

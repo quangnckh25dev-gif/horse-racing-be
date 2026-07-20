@@ -33,7 +33,7 @@ public class RaceMinuteController {
     public ApiResponse<?> getMinutes(@PathVariable Integer raceId) {
         return ApiResponse.success(
                 200,
-                "Lay bien ban cuoc dua thanh cong",
+                "Race minutes loaded successfully",
                 raceMinuteService.getMinutesByRace(raceId)
         );
     }
@@ -47,7 +47,7 @@ public class RaceMinuteController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 201,
-                "Tao bien ban cuoc dua thanh cong",
+                "Race minutes created successfully",
                 raceMinuteService.createMinutes(raceId, request, currentUser)
         );
     }
@@ -61,7 +61,7 @@ public class RaceMinuteController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Cap nhat bien ban cuoc dua thanh cong",
+                "Race minutes updated successfully",
                 raceMinuteService.updateMinutes(raceId, request, currentUser)
         );
     }
@@ -71,7 +71,7 @@ public class RaceMinuteController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Gui bien ban cho owner thanh cong",
+                "Race minutes sent to owner successfully",
                 raceMinuteService.sendMinutesToOwners(raceId, currentUser)
         );
     }
@@ -81,7 +81,7 @@ public class RaceMinuteController {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
-                "Ban giao ket qua va bien ban cho BTC thanh cong",
+                "Race results and minutes handed off to organizer successfully",
                 raceMinuteService.handoffMinutesToOrganizer(raceId, currentUser)
         );
     }
