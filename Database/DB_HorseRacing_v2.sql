@@ -368,6 +368,21 @@ CREATE TABLE Wallets (
     CreatedAt DATETIME2     DEFAULT GETDATE(),
     UpdatedAt DATETIME2     DEFAULT GETDATE()
 );
+CREATE TABLE DepositRequests (
+    DepositRequestID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID           INT           NOT NULL REFERENCES Users(UserID),
+    WalletID         INT           NOT NULL REFERENCES Wallets(WalletID),
+    Amount           DECIMAL(18,2) NOT NULL CHECK (Amount > 0),
+    PaymentMethod    NVARCHAR(20)  NOT NULL CHECK (PaymentMethod IN ('BANK', 'MOMO')),
+    TransferCode     NVARCHAR(50)  NOT NULL UNIQUE,
+    QrCodeUrl        NVARCHAR(500),
+    Status           NVARCHAR(20)  NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+    AdminNote        NVARCHAR(500),
+    ApprovedBy       INT           NULL REFERENCES Users(UserID),
+    ApprovedAt       DATETIME2,
+    CreatedAt        DATETIME2     DEFAULT GETDATE(),
+    UpdatedAt        DATETIME2     DEFAULT GETDATE()
+);
 CREATE TABLE WalletTransactions (
     TransactionID   INT IDENTITY(1,1) PRIMARY KEY,
     WalletID        INT           NOT NULL REFERENCES Wallets(WalletID),
