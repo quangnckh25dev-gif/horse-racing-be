@@ -39,10 +39,10 @@ public class BettingService {
     private static final String STATUS_WON = "Won";
     private static final String STATUS_LOST = "Lost";
     private static final BigDecimal DEFAULT_ODDS = BigDecimal.valueOf(2);
-    private static final BigDecimal DEFAULT_EXACT_POSITION_FACTOR = BigDecimal.valueOf(0.75);
+    private static final BigDecimal DEFAULT_EXACT_POSITION_FACTOR = BigDecimal.valueOf(0.25);
     private static final BigDecimal DEFAULT_ODDS_FACTOR_PLACE = BigDecimal.valueOf(0.75);
     private static final BigDecimal DEFAULT_ODDS_FACTOR_SHOW = BigDecimal.valueOf(0.50);
-    private static final BigDecimal DEFAULT_ODDS_MAX = BigDecimal.valueOf(15);
+    private static final BigDecimal DEFAULT_ODDS_MAX = BigDecimal.valueOf(8);
     private static final Set<String> VALID_BET_TYPES = Set.of("WIN", "PLACE", "SHOW", "EXACT");
 
     private final BetRepository betRepository;
@@ -81,7 +81,7 @@ public class BettingService {
     public List<BetOptionResponse> getBetOptions(Integer raceId) {
         Race race = ensureRaceExists(raceId);
         List<RaceEntry> entries = raceEntryRepository.findPublicEntriesByRaceId(raceId);
-        int maxPosition = resolveMaxBetPosition(race, entries);
+        int maxPosition = resolveMaxBetPosition(entries);
         List<BetOptionResponse> options = new ArrayList<>();
 
         for (RaceEntry entry : entries) {
@@ -250,7 +250,7 @@ public class BettingService {
         if (targetPosition == null || targetPosition <= 0) {
             throw new IllegalArgumentException("targetPosition bat buoc khi betType la EXACT");
         }
-        int maxPosition = resolveMaxBetPosition(race, raceEntryRepository.findPublicEntriesByRaceId(race.getRaceId()));
+        int maxPosition = resolveMaxBetPosition(raceEntryRepository.findPublicEntriesByRaceId(race.getRaceId()));
         if (targetPosition > maxPosition) {
             throw new IllegalArgumentException("targetPosition khong duoc lon hon so vi tri co the cuoc");
         }
@@ -259,11 +259,11 @@ public class BettingService {
 
     private BigDecimal calculateOddsForBet(RaceEntry entry, String betType, Integer targetPosition) {
         Integer horseRank = horseRepository.findHorseRank(entry.getHorseId()).orElse(null);
-        BigDecimal baseOdds = resolveBaseOdds(horseRank);
+        BigDecimal baseOdds = resolveBaseOdds(entry, horseRank);
         BigDecimal odds = switch (betType) {
             case "PLACE" -> baseOdds.multiply(readConfigDecimal("ODDS_FACTOR_PLACE", DEFAULT_ODDS_FACTOR_PLACE));
             case "SHOW" -> baseOdds.multiply(readConfigDecimal("ODDS_FACTOR_SHOW", DEFAULT_ODDS_FACTOR_SHOW));
-            case "EXACT" -> calculateExactOdds(baseOdds, horseRank, targetPosition);
+            case "EXACT" -> calculateExactOdds(baseOdds, targetPosition);
             default -> baseOdds;
         };
         return normalizeOdds(odds);
@@ -277,7 +277,7 @@ public class BettingService {
                 .map(User::getFullName)
                 .orElse(null);
         Integer horseRank = horse == null ? null : horseRepository.findHorseRank(horse.getHorseId()).orElse(null);
-        BigDecimal baseOdds = resolveBaseOdds(horseRank);
+        BigDecimal baseOdds = resolveBaseOdds(entry, horseRank);
 
         options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "WIN", null, baseOdds, baseOdds));
         options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "PLACE", null,
@@ -287,7 +287,7 @@ public class BettingService {
 
         for (int position = 1; position <= maxPosition; position++) {
             options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "EXACT", position,
-                    baseOdds, calculateExactOdds(baseOdds, horseRank, position)));
+                    baseOdds, calculateExactOdds(baseOdds, position)));
         }
 
         return options;
@@ -311,14 +311,14 @@ public class BettingService {
         );
     }
 
-    private int resolveMaxBetPosition(Race race, List<RaceEntry> entries) {
-        if (race.getMaxParticipants() != null && race.getMaxParticipants() > 0) {
-            return race.getMaxParticipants();
-        }
+    private int resolveMaxBetPosition(List<RaceEntry> entries) {
         return Math.max(entries.size(), 1);
     }
 
-    private BigDecimal resolveBaseOdds(Integer horseRank) {
+    private BigDecimal resolveBaseOdds(RaceEntry entry, Integer horseRank) {
+        if (entry.getOdds() != null && entry.getOdds().compareTo(BigDecimal.ONE) > 0) {
+            return entry.getOdds();
+        }
         if (horseRank == null || horseRank <= 0) {
             return readConfigDecimal("ODDS_BASE_UNRANKED", BigDecimal.valueOf(2.50));
         }
@@ -328,12 +328,12 @@ public class BettingService {
         return readConfigDecimal("ODDS_BASE_RANK_OVER_15", BigDecimal.valueOf(5.00));
     }
 
-    private BigDecimal calculateExactOdds(BigDecimal baseOdds, Integer horseRank, Integer targetPosition) {
-        if (targetPosition == null || horseRank == null) {
+    private BigDecimal calculateExactOdds(BigDecimal baseOdds, Integer targetPosition) {
+        if (targetPosition == null) {
             return baseOdds;
         }
         BigDecimal factor = readConfigDecimal("EXACT_POSITION_FACTOR", DEFAULT_EXACT_POSITION_FACTOR);
-        BigDecimal extra = factor.multiply(BigDecimal.valueOf(Math.abs(horseRank - targetPosition)));
+        BigDecimal extra = factor.multiply(BigDecimal.valueOf(Math.max(targetPosition - 1, 0)));
         return baseOdds.add(extra);
     }
 

@@ -24,9 +24,12 @@ public class ViolationService {
     );
 
     private final ViolationRepository violationRepository;
+    private final RaceRankingService raceRankingService;
 
-    public ViolationService(ViolationRepository violationRepository) {
+    public ViolationService(ViolationRepository violationRepository,
+                            RaceRankingService raceRankingService) {
         this.violationRepository = violationRepository;
+        this.raceRankingService = raceRankingService;
     }
 
     public List<ViolationResponse> getViolationsByRace(Integer raceId) {
@@ -68,7 +71,9 @@ public class ViolationService {
         violation.setDescription(request.getDescription());
         violation.setRecordedAt(LocalDateTime.now());
 
-        return toResponse(violationRepository.save(violation));
+        Violation saved = violationRepository.save(violation);
+        raceRankingService.recalculateRace(raceId);
+        return toResponse(saved);
     }
 
     public ViolationResponse updateViolation(Integer violationId, ViolationRequest request, User currentUser) {
@@ -96,14 +101,18 @@ public class ViolationService {
         violation.setEvidenceImageUrl(request.getEvidenceImageUrl());
         violation.setDescription(request.getDescription());
 
-        return toResponse(violationRepository.save(violation));
+        Violation saved = violationRepository.save(violation);
+        raceRankingService.recalculateRace(saved.getRaceId());
+        return toResponse(saved);
     }
 
     public void deleteViolation(Integer violationId, User currentUser) {
         Violation violation = violationRepository.findById(violationId)
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay vi pham"));
         ensureAssignedReferee(violation.getRaceId(), currentUser);
+        Integer raceId = violation.getRaceId();
         violationRepository.deleteById(violationId);
+        raceRankingService.recalculateRace(raceId);
     }
 
     private void ensureRaceExists(Integer raceId) {
