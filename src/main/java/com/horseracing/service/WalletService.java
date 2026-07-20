@@ -106,7 +106,7 @@ public class WalletService {
         depositRequest.setApprovedAt(LocalDateTime.now());
         DepositRequest savedRequest = depositRequestRepository.save(depositRequest);
 
-        createTransaction(savedWallet, depositRequest.getAmount(), "Deposit", "Nap tien duoc Admin duyet",
+        createTransaction(savedWallet, depositRequest.getAmount(), "Deposit", "Deposit approved by Admin",
                 "DepositRequest", savedRequest.getDepositRequestId());
         return toDepositRequestResponse(savedRequest);
     }
@@ -143,7 +143,7 @@ public class WalletService {
 
         wallet.setBalance(wallet.getBalance().subtract(validAmount));
         Wallet saved = walletRepository.save(wallet);
-        createTransaction(saved, validAmount.negate(), "BetPlaced", "Dat cuoc race", "Bet", betId);
+        createTransaction(saved, validAmount.negate(), "BetPlaced", "Race bet placed", "Bet", betId);
         return saved;
     }
 
@@ -153,7 +153,7 @@ public class WalletService {
         Wallet wallet = getOrCreateWallet(userId);
         wallet.setBalance(wallet.getBalance().add(validAmount));
         Wallet saved = walletRepository.save(wallet);
-        createTransaction(saved, validAmount, "BetWon", "Nhan tien thang cuoc", "Bet", betId);
+        createTransaction(saved, validAmount, "BetWon", "Bet payout received", "Bet", betId);
         return saved;
     }
 

@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
@@ -27,9 +28,9 @@ import java.util.UUID;
 @Service
 public class HorseService {
 
-    private static final String HEALTH_ACTIVE = "Hoạt động";
-    private static final String HEALTH_INJURED = "Bị thương";
-    private static final String HEALTH_INACTIVE = "Không hoạt động";
+    private static final String HEALTH_ACTIVE = "Active";
+    private static final String HEALTH_INJURED = "Injured";
+    private static final String HEALTH_INACTIVE = "Inactive";
 
     private final HorseRepository horseRepository;
     private final HorseOwnerRepository horseOwnerRepository;
@@ -65,20 +66,20 @@ public class HorseService {
     public HorseOptionsResponse getHorseOptions() {
         return new HorseOptionsResponse(
                 List.of(
-                        new OptionResponse("Hoạt động", "Hoạt động"),
-                        new OptionResponse("Bị thương", "Bị thương"),
-                        new OptionResponse("Không hoạt động", "Không hoạt động")
+                        new OptionResponse("Active", "Active"),
+                        new OptionResponse("Injured", "Injured"),
+                        new OptionResponse("Inactive", "Inactive")
                 ),
                 List.of(
-                        new OptionResponse("Đen", "Đen"),
-                        new OptionResponse("Trắng", "Trắng"),
-                        new OptionResponse("Nâu", "Nâu"),
-                        new OptionResponse("Nâu đậm", "Nâu đậm"),
-                        new OptionResponse("Nâu đỏ", "Nâu đỏ"),
-                        new OptionResponse("Vàng", "Vàng"),
-                        new OptionResponse("Xám", "Xám"),
-                        new OptionResponse("Xám đốm", "Xám đốm"),
-                        new OptionResponse("Hạt dẻ", "Hạt dẻ"),
+                        new OptionResponse("Black", "Black"),
+                        new OptionResponse("White", "White"),
+                        new OptionResponse("Brown", "Brown"),
+                        new OptionResponse("Dark Brown", "Dark Brown"),
+                        new OptionResponse("Chestnut", "Chestnut"),
+                        new OptionResponse("Gold", "Gold"),
+                        new OptionResponse("Gray", "Gray"),
+                        new OptionResponse("Dapple Gray", "Dapple Gray"),
+                        new OptionResponse("Bay", "Bay"),
                         new OptionResponse("Palomino", "Palomino"),
                         new OptionResponse("Pinto", "Pinto"),
                         new OptionResponse("Appaloosa", "Appaloosa")
@@ -133,7 +134,7 @@ public class HorseService {
     }
 
     public HorseResponse updateHorseStatus(Integer horseId, HorseStatusRequest request, HttpServletRequest httpRequest) {
-        //của buiquangann
+        // Horse owner or organizer updates horse status.
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
         ensureCanUpdateHorseStatus(user, horse);
@@ -158,7 +159,7 @@ public class HorseService {
     }
 
     public HorseHealthRecordResponse addHealthRecord(Integer horseId, HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
-        //của buiquangann
+        // Organizer adds a horse health record.
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
         ensureCanManageHorseHealth(user);
@@ -279,19 +280,25 @@ public class HorseService {
     }
 
     private String normalizeStatus(String status) {
-        String normalized = status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
-        if (normalized.equals("active") || normalized.equals("hoạt động") || normalized.equals("hoat dong")
+        String normalized = normalizeText(status);
+        if (normalized.equals("active") || normalized.equals("hoat dong")
                 || normalized.equals("true")) {
             return "ACTIVE";
         }
-        if (normalized.equals("injured") || normalized.equals("bị thương") || normalized.equals("bi thuong")) {
+        if (normalized.equals("injured") || normalized.equals("bi thuong")) {
             return "INJURED";
         }
-        if (normalized.equals("inactive") || normalized.equals("unactive") || normalized.equals("không hoạt động")
+        if (normalized.equals("inactive") || normalized.equals("unactive")
                 || normalized.equals("khong hoat dong") || normalized.equals("false")) {
             return "INACTIVE";
         }
         throw new IllegalArgumentException("Horse status only accepts: Active, Injured, Inactive.");
+    }
+
+    private String normalizeText(String value) {
+        return Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private HorseResponse toHorseResponse(Horse horse) {

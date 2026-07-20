@@ -85,10 +85,10 @@ public class BetResponse {
             return null;
         }
         return switch (value) {
-            case "WIN" -> "Ve nhat";
+            case "WIN" -> "Win";
             case "PLACE" -> "Top 2";
             case "SHOW" -> "Top 3";
-            case "EXACT" -> "Dung vi tri";
+            case "EXACT" -> "Exact Position";
             default -> value;
         };
     }
@@ -98,10 +98,11 @@ public class BetResponse {
             return null;
         }
         return switch (value) {
-            case "Pending" -> "Cho ket qua";
-            case "Won" -> "Thang cuoc";
-            case "Lost" -> "Thua cuoc";
-            case "Cancelled" -> "Da huy";
+            case "Pending" -> "Pending";
+            case "Won" -> "Won";
+            case "Lost" -> "Lost";
+            case "Cancelled" -> "Cancelled";
+            case "Refunded" -> "Refunded";
             default -> value;
         };
     }

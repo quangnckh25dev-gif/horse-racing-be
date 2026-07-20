@@ -42,7 +42,7 @@ public class RaceSummaryResponse {
         this.status = status;
         this.statusLabel = toStatusLabel(status);
         this.bettingOpen = isBettingOpen(status, raceDate);
-        this.bettingStatusLabel = this.bettingOpen ? "Dang mo dat cuoc" : "Da khoa dat cuoc";
+        this.bettingStatusLabel = this.bettingOpen ? "Betting Open" : "Betting Closed";
         this.registrationOpen = registrationOpen;
         this.registrationClose = registrationClose;
     }
@@ -136,11 +136,11 @@ public class RaceSummaryResponse {
             return null;
         }
         return switch (value) {
-            case "Scheduled" -> "Da len lich";
-            case "RegistrationOpen" -> "Mo dang ky";
-            case "Ongoing" -> "Dang dien ra";
-            case "Finished" -> "Ket thuc";
-            case "Cancelled" -> "Da huy";
+            case "Scheduled" -> "Scheduled";
+            case "RegistrationOpen" -> "Registration Open";
+            case "Ongoing" -> "Ongoing";
+            case "Finished" -> "Finished";
+            case "Cancelled" -> "Cancelled";
             default -> value;
         };
     }

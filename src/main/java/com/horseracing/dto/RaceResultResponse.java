@@ -198,10 +198,10 @@ public class RaceResultResponse {
             return null;
         }
         return switch (value) {
-            case "Pending" -> "Cho duyet";
-            case "Approved" -> "Da duyet";
-            case "Rejected" -> "Bi tu choi";
-            case "Published" -> "Da public";
+            case "Pending" -> "Pending Approval";
+            case "Approved" -> "Approved";
+            case "Rejected" -> "Rejected";
+            case "Published" -> "Published";
             default -> value;
         };
     }
