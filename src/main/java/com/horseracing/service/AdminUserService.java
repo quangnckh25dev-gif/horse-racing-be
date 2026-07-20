@@ -44,7 +44,7 @@ public class AdminUserService {
 
     public UserResponse approveUser(Integer targetUserId, Integer adminId) {
         User user = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+                .orElseThrow(() -> new IllegalArgumentException("User was not found."));
         ensureNotHardAdmin(user);
         
         user.setIsApproved(true);
@@ -58,7 +58,7 @@ public class AdminUserService {
 
     public UserResponse rejectUser(Integer targetUserId, Integer adminId) {
         User user = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+                .orElseThrow(() -> new IllegalArgumentException("User was not found."));
         ensureNotHardAdmin(user);
         
         user.setIsApproved(false);
@@ -73,19 +73,19 @@ public class AdminUserService {
 
     public UserResponse changeUserRole(Integer targetUserId, String roleName, Integer adminId) {
         User user = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+                .orElseThrow(() -> new IllegalArgumentException("User was not found."));
         ensureNotHardAdmin(user);
 
         Role newRole = roleRepository.findByRoleName(roleName)
-                .orElseThrow(() -> new IllegalArgumentException("Role khong ton tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Role does not exist."));
         if ("Admin".equalsIgnoreCase(newRole.getRoleName())) {
-            throw new IllegalArgumentException("Không được cấp role Admin từ màn hình quản lý người dùng");
+            throw new IllegalArgumentException("Admin role cannot be assigned from the user management screen.");
         }
 
         Integer oldRoleId = user.getRole() != null ? user.getRole().getRoleId() : null;
 
         if (oldRoleId != null && oldRoleId.equals(newRole.getRoleId())) {
-            throw new IllegalArgumentException("User da co role nay roi");
+            throw new IllegalArgumentException("User already has this role.");
         }
 
         user.setRole(newRole);
@@ -108,7 +108,7 @@ public class AdminUserService {
     private void ensureNotHardAdmin(User user) {
         String roleName = user.getRole() == null ? null : user.getRole().getRoleName();
         if ("Admin".equalsIgnoreCase(roleName)) {
-            throw new IllegalArgumentException("Tài khoản admin cứng không được phép thay đổi");
+            throw new IllegalArgumentException("The built-in admin account cannot be changed.");
         }
     }
 

@@ -106,7 +106,7 @@ public class RaceService {
         Race race = getRaceOrThrow(raceId);
         ensureOwnedTournament(race.getTournamentId(), organizer);
         if (!Set.of("Scheduled", "RegistrationOpen").contains(race.getStatus())) {
-            throw new IllegalArgumentException("Khong the sua race da bat dau hoac ket thuc");
+            throw new IllegalArgumentException("Races that have started or finished cannot be edited.");
         }
         applyRequest(race, request);
 
@@ -119,9 +119,9 @@ public class RaceService {
         requireRole(refereeUser, "Referee");
         Race race = getRaceOrThrow(raceId);
         Referee referee = refereeRepository.findByUserId(refereeUser.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User chua co ho so Referee"));
+                .orElseThrow(() -> new IllegalArgumentException("User does not have a Referee profile."));
         if (!raceRefereeRepository.existsByRaceIdAndRefereeId(raceId, referee.getRefereeId())) {
-            throw new IllegalArgumentException("Referee chua duoc phan cong vao race nay");
+            throw new IllegalArgumentException("Referee has not been assigned to this race.");
         }
 
         String newStatus = resolveStatus(status, race.getStatus());
@@ -151,7 +151,7 @@ public class RaceService {
         Race race = getRaceOrThrow(raceId);
         Tournament tournament = ensureOwnedTournament(race.getTournamentId(), organizer);
         if (!"Draft".equals(tournament.getStatus()) || !"Scheduled".equals(race.getStatus())) {
-            throw new IllegalArgumentException("Chi duoc xoa race Scheduled khi tournament con Draft");
+            throw new IllegalArgumentException("Only Scheduled races can be deleted while the tournament is still Draft.");
         }
         raceRepository.delete(race);
     }
@@ -162,51 +162,51 @@ public class RaceService {
 
     private Race getRaceOrThrow(Integer raceId) {
         if (raceId == null) {
-            throw new IllegalArgumentException("Race id khong hop le");
+            throw new IllegalArgumentException("Race id is invalid.");
         }
         return raceRepository.findById(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
+                .orElseThrow(() -> new IllegalArgumentException("Race was not found."));
     }
 
     private Tournament ensureTournamentExists(Integer tournamentId) {
         if (tournamentId == null) {
-            throw new IllegalArgumentException("TournamentID khong duoc de trong");
+            throw new IllegalArgumentException("TournamentID is required.");
         }
         return tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament was not found."));
     }
 
     private Round ensureRoundExists(Integer roundId) {
         return roundRepository.findById(roundId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay round"));
+                .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
     }
 
     private void validateRaceRequest(RaceRequest request, User organizer) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu race khong duoc de trong");
+            throw new IllegalArgumentException("Race data is required.");
         }
         if (request.getRaceName() == null || request.getRaceName().isBlank()) {
-            throw new IllegalArgumentException("RaceName khong duoc de trong");
+            throw new IllegalArgumentException("RaceName is required.");
         }
         if (request.getRaceDate() == null) {
-            throw new IllegalArgumentException("RaceDate khong duoc de trong");
+            throw new IllegalArgumentException("RaceDate is required.");
         }
         Tournament tournament = ensureOwnedTournament(request.getTournamentId(), organizer);
         if (request.getRoundId() != null) {
             Round round = ensureRoundExists(request.getRoundId());
             if (!round.getTournamentId().equals(request.getTournamentId())) {
-                throw new IllegalArgumentException("Round khong thuoc tournament nay");
+                throw new IllegalArgumentException("Round does not belong to this tournament.");
             }
         }
         if (request.getRaceDate().toLocalDate().isBefore(tournament.getStartDate())
                 || request.getRaceDate().toLocalDate().isAfter(tournament.getEndDate())) {
-            throw new IllegalArgumentException("RaceDate phai nam trong thoi gian tournament");
+            throw new IllegalArgumentException("RaceDate must be within the tournament date range.");
         }
         if (request.getMaxParticipants() != null && request.getMaxParticipants() <= 0) {
-            throw new IllegalArgumentException("MaxParticipants phai lon hon 0");
+            throw new IllegalArgumentException("MaxParticipants must be greater than 0.");
         }
         if (request.getTrackLength() != null && request.getTrackLength() <= 0) {
-            throw new IllegalArgumentException("TrackLength phai lon hon 0");
+            throw new IllegalArgumentException("TrackLength must be greater than 0.");
         }
         validateNonNegative(request.getPrizeFirst(), "PrizeFirst");
         validateNonNegative(request.getPrizeSecond(), "PrizeSecond");
@@ -214,16 +214,16 @@ public class RaceService {
         validateNonNegative(request.getPrizePool(), "PrizePool");
         if (request.getRegistrationOpen() != null && request.getRegistrationClose() != null
                 && request.getRegistrationClose().isBefore(request.getRegistrationOpen())) {
-            throw new IllegalArgumentException("RegistrationClose phai sau RegistrationOpen");
+            throw new IllegalArgumentException("RegistrationClose must be after RegistrationOpen.");
         }
         if (request.getRegistrationClose() != null && request.getRegistrationClose().isAfter(request.getRaceDate())) {
-            throw new IllegalArgumentException("RegistrationClose khong duoc sau RaceDate");
+            throw new IllegalArgumentException("RegistrationClose cannot be after RaceDate.");
         }
     }
 
     private void validateNonNegative(BigDecimal value, String fieldName) {
         if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException(fieldName + " khong duoc am");
+            throw new IllegalArgumentException(fieldName + " cannot be negative.");
         }
     }
 
@@ -258,7 +258,7 @@ public class RaceService {
     private String resolveStatus(String status, String defaultStatus) {
         String resolved = (status == null || status.isBlank()) ? defaultStatus : normalizeStatus(status);
         if (!VALID_STATUSES.contains(resolved)) {
-            throw new IllegalArgumentException("Trang thai vong dua khong hop le");
+            throw new IllegalArgumentException("Race status is invalid.");
         }
         return resolved;
     }
@@ -266,13 +266,13 @@ public class RaceService {
     private Tournament ensureOwnedTournament(Integer tournamentId, User organizer) {
         requireRole(organizer, "Organizer");
         return tournamentRepository.findByTournamentIdAndCreatedBy(tournamentId, organizer.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Tournament khong thuoc Organizer hien tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament does not belong to the current organizer."));
     }
 
     private void requireRole(User user, String role) {
         if (user == null || user.getRole() == null || !role.equalsIgnoreCase(user.getRole().getRoleName())
                 || !Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new IllegalArgumentException("Ban khong co quyen thuc hien thao tac nay");
+            throw new IllegalArgumentException("You do not have permission to perform this action.");
         }
     }
 
@@ -281,7 +281,7 @@ public class RaceService {
                 || ("RegistrationOpen".equals(oldStatus) && Set.of("Ongoing", "Cancelled").contains(newStatus))
                 || ("Ongoing".equals(oldStatus) && Set.of("Finished", "Cancelled").contains(newStatus));
         if (!valid) {
-            throw new IllegalArgumentException("Chuyen trang thai race khong hop le");
+            throw new IllegalArgumentException("Race status transition is invalid.");
         }
     }
 

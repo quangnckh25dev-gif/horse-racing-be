@@ -139,7 +139,7 @@ public class HorseService {
         ensureCanUpdateHorseStatus(user, horse);
 
         if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
-            throw new IllegalArgumentException("status khong duoc de trong");
+            throw new IllegalArgumentException("status is required.");
         }
 
         applyHorseStatus(horse, request.getStatus(), user);
@@ -164,10 +164,10 @@ public class HorseService {
         ensureCanManageHorseHealth(user);
 
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu health record khong hop le");
+            throw new IllegalArgumentException("Health record data is invalid.");
         }
         if (request.getCheckDate() == null) {
-            throw new IllegalArgumentException("checkDate khong duoc de trong");
+            throw new IllegalArgumentException("checkDate is required.");
         }
 
         HorseHealthRecord record = new HorseHealthRecord();
@@ -207,41 +207,41 @@ public class HorseService {
 
     private void validateHorseRequest(HorseRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu horse khong hop le");
+            throw new IllegalArgumentException("Horse data is invalid.");
         }
         if (request.getHorseName() == null || request.getHorseName().isBlank()) {
-            throw new IllegalArgumentException("horseName khong duoc de trong");
+            throw new IllegalArgumentException("horseName is required.");
         }
 
         BigDecimal weight = request.getWeightKg();
         if (weight == null) {
-            throw new IllegalArgumentException("weightKg khong duoc de trong");
+            throw new IllegalArgumentException("weightKg is required.");
         }
         if (weight.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("weightKg phai lon hon 0");
+            throw new IllegalArgumentException("weightKg must be greater than 0.");
         }
 
         Integer birthYear = request.getBirthYear();
         if (birthYear == null) {
-            throw new IllegalArgumentException("birthYear khong duoc de trong");
+            throw new IllegalArgumentException("birthYear is required.");
         }
         int currentYear = Year.now().getValue();
         if (birthYear < 1980 || birthYear > currentYear) {
-            throw new IllegalArgumentException("birthYear khong hop le");
+            throw new IllegalArgumentException("birthYear is invalid.");
         }
     }
 
     private Horse getHorseEntity(Integer horseId) {
         if (horseId == null) {
-            throw new IllegalArgumentException("horseId khong duoc de trong");
+            throw new IllegalArgumentException("horseId is required.");
         }
         return horseRepository.findById(horseId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
+                .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
     }
 
     private HorseOwner getOwnerByUserId(Integer userId) {
         return horseOwnerRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User hien tai chua co ho so HorseOwner"));
+                .orElseThrow(() -> new IllegalArgumentException("Current user does not have a HorseOwner profile."));
     }
 
     private void ensureCanAccessHorse(User user, Horse horse) {
@@ -254,7 +254,7 @@ public class HorseService {
     private void ensureOwnerOwnsHorse(User user, Horse horse) {
         HorseOwner owner = getOwnerByUserId(user.getUserId());
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
-            throw new IllegalArgumentException("Ban khong co quyen truy cap horse nay");
+            throw new IllegalArgumentException("You do not have permission to access this horse.");
         }
     }
 
@@ -291,7 +291,7 @@ public class HorseService {
                 || normalized.equals("khong hoat dong") || normalized.equals("false")) {
             return "INACTIVE";
         }
-        throw new IllegalArgumentException("Trạng thái ngựa chỉ chấp nhận: Hoạt động, Bị thương, Không hoạt động");
+        throw new IllegalArgumentException("Horse status only accepts: Active, Injured, Inactive.");
     }
 
     private HorseResponse toHorseResponse(Horse horse) {
@@ -339,7 +339,7 @@ public class HorseService {
         if (isOrganizer(user)) {
             return;
         }
-        throw new IllegalArgumentException("Chi Organizer moi duoc cap nhat suc khoe ngua");
+        throw new IllegalArgumentException("Only organizers can update horse health.");
     }
 
     private void ensureCanAccessHealthHistory(User user, Horse horse) {

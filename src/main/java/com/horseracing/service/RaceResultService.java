@@ -86,7 +86,7 @@ public class RaceResultService {
 
         raceResultRepository.findByRaceIdAndEntryId(raceId, entry.getEntryId())
                 .ifPresent(result -> {
-                    throw new IllegalArgumentException("Entry nay da co ket qua trong race");
+                    throw new IllegalArgumentException("This entry already has a result in this race.");
                 });
 
         RaceResult result = new RaceResult();
@@ -105,12 +105,12 @@ public class RaceResultService {
     public RaceResultResponse updateResult(Integer raceId, Integer resultId, RaceResultRequest request, User refereeUser) {
         Referee referee = requireAssignedReferee(raceId, refereeUser);
         RaceResult result = raceResultRepository.findById(resultId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay ket qua"));
+                .orElseThrow(() -> new IllegalArgumentException("Result was not found."));
         if (!result.getRaceId().equals(raceId)) {
-            throw new IllegalArgumentException("Ket qua khong thuoc race nay");
+            throw new IllegalArgumentException("Result does not belong to this race.");
         }
         if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
-            throw new IllegalArgumentException("Ket qua da publish, khong the cap nhat");
+            throw new IllegalArgumentException("Published results cannot be updated.");
         }
 
         RaceEntry entry = getEligibleEntry(raceId, request == null ? null : request.getEntryId());
@@ -135,7 +135,7 @@ public class RaceResultService {
 
         results.forEach(result -> {
             if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
-                throw new IllegalArgumentException("Ket qua da publish, khong the duyet lai");
+                throw new IllegalArgumentException("Published results cannot be approved again.");
             }
             result.setApprovalStatus(STATUS_APPROVED);
             result.setApprovedByOrganizer(organizer.getUserId());
@@ -155,7 +155,7 @@ public class RaceResultService {
 
         results.forEach(result -> {
             if (STATUS_PUBLISHED.equals(result.getApprovalStatus())) {
-                throw new IllegalArgumentException("Ket qua da publish, khong the tu choi");
+                throw new IllegalArgumentException("Published results cannot be rejected.");
             }
             result.setApprovalStatus(STATUS_REJECTED);
             result.setApprovedByOrganizer(organizer.getUserId());
@@ -175,7 +175,7 @@ public class RaceResultService {
         ensureOwnedRace(raceId, organizer);
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         if (results.stream().anyMatch(result -> !STATUS_APPROVED.equals(result.getApprovalStatus()))) {
-            throw new IllegalArgumentException("Ket qua chua duoc Organizer duyet, khong the publish");
+            throw new IllegalArgumentException("Results cannot be published before Organizer approval.");
         }
 
         raceResultRepository.publishRaceResult(raceId, organizer.getUserId());
@@ -184,11 +184,11 @@ public class RaceResultService {
 
     private void applyRefereeInput(RaceResult result, RaceResultRequest request, Referee referee) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu ket qua khong duoc de trong");
+            throw new IllegalArgumentException("Result data is required.");
         }
         boolean dnf = Boolean.TRUE.equals(request.getDnf());
         if (!dnf && (request.getFinishTime() == null || request.getFinishTime().isBlank())) {
-            throw new IllegalArgumentException("finishTime la bat buoc neu horse khong DNF");
+            throw new IllegalArgumentException("finishTime is required when horse is not DNF.");
         }
         result.setFinishTime(dnf ? null : parseFinishTime(request.getFinishTime()));
         result.setPenaltyTime(defaultDecimal(result.getPenaltyTime()));
@@ -202,55 +202,55 @@ public class RaceResultService {
 
     private Referee requireAssignedReferee(Integer raceId, User user) {
         if (!isApprovedActiveRole(user, "Referee")) {
-            throw new IllegalArgumentException("Chi Referee moi duoc nhap ket qua");
+            throw new IllegalArgumentException("Only referees can submit results.");
         }
         ensureRaceExists(raceId);
         Referee referee = refereeRepository.findByUserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User chua co ho so Referee"));
+                .orElseThrow(() -> new IllegalArgumentException("User does not have a Referee profile."));
         if (!raceRefereeRepository.existsByRaceIdAndRefereeId(raceId, referee.getRefereeId())) {
-            throw new IllegalArgumentException("Referee chua duoc phan cong vao race nay");
+            throw new IllegalArgumentException("Referee has not been assigned to this race.");
         }
         return referee;
     }
 
     private RaceEntry getEligibleEntry(Integer raceId, Integer entryId) {
         if (entryId == null) {
-            throw new IllegalArgumentException("entryId khong duoc de trong");
+            throw new IllegalArgumentException("entryId is required.");
         }
         RaceEntry entry = raceEntryRepository.findById(entryId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay entry"));
+                .orElseThrow(() -> new IllegalArgumentException("Entry was not found."));
         if (!entry.getRaceId().equals(raceId)) {
-            throw new IllegalArgumentException("Entry khong thuoc race nay");
+            throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
         if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())
                 && !"Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Chi nhap ket qua cho entry da duoc duyet");
+            throw new IllegalArgumentException("Results can only be submitted for approved entries.");
         }
         return entry;
     }
 
     private Race ensureOwnedRace(Integer raceId, User organizer) {
         if (!isApprovedActiveRole(organizer, "Organizer")) {
-            throw new IllegalArgumentException("Chi Organizer moi duoc xu ly ket qua race");
+            throw new IllegalArgumentException("Only organizers can process race results.");
         }
         Race race = ensureRaceExists(raceId);
         tournamentRepository.findByTournamentIdAndCreatedBy(race.getTournamentId(), organizer.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Race khong thuoc Organizer hien tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Race does not belong to the current organizer."));
         return race;
     }
 
     private Race ensureRaceExists(Integer raceId) {
         if (raceId == null) {
-            throw new IllegalArgumentException("raceId khong hop le");
+            throw new IllegalArgumentException("raceId is invalid.");
         }
         return raceRepository.findById(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
+                .orElseThrow(() -> new IllegalArgumentException("Race was not found."));
     }
 
     private List<RaceResult> getRaceResultsOrThrow(Integer raceId) {
         List<RaceResult> results = raceResultRepository.findByRaceId(raceId);
         if (results.isEmpty()) {
-            throw new IllegalArgumentException("Race chua co ket qua");
+            throw new IllegalArgumentException("Race does not have results yet.");
         }
         return results;
     }
@@ -297,7 +297,7 @@ public class RaceResultService {
             }
             return new BigDecimal(finishTime).setScale(3, RoundingMode.HALF_UP);
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("finishTime phai co dang HH:mm:ss.SSS hoac so giay");
+            throw new IllegalArgumentException("finishTime must be in HH:mm:ss.SSS format or a number of seconds.");
         }
     }
 

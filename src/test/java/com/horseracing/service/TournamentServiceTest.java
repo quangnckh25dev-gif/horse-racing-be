@@ -60,7 +60,7 @@ class TournamentServiceTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> service.updateTournament(2, validRequest(), organizer));
 
-        assertTrue(exception.getMessage().contains("Organizer hien tai"));
+        assertTrue(exception.getMessage().contains("current organizer"));
     }
 
     @Test

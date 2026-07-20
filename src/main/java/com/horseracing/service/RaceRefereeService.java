@@ -77,17 +77,17 @@ public class RaceRefereeService {
         ensureOwnedRace(race, organizer);
         Referee referee = getRefereeOrThrow(request);
         User refereeUser = userRepository.findById(referee.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua referee"));
+                .orElseThrow(() -> new IllegalArgumentException("Referee user was not found."));
         if (!isApprovedActiveRole(refereeUser, "Referee")) {
-            throw new IllegalArgumentException("Referee chua active hoac chua duoc duyet");
+            throw new IllegalArgumentException("Referee is inactive or has not been approved.");
         }
         String role = resolveRole(request.getRole());
 
         if (raceRefereeRepository.existsByRaceIdAndRefereeId(raceId, referee.getRefereeId())) {
-            throw new IllegalArgumentException("Referee da duoc phan cong vao race nay");
+            throw new IllegalArgumentException("Referee has already been assigned to this race.");
         }
         if ("Chief".equalsIgnoreCase(role) && raceRefereeRepository.existsByRaceIdAndRoleIgnoreCase(raceId, "Chief")) {
-            throw new IllegalArgumentException("Race da co Chief referee");
+            throw new IllegalArgumentException("Race already has a Chief referee.");
         }
 
         RaceReferee raceReferee = new RaceReferee();
@@ -108,7 +108,7 @@ public class RaceRefereeService {
         getRefereeByIdOrThrow(refereeId);
 
         if (!raceRefereeRepository.existsByRaceIdAndRefereeId(raceId, refereeId)) {
-            throw new IllegalArgumentException("Referee chua duoc phan cong vao race nay");
+            throw new IllegalArgumentException("Referee has not been assigned to this race.");
         }
 
         raceRefereeRepository.deleteByRaceIdAndRefereeId(raceId, refereeId);
@@ -116,23 +116,23 @@ public class RaceRefereeService {
 
     private Race getRaceOrThrow(Integer raceId) {
         if (raceId == null) {
-            throw new IllegalArgumentException("Race id khong hop le");
+            throw new IllegalArgumentException("Race id is invalid.");
         }
 
         return raceRepository.findById(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
+                .orElseThrow(() -> new IllegalArgumentException("Race was not found."));
     }
 
     private Referee getRefereeOrThrow(RaceRefereeRequest request) {
         if (request == null || request.getRefereeId() == null) {
-            throw new IllegalArgumentException("RefereeID khong duoc de trong");
+            throw new IllegalArgumentException("RefereeID is required.");
         }
         return getRefereeByIdOrThrow(request.getRefereeId());
     }
 
     private Referee getRefereeByIdOrThrow(Integer refereeId) {
         return refereeRepository.findById(refereeId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay referee"));
+                .orElseThrow(() -> new IllegalArgumentException("Referee was not found."));
     }
 
     private String resolveRole(String role) {
@@ -146,7 +146,7 @@ public class RaceRefereeService {
         if ("Assistant".equalsIgnoreCase(normalized)) {
             return "Assistant";
         }
-        throw new IllegalArgumentException("Role referee chi chap nhan Chief hoac Assistant");
+        throw new IllegalArgumentException("Referee role only accepts Chief or Assistant.");
     }
 
     private void createAssignmentNotification(Referee referee, Race race) {
@@ -165,18 +165,18 @@ public class RaceRefereeService {
         requireOrganizer(organizer);
         Tournament tournament = tournamentRepository.findByTournamentIdAndCreatedBy(
                         race.getTournamentId(), organizer.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Race khong thuoc Organizer hien tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Race does not belong to the current organizer."));
         if (!Boolean.TRUE.equals(organizer.getIsActive()) || !Boolean.TRUE.equals(organizer.getIsApproved())) {
-            throw new IllegalArgumentException("Tai khoan Organizer chua duoc kich hoat hoac phe duyet");
+            throw new IllegalArgumentException("Organizer account is inactive or has not been approved.");
         }
         if (tournament.getTournamentId() == null) {
-            throw new IllegalArgumentException("Tournament khong hop le");
+            throw new IllegalArgumentException("Tournament is invalid.");
         }
     }
 
     private void requireOrganizer(User user) {
         if (!isApprovedActiveRole(user, "Organizer")) {
-            throw new IllegalArgumentException("Chi Organizer moi co quyen phan cong referee");
+            throw new IllegalArgumentException("Only organizers can assign referees.");
         }
     }
 

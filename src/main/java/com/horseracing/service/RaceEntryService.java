@@ -83,24 +83,24 @@ public class RaceEntryService {
         validateRaceCanReceiveEntry(race);
 
         if (request == null || request.getHorseId() == null) {
-            throw new IllegalArgumentException("horseId khong duoc de trong");
+            throw new IllegalArgumentException("horseId is required.");
         }
 
         Horse horse = horseRepository.findById(request.getHorseId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
+                .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
-            throw new IllegalArgumentException("Horse khong thuoc so huu cua ban");
+            throw new IllegalArgumentException("This horse does not belong to you.");
         }
         if (!Boolean.TRUE.equals(horse.getIsActive())) {
-            throw new IllegalArgumentException("Horse dang inactive");
+            throw new IllegalArgumentException("Horse is inactive.");
         }
         if (raceEntryRepository.existsActiveRegistration(raceId, horse.getHorseId())) {
-            throw new IllegalArgumentException("Horse da dang ky race nay");
+            throw new IllegalArgumentException("Horse has already registered for this race.");
         }
 
         long currentEntries = raceEntryRepository.countActiveRegistrations(raceId);
         if (race.getMaxParticipants() != null && currentEntries >= race.getMaxParticipants()) {
-            throw new IllegalArgumentException("Race da du so luong horse tham gia");
+            throw new IllegalArgumentException("Race has reached the maximum number of horse participants.");
         }
 
         RaceEntry entry = new RaceEntry();
@@ -121,15 +121,15 @@ public class RaceEntryService {
         User user = currentUserService.getCurrentUser(httpRequest);
         RaceEntry entry = getEntryInRace(raceId, entryId);
         Horse horse = horseRepository.findById(entry.getHorseId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
+                .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
         HorseOwner owner = getOwnerByUserId(user.getUserId());
 
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
-            throw new IllegalArgumentException("Ban khong co quyen rut entry nay");
+            throw new IllegalArgumentException("You do not have permission to withdraw this entry.");
         }
         if ("Approved".equalsIgnoreCase(entry.getRegistrationStatus())
                 || "Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Entry da duoc duyet, khong the rut");
+            throw new IllegalArgumentException("Approved entries cannot be withdrawn.");
         }
 
         entry.setRegistrationStatus("Withdrawn");
@@ -144,23 +144,23 @@ public class RaceEntryService {
         requireOrganizer(user);
         Race race = getRace(raceId);
         tournamentRepository.findByTournamentIdAndCreatedBy(race.getTournamentId(), user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Race khong thuoc Organizer hien tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Race does not belong to the current organizer."));
 
         RaceEntry entry = getEntryInRace(raceId, entryId);
         if (request == null || request.getApproved() == null) {
-            throw new IllegalArgumentException("approved khong duoc de trong");
+            throw new IllegalArgumentException("approved is required.");
         }
         if ("Withdrawn".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Entry da rut, khong the duyet");
+            throw new IllegalArgumentException("Withdrawn entries cannot be approved.");
         }
 
         if (Boolean.TRUE.equals(request.getApproved())) {
             Horse horse = horseRepository.findById(entry.getHorseId())
-                    .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
+                    .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
             // Chấp nhận cả 'Active' lẫn 'Hoạt động' — đồng bộ với HorseService.normalizeStatus. KHONG XOA!
             String hs = horse.getHealthStatus() == null ? "" : horse.getHealthStatus().trim();
             if (!"Hoạt động".equals(hs) && !"Active".equalsIgnoreCase(hs) && !"Hoat dong".equalsIgnoreCase(hs)) {
-                throw new IllegalArgumentException("Chi duyet ngua co healthStatus = Hoat dong");
+                throw new IllegalArgumentException("Only horses with healthStatus = Active can be approved.");
             }
             entry.setRegistrationStatus("Approved");
             entry.setOrganizerApproved(true);
@@ -180,26 +180,26 @@ public class RaceEntryService {
 
     public RaceEntryResponse getEntry(Integer entryId) {
         return toResponse(raceEntryRepository.findById(entryId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay entry")));
+                .orElseThrow(() -> new IllegalArgumentException("Entry was not found.")));
     }
 
     private void validateRaceCanReceiveEntry(Race race) {
         if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
-            throw new IllegalArgumentException("Race chua mo dang ky");
+            throw new IllegalArgumentException("Race registration is not open.");
         }
         Tournament tournament = tournamentRepository.findById(race.getTournamentId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament was not found."));
         if (!"Open".equalsIgnoreCase(tournament.getStatus())) {
-            throw new IllegalArgumentException("Tournament chua duoc Admin duyet mo dang ky");
+            throw new IllegalArgumentException("Tournament has not been approved by Admin for registration.");
         }
     }
 
     private Race getRace(Integer raceId) {
         if (raceId == null) {
-            throw new IllegalArgumentException("raceId khong duoc de trong");
+            throw new IllegalArgumentException("raceId is required.");
         }
         return raceRepository.findById(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
+                .orElseThrow(() -> new IllegalArgumentException("Race was not found."));
     }
 
     private void ensureRaceExists(Integer raceId) {
@@ -208,16 +208,16 @@ public class RaceEntryService {
 
     private RaceEntry getEntryInRace(Integer raceId, Integer entryId) {
         RaceEntry entry = raceEntryRepository.findById(entryId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay entry"));
+                .orElseThrow(() -> new IllegalArgumentException("Entry was not found."));
         if (!entry.getRaceId().equals(raceId)) {
-            throw new IllegalArgumentException("Entry khong thuoc race nay");
+            throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
         return entry;
     }
 
     private HorseOwner getOwnerByUserId(Integer userId) {
         return horseOwnerRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User hien tai chua co ho so HorseOwner"));
+                .orElseThrow(() -> new IllegalArgumentException("Current user does not have a HorseOwner profile."));
     }
 
     private void notifyOwner(RaceEntry entry, boolean approved, String reason) {
@@ -297,7 +297,7 @@ public class RaceEntryService {
     private void requireOrganizer(User user) {
         if (user == null || user.getRole() == null || !"Organizer".equalsIgnoreCase(user.getRole().getRoleName())
                 || !Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new IllegalArgumentException("Chi Organizer moi duoc duyet entry");
+            throw new IllegalArgumentException("Only organizers can approve entries.");
         }
     }
 }

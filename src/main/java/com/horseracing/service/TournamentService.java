@@ -96,7 +96,7 @@ public class TournamentService {
         requireOrganizer(organizer);
         validateDates(request);
         Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
-        ensureDraft(tournament, "Chi co the cap nhat giai dau dang o trang thai Draft");
+        ensureDraft(tournament, "Only Draft tournaments can be updated.");
 
         applyRequest(tournament, request);
         tournament.setRejectReason(null);
@@ -108,7 +108,7 @@ public class TournamentService {
     public TournamentResponse submitTournament(Integer tournamentId, User organizer) {
         requireOrganizer(organizer);
         Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
-        ensureDraft(tournament, "Chi co the gui duyet giai dau dang o trang thai Draft");
+        ensureDraft(tournament, "Only Draft tournaments can be submitted for approval.");
         tournament.setStatus(PENDING_APPROVAL);
         tournament.setRejectReason(null);
         return toResponse(tournamentRepository.save(tournament));
@@ -120,7 +120,7 @@ public class TournamentService {
         requireAdmin(admin);
         Tournament tournament = getTournamentOrThrow(tournamentId);
         if (!PENDING_APPROVAL.equals(tournament.getStatus())) {
-            throw new IllegalArgumentException("Chi co the duyet giai dau dang cho phe duyet");
+            throw new IllegalArgumentException("Only tournaments pending approval can be reviewed.");
         }
         if ("Open".equals(requestedStatus)) {
             tournament.setStatus("Open");
@@ -134,14 +134,14 @@ public class TournamentService {
             });
         } else if (DRAFT.equals(requestedStatus)) {
             if (reason == null || reason.isBlank()) {
-                throw new IllegalArgumentException("reason la bat buoc khi tu choi giai dau");
+                throw new IllegalArgumentException("reason is required when rejecting a tournament.");
             }
             tournament.setStatus(DRAFT);
             tournament.setApprovedByAdmin(null);
             tournament.setApprovedAt(null);
             tournament.setRejectReason(reason.trim());
         } else {
-            throw new IllegalArgumentException("Admin chi duoc chuyen trang thai sang Open hoac Draft");
+            throw new IllegalArgumentException("Admin can only change tournament status to Open or Draft.");
         }
         return toResponse(tournamentRepository.save(tournament));
     }
@@ -157,20 +157,20 @@ public class TournamentService {
 
     private Tournament getTournamentOrThrow(Integer tournamentId) {
         if (tournamentId == null) {
-            throw new IllegalArgumentException("tournamentId khong hop le");
+            throw new IllegalArgumentException("tournamentId is invalid.");
         }
         return tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament was not found."));
     }
 
     private Tournament getOwnedTournamentOrThrow(Integer tournamentId, Integer organizerId) {
         return tournamentRepository.findByTournamentIdAndCreatedBy(tournamentId, organizerId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament thuoc Organizer hien tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament was not found for the current organizer."));
     }
 
     private void validateDates(TournamentRequest request) {
         if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("endDate phai lon hon hoac bang startDate");
+            throw new IllegalArgumentException("endDate must be greater than or equal to startDate.");
         }
     }
 
@@ -190,10 +190,10 @@ public class TournamentService {
 
     private void requireRole(User user, String role) {
         if (user == null || user.getRole() == null || !role.equals(user.getRole().getRoleName())) {
-            throw new IllegalArgumentException("Ban khong co quyen thuc hien thao tac nay");
+            throw new IllegalArgumentException("You do not have permission to perform this action.");
         }
         if (!Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new IllegalArgumentException("Tai khoan chua duoc kich hoat hoac phe duyet");
+            throw new IllegalArgumentException("Account is inactive or has not been approved.");
         }
     }
 

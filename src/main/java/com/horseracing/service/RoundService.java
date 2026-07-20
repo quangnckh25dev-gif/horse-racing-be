@@ -39,7 +39,7 @@ public class RoundService {
         Tournament tournament = getOwnedDraftTournament(tournamentId, organizer);
         validateRequest(request, tournament);
         if (roundRepository.existsByTournamentIdAndRoundOrder(tournamentId, request.getRoundOrder())) {
-            throw new IllegalArgumentException("roundOrder da ton tai trong tournament");
+            throw new IllegalArgumentException("roundOrder already exists in this tournament.");
         }
         Round round = new Round();
         round.setTournamentId(tournamentId);
@@ -54,7 +54,7 @@ public class RoundService {
         validateRequest(request, tournament);
         if (roundRepository.existsByTournamentIdAndRoundOrderAndRoundIdNot(
                 round.getTournamentId(), request.getRoundOrder(), roundId)) {
-            throw new IllegalArgumentException("roundOrder da ton tai trong tournament");
+            throw new IllegalArgumentException("roundOrder already exists in this tournament.");
         }
         applyRequest(round, request);
         return toResponse(roundRepository.save(round));
@@ -65,7 +65,7 @@ public class RoundService {
         Round round = getRoundOrThrow(roundId);
         getOwnedDraftTournament(round.getTournamentId(), organizer);
         if (raceRepository.existsByRoundId(roundId)) {
-            throw new IllegalArgumentException("Khong the xoa round da co race");
+            throw new IllegalArgumentException("Rounds that already have races cannot be deleted.");
         }
         roundRepository.delete(round);
     }
@@ -73,40 +73,40 @@ public class RoundService {
     private Tournament getOwnedDraftTournament(Integer tournamentId, User organizer) {
         requireOrganizer(organizer);
         Tournament tournament = tournamentRepository.findByTournamentIdAndCreatedBy(tournamentId, organizer.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Tournament khong thuoc Organizer hien tai"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament does not belong to the current organizer."));
         if (!"Draft".equals(tournament.getStatus())) {
-            throw new IllegalArgumentException("Chi duoc thay doi round khi tournament o trang thai Draft");
+            throw new IllegalArgumentException("Rounds can only be changed when the tournament is in Draft status.");
         }
         return tournament;
     }
 
     private Tournament ensureTournamentExists(Integer id) {
         return tournamentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("Tournament was not found."));
     }
 
     private Round getRoundOrThrow(Integer id) {
         return roundRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay round"));
+                .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
     }
 
     private void validateRequest(RoundRequest request, Tournament tournament) {
         if (request == null || request.getRoundName() == null || request.getRoundName().isBlank())
-            throw new IllegalArgumentException("roundName khong duoc de trong");
+            throw new IllegalArgumentException("roundName is required.");
         if (request.getRoundOrder() == null || request.getRoundOrder() <= 0)
-            throw new IllegalArgumentException("roundOrder phai lon hon 0");
+            throw new IllegalArgumentException("roundOrder must be greater than 0.");
         if (request.getStartDate() != null && request.getStartDate().isBefore(tournament.getStartDate()))
-            throw new IllegalArgumentException("startDate cua round nam ngoai tournament");
+            throw new IllegalArgumentException("Round startDate is outside the tournament date range.");
         if (request.getEndDate() != null && request.getEndDate().isAfter(tournament.getEndDate()))
-            throw new IllegalArgumentException("endDate cua round nam ngoai tournament");
+            throw new IllegalArgumentException("Round endDate is outside the tournament date range.");
         if (request.getStartDate() != null && request.getEndDate() != null
                 && request.getEndDate().isBefore(request.getStartDate()))
-            throw new IllegalArgumentException("endDate phai sau startDate");
+            throw new IllegalArgumentException("endDate must be after startDate.");
     }
 
     private void requireOrganizer(User user) {
         if (user == null || user.getRole() == null || !"Organizer".equals(user.getRole().getRoleName()))
-            throw new IllegalArgumentException("Chi Organizer moi co quyen thuc hien thao tac nay");
+            throw new IllegalArgumentException("Only organizers can perform this action.");
     }
 
     private void applyRequest(Round round, RoundRequest request) {

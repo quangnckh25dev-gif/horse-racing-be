@@ -109,7 +109,7 @@ public class LeaderboardService {
 
     private void ensureTournamentExists(Integer tournamentId) {
         if (tournamentId == null) {
-            throw new IllegalArgumentException("Khong tim thay tournament");
+            throw new IllegalArgumentException("Tournament was not found.");
         }
 
         Number count = (Number) entityManager.createNativeQuery(
@@ -118,7 +118,7 @@ public class LeaderboardService {
                 .getSingleResult();
 
         if (count.intValue() == 0) {
-            throw new IllegalArgumentException("Khong tim thay tournament");
+            throw new IllegalArgumentException("Tournament was not found.");
         }
     }
 

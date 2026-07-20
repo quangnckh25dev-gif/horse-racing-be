@@ -78,10 +78,10 @@ public class ViolationService {
 
     public ViolationResponse updateViolation(Integer violationId, ViolationRequest request, User currentUser) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu vi pham khong hop le");
+            throw new IllegalArgumentException("Violation data is invalid.");
         }
         Violation violation = violationRepository.findById(violationId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay vi pham"));
+                .orElseThrow(() -> new IllegalArgumentException("Violation was not found."));
         Integer refereeId = ensureAssignedReferee(violation.getRaceId(), currentUser);
         violation.setRefereeId(refereeId);
 
@@ -108,7 +108,7 @@ public class ViolationService {
 
     public void deleteViolation(Integer violationId, User currentUser) {
         Violation violation = violationRepository.findById(violationId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay vi pham"));
+                .orElseThrow(() -> new IllegalArgumentException("Violation was not found."));
         ensureAssignedReferee(violation.getRaceId(), currentUser);
         Integer raceId = violation.getRaceId();
         violationRepository.deleteById(violationId);
@@ -117,43 +117,43 @@ public class ViolationService {
 
     private void ensureRaceExists(Integer raceId) {
         if (raceId == null || violationRepository.countRaceById(raceId) == 0) {
-            throw new IllegalArgumentException("Khong tim thay race");
+            throw new IllegalArgumentException("Race was not found.");
         }
     }
 
     private void ensureEntryBelongsToRace(Integer raceId, Integer entryId) {
         if (entryId == null || violationRepository.countEntryInRace(raceId, entryId) == 0) {
-            throw new IllegalArgumentException("Entry khong thuoc race nay");
+            throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
     }
 
     private Integer ensureAssignedReferee(Integer raceId, User currentUser) {
         if (currentUser == null || currentUser.getRole() == null
                 || !"Referee".equalsIgnoreCase(currentUser.getRole().getRoleName())) {
-            throw new IllegalArgumentException("Chi Referee moi duoc ghi vi pham");
+            throw new IllegalArgumentException("Only referees can record violations.");
         }
         if (violationRepository.countAssignedReferee(raceId, currentUser.getUserId()) == 0) {
-            throw new IllegalArgumentException("Referee chua duoc phan cong cho race nay");
+            throw new IllegalArgumentException("Referee has not been assigned to this race.");
         }
         Integer refereeId = violationRepository.findRefereeIdByUserId(currentUser.getUserId());
         if (refereeId == null) {
-            throw new IllegalArgumentException("User hien tai chua co ho so Referee");
+            throw new IllegalArgumentException("Current user does not have a Referee profile.");
         }
         return refereeId;
     }
 
     private void validateRequest(ViolationRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu vi pham khong hop le");
+            throw new IllegalArgumentException("Violation data is invalid.");
         }
         if (request.getEntryId() == null) {
-            throw new IllegalArgumentException("entryId khong duoc de trong");
+            throw new IllegalArgumentException("entryId is required.");
         }
     }
 
     private String normalizeViolationType(String violationType) {
         if (violationType == null || violationType.isBlank()) {
-            throw new IllegalArgumentException("Loai vi pham khong duoc de trong");
+            throw new IllegalArgumentException("Violation type is required.");
         }
 
         String trimmed = violationType.trim();
@@ -166,7 +166,7 @@ public class ViolationService {
                 .filter(entry -> entry.getValue().label().equalsIgnoreCase(trimmed))
                 .map(Map.Entry::getKey)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Loai vi pham khong hop le"));
+                .orElseThrow(() -> new IllegalArgumentException("Violation type is invalid."));
     }
 
     private ViolationResponse toResponse(Violation violation) {

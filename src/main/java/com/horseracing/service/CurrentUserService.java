@@ -26,19 +26,19 @@ public class CurrentUserService {
             try {
                 claims = jwtService.extractClaims(token);
             } catch (JwtException | IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Token khong hop le hoac da het han. Hay login lai de lay token moi.");
+                throw new IllegalArgumentException("Invalid or expired token. Please log in again.");
             }
             Integer userId = claims.get("userId", Integer.class);
             if (userId != null) {
                 return userRepository.findById(userId)
-                        .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user hien tai"));
+                        .orElseThrow(() -> new IllegalArgumentException("Current user was not found."));
             }
 
             return userRepository.findByUsername(claims.getSubject())
-                    .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user hien tai"));
+                    .orElseThrow(() -> new IllegalArgumentException("Current user was not found."));
         }
 
-        throw new IllegalArgumentException("Thieu Authorization Bearer token");
+        throw new IllegalArgumentException("Authorization Bearer token is required.");
     }
 
     public boolean isAdmin(User user) {

@@ -30,13 +30,13 @@ public class ProfileService {
 
     public ProfileResponse getOwnerProfile(Integer userId) {
         HorseOwner owner = horseOwnerRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay owner profile"));
+                .orElseThrow(() -> new IllegalArgumentException("Owner profile was not found."));
         return toOwnerResponse(owner, getUser(userId));
     }
 
     public ProfileResponse updateOwnerProfile(Integer userId, ProfileRequest request) {
         HorseOwner owner = horseOwnerRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay owner profile"));
+                .orElseThrow(() -> new IllegalArgumentException("Owner profile was not found."));
 
         if (request.getNationalId() != null) owner.setNationalId(request.getNationalId());
         if (request.getAddress() != null) owner.setAddress(request.getAddress());
@@ -48,13 +48,13 @@ public class ProfileService {
 
     public ProfileResponse getJockeyProfile(Integer userId) {
         Jockey jockey = jockeyRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay jockey profile"));
+                .orElseThrow(() -> new IllegalArgumentException("Jockey profile was not found."));
         return toJockeyResponse(jockey, getUser(userId));
     }
 
     public ProfileResponse updateJockeyProfile(Integer userId, ProfileRequest request) {
         Jockey jockey = jockeyRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay jockey profile"));
+                .orElseThrow(() -> new IllegalArgumentException("Jockey profile was not found."));
 
         if (request.getNationalId() != null) jockey.setNationalId(request.getNationalId());
         if (request.getLicenseNumber() != null) jockey.setLicenseNumber(request.getLicenseNumber());
@@ -67,13 +67,13 @@ public class ProfileService {
 
     public ProfileResponse getRefereeProfile(Integer userId) {
         Referee referee = refereeRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay referee profile"));
+                .orElseThrow(() -> new IllegalArgumentException("Referee profile was not found."));
         return toRefereeResponse(referee, getUser(userId));
     }
 
     public ProfileResponse updateRefereeProfile(Integer userId, ProfileRequest request) {
         Referee referee = refereeRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay referee profile"));
+                .orElseThrow(() -> new IllegalArgumentException("Referee profile was not found."));
 
         if (request.getBadgeNumber() != null) referee.setBadgeNumber(request.getBadgeNumber());
         if (request.getSpeciality() != null) referee.setSpeciality(request.getSpeciality());
@@ -83,7 +83,7 @@ public class ProfileService {
 
     private User getUser(Integer userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user"));
+                .orElseThrow(() -> new IllegalArgumentException("User was not found."));
     }
 
     private ProfileResponse toOwnerResponse(HorseOwner owner, User user) {

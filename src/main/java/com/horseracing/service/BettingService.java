@@ -118,7 +118,7 @@ public class BettingService {
 
         BigDecimal odds = calculateOddsForBet(entry, betType, targetPosition);
         if (odds.compareTo(BigDecimal.ONE) <= 0) {
-            throw new IllegalArgumentException("odds phai lon hon 1");
+            throw new IllegalArgumentException("odds must be greater than 1.");
         }
 
         Bet bet = new Bet();
@@ -192,42 +192,42 @@ public class BettingService {
     private Race ensureRaceOpenForBetting(Integer raceId) {
         Race race = ensureRaceExists(raceId);
         if (race.getRaceDate() != null && !race.getRaceDate().isAfter(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Race da bat dau, khong the dat cuoc");
+            throw new IllegalArgumentException("The race has already started. Betting is no longer allowed.");
         }
         if (!"Scheduled".equalsIgnoreCase(race.getStatus())
                 && !"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
-            throw new IllegalArgumentException("Race khong con mo dat cuoc");
+            throw new IllegalArgumentException("This race is not open for betting.");
         }
         return race;
     }
 
     private Race ensureRaceExists(Integer raceId) {
         if (raceId == null) {
-            throw new IllegalArgumentException("raceId khong duoc de trong");
+            throw new IllegalArgumentException("raceId is required.");
         }
         return raceRepository.findById(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race"));
+                .orElseThrow(() -> new IllegalArgumentException("Race was not found."));
     }
 
     private RaceEntry validateBetRequest(Race race, BetRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu dat cuoc khong hop le");
+            throw new IllegalArgumentException("Bet data is invalid.");
         }
         if (request.getEntryId() == null) {
-            throw new IllegalArgumentException("entryId khong duoc de trong");
+            throw new IllegalArgumentException("entryId is required.");
         }
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount phai lon hon 0");
+            throw new IllegalArgumentException("amount must be greater than 0.");
         }
 
         RaceEntry entry = raceEntryRepository.findById(request.getEntryId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay race entry"));
+                .orElseThrow(() -> new IllegalArgumentException("Race entry was not found."));
         if (!race.getRaceId().equals(entry.getRaceId())) {
-            throw new IllegalArgumentException("Race entry khong thuoc race nay");
+            throw new IllegalArgumentException("Race entry does not belong to this race.");
         }
         if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())
                 && !"Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Chi duoc dat cuoc entry da duoc duyet");
+            throw new IllegalArgumentException("Betting is only allowed on approved entries.");
         }
         return entry;
     }
@@ -237,7 +237,7 @@ public class BettingService {
                 ? "WIN"
                 : betType.trim().toUpperCase(Locale.ROOT);
         if (!VALID_BET_TYPES.contains(normalized)) {
-            throw new IllegalArgumentException("betType chi chap nhan WIN, PLACE, SHOW, EXACT");
+            throw new IllegalArgumentException("betType only accepts WIN, PLACE, SHOW, EXACT.");
         }
         return normalized;
     }
@@ -248,11 +248,11 @@ public class BettingService {
         }
         Integer targetPosition = request.getTargetPosition();
         if (targetPosition == null || targetPosition <= 0) {
-            throw new IllegalArgumentException("targetPosition bat buoc khi betType la EXACT");
+            throw new IllegalArgumentException("targetPosition is required when betType is EXACT.");
         }
         int maxPosition = resolveMaxBetPosition(raceEntryRepository.findPublicEntriesByRaceId(race.getRaceId()));
         if (targetPosition > maxPosition) {
-            throw new IllegalArgumentException("targetPosition khong duoc lon hon so vi tri co the cuoc");
+            throw new IllegalArgumentException("targetPosition cannot exceed the number of bettable positions.");
         }
         return targetPosition;
     }
@@ -354,7 +354,7 @@ public class BettingService {
     private BigDecimal normalizeOdds(BigDecimal odds) {
         BigDecimal maxOdds = readConfigDecimal("ODDS_MAX", DEFAULT_ODDS_MAX);
         // San ODDS_MIN 1.1: PLACE/SHOW nhan he so < 1 nen odds co the <= 1
-        // => placeBet tu chan ("odds phai lon hon 1") va nguoi thang van lo tien. KHONG XOA!
+        // => placeBet tu chan ("odds must be greater than 1.") va nguoi thang van lo tien. KHONG XOA!
         BigDecimal minOdds = readConfigDecimal("ODDS_MIN", BigDecimal.valueOf(1.1));
         BigDecimal value = odds == null ? DEFAULT_ODDS : odds;
         if (value.compareTo(maxOdds) > 0) {
