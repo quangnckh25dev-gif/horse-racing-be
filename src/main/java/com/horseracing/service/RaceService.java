@@ -61,26 +61,18 @@ public class RaceService {
             status = resolveStatus(status, status);
         }
 
-        List<Race> races;
-        if (tournamentId != null && roundId != null && status != null && !status.isBlank()) {
-            races = raceRepository.findByTournamentIdAndRoundIdAndStatus(tournamentId, roundId, status);
-        } else if (tournamentId != null && roundId != null) {
-            races = raceRepository.findByTournamentIdAndRoundId(tournamentId, roundId);
-        } else if (tournamentId != null && status != null && !status.isBlank()) {
-            races = raceRepository.findByTournamentIdAndStatus(tournamentId, status);
-        } else if (roundId != null && status != null && !status.isBlank()) {
-            races = raceRepository.findByRoundIdAndStatus(roundId, status);
-        } else if (tournamentId != null) {
-            races = raceRepository.findByTournamentId(tournamentId);
-        } else if (roundId != null) {
-            races = raceRepository.findByRoundId(roundId);
-        } else if (status != null && !status.isBlank()) {
-            races = raceRepository.findByStatus(status);
-        } else {
-            races = raceRepository.findAll();
-        }
+        return raceRepository.findPublicRaces(tournamentId, roundId, status)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
 
-        return races.stream().map(this::toResponse).toList();
+    public List<RaceSummaryResponse> getOrganizerRaces(User organizer) {
+        requireRole(organizer, "Organizer");
+        return raceRepository.findByOrganizerUserId(organizer.getUserId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public RaceSummaryResponse getRaceDetail(Integer raceId) {

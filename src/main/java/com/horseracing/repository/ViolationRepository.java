@@ -30,4 +30,19 @@ public interface ViolationRepository extends JpaRepository<Violation, Integer> {
 
     @Query(value = "SELECT RefereeID FROM Referees WHERE UserID = :userId", nativeQuery = true)
     Integer findRefereeIdByUserId(@Param("userId") Integer userId);
+
+    @Query(value = """
+            SELECT COALESCE(SUM(PenaltySeconds), 0)
+            FROM Violations
+            WHERE RaceID = :raceId AND EntryID = :entryId
+            """, nativeQuery = true)
+    java.math.BigDecimal sumPenaltySecondsByRaceAndEntry(@Param("raceId") Integer raceId,
+                                                         @Param("entryId") Integer entryId);
+
+    @Query(value = """
+            SELECT COUNT(1)
+            FROM Violations
+            WHERE RaceID = :raceId AND EntryID = :entryId AND IsDQ = 1
+            """, nativeQuery = true)
+    int countDqByRaceAndEntry(@Param("raceId") Integer raceId, @Param("entryId") Integer entryId);
 }

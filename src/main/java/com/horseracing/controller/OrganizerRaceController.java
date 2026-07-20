@@ -43,6 +43,16 @@ public class OrganizerRaceController {
         this.currentUserService = currentUserService;
     }
 
+    @GetMapping("/races")
+    public ApiResponse<?> getMyRaces(HttpServletRequest httpRequest) {
+        User organizer = currentUserService.getCurrentUser(httpRequest);
+        return ApiResponse.success(
+                200,
+                "Lay danh sach race cua Organizer thanh cong",
+                raceService.getOrganizerRaces(organizer)
+        );
+    }
+
     @PostMapping("/races")
     public ApiResponse<?> createRace(@RequestBody RaceRequest request, HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);

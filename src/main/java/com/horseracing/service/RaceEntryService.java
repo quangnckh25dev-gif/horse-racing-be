@@ -184,8 +184,13 @@ public class RaceEntryService {
     }
 
     private void validateRaceCanReceiveEntry(Race race) {
-        if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus()) && !"Scheduled".equalsIgnoreCase(race.getStatus())) {
+        if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
             throw new IllegalArgumentException("Race chua mo dang ky");
+        }
+        Tournament tournament = tournamentRepository.findById(race.getTournamentId())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tournament"));
+        if (!"Open".equalsIgnoreCase(tournament.getStatus())) {
+            throw new IllegalArgumentException("Tournament chua duoc Admin duyet mo dang ky");
         }
     }
 
