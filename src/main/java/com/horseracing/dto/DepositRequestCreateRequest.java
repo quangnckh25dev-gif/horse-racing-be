@@ -2,7 +2,7 @@ package com.horseracing.dto;
 
 import java.math.BigDecimal;
 
-public class WalletDepositRequest {
+public class DepositRequestCreateRequest {
     private BigDecimal amount;
     private String paymentMethod;
 
