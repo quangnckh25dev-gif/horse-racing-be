@@ -1,11 +1,16 @@
 package com.horseracing.service;
 
+import com.horseracing.dto.DepositRequestCreateRequest;
+import com.horseracing.dto.DepositRequestRejectRequest;
+import com.horseracing.dto.DepositRequestResponse;
 import com.horseracing.dto.WalletDepositRequest;
 import com.horseracing.dto.WalletResponse;
 import com.horseracing.dto.WalletTransactionResponse;
+import com.horseracing.entity.DepositRequest;
 import com.horseracing.entity.User;
 import com.horseracing.entity.Wallet;
 import com.horseracing.entity.WalletTransaction;
+import com.horseracing.repository.DepositRequestRepository;
 import com.horseracing.repository.WalletRepository;
 import com.horseracing.repository.WalletTransactionRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,20 +18,26 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 public class WalletService {
 
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final DepositRequestRepository depositRequestRepository;
     private final CurrentUserService currentUserService;
 
     public WalletService(WalletRepository walletRepository,
                          WalletTransactionRepository walletTransactionRepository,
+                         DepositRequestRepository depositRequestRepository,
                          CurrentUserService currentUserService) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
+        this.depositRequestRepository = depositRequestRepository;
         this.currentUserService = currentUserService;
     }
 
@@ -36,14 +47,81 @@ public class WalletService {
     }
 
     @Transactional
-    public WalletResponse deposit(WalletDepositRequest request, HttpServletRequest httpRequest) {
+    public DepositRequestResponse deposit(WalletDepositRequest request, HttpServletRequest httpRequest) {
+        DepositRequestCreateRequest createRequest = new DepositRequestCreateRequest();
+        createRequest.setAmount(request == null ? null : request.getAmount());
+        createRequest.setPaymentMethod(request == null ? null : request.getPaymentMethod());
+        return createDepositRequest(createRequest, httpRequest);
+    }
+
+    @Transactional
+    public DepositRequestResponse createDepositRequest(DepositRequestCreateRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         BigDecimal amount = validateAmount(request == null ? null : request.getAmount());
+        String paymentMethod = normalizePaymentMethod(request == null ? null : request.getPaymentMethod());
         Wallet wallet = getOrCreateWallet(user.getUserId());
-        wallet.setBalance(wallet.getBalance().add(amount));
-        Wallet saved = walletRepository.save(wallet);
-        createTransaction(saved, amount, "Deposit", "Nap tien vao vi", "Wallet", saved.getWalletId());
-        return toWalletResponse(saved);
+
+        DepositRequest depositRequest = new DepositRequest();
+        depositRequest.setUserId(user.getUserId());
+        depositRequest.setWalletId(wallet.getWalletId());
+        depositRequest.setAmount(amount);
+        depositRequest.setPaymentMethod(paymentMethod);
+        depositRequest.setTransferCode(generateTransferCode());
+        depositRequest.setQrCodeUrl(buildQrCodeUrl(paymentMethod, amount, depositRequest.getTransferCode()));
+        depositRequest.setStatus("Pending");
+
+        return toDepositRequestResponse(depositRequestRepository.save(depositRequest));
+    }
+
+    public List<DepositRequestResponse> getMyDepositRequests(HttpServletRequest request) {
+        User user = currentUserService.getCurrentUser(request);
+        return depositRequestRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())
+                .stream()
+                .map(this::toDepositRequestResponse)
+                .toList();
+    }
+
+    public List<DepositRequestResponse> getAllDepositRequests(HttpServletRequest request) {
+        User user = currentUserService.getCurrentUser(request);
+        requireAdmin(user);
+        return depositRequestRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toDepositRequestResponse)
+                .toList();
+    }
+
+    @Transactional
+    public DepositRequestResponse approveDepositRequest(Integer id, HttpServletRequest request) {
+        User admin = currentUserService.getCurrentUser(request);
+        requireAdmin(admin);
+        DepositRequest depositRequest = getPendingDepositRequest(id);
+
+        Wallet wallet = walletRepository.findById(depositRequest.getWalletId())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay wallet"));
+        wallet.setBalance(wallet.getBalance().add(depositRequest.getAmount()));
+        Wallet savedWallet = walletRepository.save(wallet);
+
+        depositRequest.setStatus("Approved");
+        depositRequest.setApprovedBy(admin.getUserId());
+        depositRequest.setApprovedAt(LocalDateTime.now());
+        DepositRequest savedRequest = depositRequestRepository.save(depositRequest);
+
+        createTransaction(savedWallet, depositRequest.getAmount(), "Deposit", "Nap tien duoc Admin duyet",
+                "DepositRequest", savedRequest.getDepositRequestId());
+        return toDepositRequestResponse(savedRequest);
+    }
+
+    @Transactional
+    public DepositRequestResponse rejectDepositRequest(Integer id, DepositRequestRejectRequest request,
+                                                       HttpServletRequest httpRequest) {
+        User admin = currentUserService.getCurrentUser(httpRequest);
+        requireAdmin(admin);
+        DepositRequest depositRequest = getPendingDepositRequest(id);
+        depositRequest.setStatus("Rejected");
+        depositRequest.setAdminNote(request == null ? null : trimToNull(request.getAdminNote()));
+        depositRequest.setApprovedBy(admin.getUserId());
+        depositRequest.setApprovedAt(LocalDateTime.now());
+        return toDepositRequestResponse(depositRequestRepository.save(depositRequest));
     }
 
     public List<WalletTransactionResponse> getMyTransactions(HttpServletRequest request) {
@@ -96,6 +174,53 @@ public class WalletService {
         return amount;
     }
 
+    private String normalizePaymentMethod(String paymentMethod) {
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            throw new IllegalArgumentException("paymentMethod khong duoc de trong");
+        }
+        String normalized = paymentMethod.trim().toUpperCase(Locale.ROOT);
+        if (!"BANK".equals(normalized) && !"MOMO".equals(normalized)) {
+            throw new IllegalArgumentException("paymentMethod chi chap nhan BANK hoac MOMO");
+        }
+        return normalized;
+    }
+
+    private DepositRequest getPendingDepositRequest(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("depositRequestId khong hop le");
+        }
+        DepositRequest depositRequest = depositRequestRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay deposit request"));
+        if (!"Pending".equalsIgnoreCase(depositRequest.getStatus())) {
+            throw new IllegalArgumentException("Chi xu ly deposit request dang Pending");
+        }
+        return depositRequest;
+    }
+
+    private void requireAdmin(User user) {
+        if (!currentUserService.isAdmin(user)) {
+            throw new IllegalArgumentException("Chi Admin moi duoc thuc hien thao tac nay");
+        }
+    }
+
+    private String generateTransferCode() {
+        String code;
+        do {
+            code = "DEP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+        } while (depositRequestRepository.existsByTransferCode(code));
+        return code;
+    }
+
+    private String buildQrCodeUrl(String paymentMethod, BigDecimal amount, String transferCode) {
+        return "/api/payment-qr?method=" + paymentMethod
+                + "&amount=" + amount.toPlainString()
+                + "&code=" + transferCode;
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private void createTransaction(Wallet wallet, BigDecimal amount, String type, String description,
                                    String relatedEntity, Integer relatedEntityId) {
         WalletTransaction transaction = new WalletTransaction();
@@ -128,6 +253,24 @@ public class WalletService {
                 transaction.getRelatedEntity(),
                 transaction.getRelatedEntityId(),
                 transaction.getCreatedAt()
+        );
+    }
+
+    private DepositRequestResponse toDepositRequestResponse(DepositRequest request) {
+        return new DepositRequestResponse(
+                request.getDepositRequestId(),
+                request.getUserId(),
+                request.getWalletId(),
+                request.getAmount(),
+                request.getPaymentMethod(),
+                request.getTransferCode(),
+                request.getQrCodeUrl(),
+                request.getStatus(),
+                request.getAdminNote(),
+                request.getApprovedBy(),
+                request.getApprovedAt(),
+                request.getCreatedAt(),
+                request.getUpdatedAt()
         );
     }
 }
