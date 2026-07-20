@@ -65,33 +65,33 @@ public class JockeyInvitationService {
         HorseOwner owner = getOwnerByUserId(user.getUserId());
         RaceEntry entry = getEntry(entryId);
         Horse horse = horseRepository.findById(entry.getHorseId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay horse"));
+                .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
 
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
-            throw new IllegalArgumentException("Ban khong co quyen moi jockey cho entry nay");
+            throw new IllegalArgumentException("You do not have permission to invite a jockey for this entry.");
         }
         if (request == null || request.getJockeyId() == null) {
-            throw new IllegalArgumentException("jockeyId khong duoc de trong");
+            throw new IllegalArgumentException("jockeyId is required.");
         }
         if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Chi entry da duoc BTC duyet moi duoc moi jockey");
+            throw new IllegalArgumentException("Only BTC-approved entries can invite a jockey.");
         }
         if (Boolean.TRUE.equals(entry.getJockeyConfirmed()) || entry.getJockeyId() != null) {
-            throw new IllegalArgumentException("Entry nay da co jockey xac nhan");
+            throw new IllegalArgumentException("This entry already has a confirmed jockey.");
         }
         if (invitationRepository.existsByEntryIdAndStatus(entryId, "Pending")) {
-            throw new IllegalArgumentException("Entry nay dang co loi moi jockey cho phan hoi");
+            throw new IllegalArgumentException("This entry already has a pending jockey invitation.");
         }
 
         Jockey jockey = jockeyRepository.findById(request.getJockeyId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay jockey"));
+                .orElseThrow(() -> new IllegalArgumentException("Jockey was not found."));
         User jockeyUser = userRepository.findById(jockey.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua jockey"));
+                .orElseThrow(() -> new IllegalArgumentException("Jockey user was not found."));
         if (!Boolean.TRUE.equals(jockeyUser.getIsActive())) {
-            throw new IllegalArgumentException("Jockey dang inactive");
+            throw new IllegalArgumentException("Jockey is inactive.");
         }
         if (invitationRepository.existsByEntryIdAndJockeyIdAndStatus(entryId, jockey.getJockeyId(), "Pending")) {
-            throw new IllegalArgumentException("Da co loi moi Pending cho jockey nay");
+            throw new IllegalArgumentException("This jockey already has a pending invitation.");
         }
 
         JockeyInvitation invitation = new JockeyInvitation();
@@ -108,7 +108,7 @@ public class JockeyInvitationService {
     public List<JockeyInvitationResponse> getReceivedInvitations(HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Jockey jockey = jockeyRepository.findByUserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User hien tai chua co ho so Jockey"));
+                .orElseThrow(() -> new IllegalArgumentException("Current user does not have a Jockey profile."));
         return invitationRepository.findByJockeyIdOrderByInvitedAtDesc(jockey.getJockeyId())
                 .stream()
                 .map(this::toResponse)
@@ -128,18 +128,18 @@ public class JockeyInvitationService {
     public JockeyInvitationResponse respondInvitation(Integer invitationId, JockeyInvitationRespondRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Jockey jockey = jockeyRepository.findByUserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User hien tai chua co ho so Jockey"));
+                .orElseThrow(() -> new IllegalArgumentException("Current user does not have a Jockey profile."));
         JockeyInvitation invitation = invitationRepository.findById(invitationId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay invitation"));
+                .orElseThrow(() -> new IllegalArgumentException("Invitation was not found."));
 
         if (!jockey.getJockeyId().equals(invitation.getJockeyId())) {
-            throw new IllegalArgumentException("Ban khong co quyen phan hoi invitation nay");
+            throw new IllegalArgumentException("You do not have permission to respond to this invitation.");
         }
         if (!"Pending".equalsIgnoreCase(invitation.getStatus())) {
-            throw new IllegalArgumentException("Invitation da duoc xu ly");
+            throw new IllegalArgumentException("This invitation has already been processed.");
         }
         if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
-            throw new IllegalArgumentException("status khong duoc de trong");
+            throw new IllegalArgumentException("status is required.");
         }
 
         String status = normalizeResponseStatus(request.getStatus());
@@ -149,10 +149,10 @@ public class JockeyInvitationService {
         if ("Accepted".equals(status)) {
             RaceEntry entry = getEntry(invitation.getEntryId());
             if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
-                throw new IllegalArgumentException("Chi entry da duoc BTC duyet moi duoc nhan loi moi");
+                throw new IllegalArgumentException("Only BTC-approved entries can accept invitations.");
             }
             if (Boolean.TRUE.equals(entry.getJockeyConfirmed()) || entry.getJockeyId() != null) {
-                throw new IllegalArgumentException("Entry nay da co jockey xac nhan");
+                throw new IllegalArgumentException("This entry already has a confirmed jockey.");
             }
             entry.setJockeyId(jockey.getJockeyId());
             entry.setJockeyConfirmed(true);
@@ -168,13 +168,13 @@ public class JockeyInvitationService {
         User user = currentUserService.getCurrentUser(httpRequest);
         HorseOwner owner = getOwnerByUserId(user.getUserId());
         JockeyInvitation invitation = invitationRepository.findById(invitationId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay invitation"));
+                .orElseThrow(() -> new IllegalArgumentException("Invitation was not found."));
 
         if (!owner.getOwnerId().equals(invitation.getInvitedByOwner())) {
-            throw new IllegalArgumentException("Ban khong co quyen huy invitation nay");
+            throw new IllegalArgumentException("You do not have permission to cancel this invitation.");
         }
         if (!"Pending".equalsIgnoreCase(invitation.getStatus())) {
-            throw new IllegalArgumentException("Chi loi moi dang cho phan hoi moi huy duoc");
+            throw new IllegalArgumentException("Only pending invitations can be cancelled.");
         }
 
         invitation.setStatus("Cancelled");
@@ -189,20 +189,20 @@ public class JockeyInvitationService {
         if ("Declined".equalsIgnoreCase(status) || "Rejected".equalsIgnoreCase(status) || "Reject".equalsIgnoreCase(status)) {
             return "Declined";
         }
-        throw new IllegalArgumentException("status chi chap nhan Accepted hoac Declined");
+        throw new IllegalArgumentException("status only accepts Accepted or Declined.");
     }
 
     private RaceEntry getEntry(Integer entryId) {
         if (entryId == null) {
-            throw new IllegalArgumentException("entryId khong duoc de trong");
+            throw new IllegalArgumentException("entryId is required.");
         }
         return raceEntryRepository.findById(entryId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay entry"));
+                .orElseThrow(() -> new IllegalArgumentException("Entry was not found."));
     }
 
     private HorseOwner getOwnerByUserId(Integer userId) {
         return horseOwnerRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User hien tai chua co ho so HorseOwner"));
+                .orElseThrow(() -> new IllegalArgumentException("Current user does not have a HorseOwner profile."));
     }
 
     private void notifyJockey(JockeyInvitation invitation, String message) {

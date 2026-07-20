@@ -56,7 +56,7 @@ public class TournamentController {
     private void requireAdmin(HttpServletRequest request) {
         User user = currentUserService.getCurrentUser(request);
         if (!currentUserService.isAdmin(user)) {
-            throw new IllegalArgumentException("Chi Admin moi co quyen truy cap");
+            throw new IllegalArgumentException("Only admins can access this resource.");
         }
     }
 

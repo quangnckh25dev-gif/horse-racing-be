@@ -31,7 +31,7 @@ public class RaceMinuteService {
     public RaceMinuteResponse getMinutesByRace(Integer raceId) {
         ensureRaceExists(raceId);
         RaceMinute minute = raceMinuteRepository.findByRaceId(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban"));
+                .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet."));
 
         return toResponse(minute);
     }
@@ -42,7 +42,7 @@ public class RaceMinuteService {
         validateRequest(request);
 
         if (raceMinuteRepository.existsByRaceId(raceId)) {
-            throw new IllegalArgumentException("Race nay da co bien ban");
+            throw new IllegalArgumentException("This race already has minutes.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -67,7 +67,7 @@ public class RaceMinuteService {
         validateRequest(request);
 
         RaceMinute minute = raceMinuteRepository.findByRaceId(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban"));
+                .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet."));
 
         minute.setRefereeId(refereeId);
         minute.setContent(request.getContent());
@@ -85,14 +85,14 @@ public class RaceMinuteService {
         ensureAssignedReferee(raceId, currentUser);
 
         RaceMinute minute = raceMinuteRepository.findByRaceId(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban"));
+                .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet."));
         if (minute.getMinutesFileUrl() == null || minute.getMinutesFileUrl().isBlank()) {
-            throw new IllegalArgumentException("Can co minutesFileUrl truoc khi gui bien ban cho owner");
+            throw new IllegalArgumentException("minutesFileUrl is required before sending minutes to the owner.");
         }
 
         raceMinuteRepository.sendMinutesToOwners(raceId);
         return toResponse(raceMinuteRepository.findByRaceId(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban")));
+                .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet.")));
     }
 
     @Transactional
@@ -101,9 +101,9 @@ public class RaceMinuteService {
         ensureAssignedReferee(raceId, currentUser);
 
         RaceMinute minute = raceMinuteRepository.findByRaceId(raceId)
-                .orElseThrow(() -> new IllegalArgumentException("Race nay chua co bien ban"));
+                .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet."));
         if (minute.getMinutesFileUrl() == null || minute.getMinutesFileUrl().isBlank()) {
-            throw new IllegalArgumentException("Can co minutesFileUrl truoc khi ban giao cho BTC");
+            throw new IllegalArgumentException("minutesFileUrl is required before handing over to BTC.");
         }
 
         userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
@@ -123,31 +123,31 @@ public class RaceMinuteService {
 
     private void ensureRaceExists(Integer raceId) {
         if (raceId == null || raceMinuteRepository.countRaceById(raceId) == 0) {
-            throw new IllegalArgumentException("Khong tim thay race");
+            throw new IllegalArgumentException("Race was not found.");
         }
     }
 
     private Integer ensureAssignedReferee(Integer raceId, User currentUser) {
         if (currentUser == null || currentUser.getRole() == null
                 || !"Referee".equalsIgnoreCase(currentUser.getRole().getRoleName())) {
-            throw new IllegalArgumentException("Chi Referee moi duoc lap bien ban");
+            throw new IllegalArgumentException("Only referees can create race minutes.");
         }
         if (raceMinuteRepository.countAssignedReferee(raceId, currentUser.getUserId()) == 0) {
-            throw new IllegalArgumentException("Referee chua duoc phan cong cho race nay");
+            throw new IllegalArgumentException("Referee has not been assigned to this race.");
         }
         Integer refereeId = raceMinuteRepository.findRefereeIdByUserId(currentUser.getUserId());
         if (refereeId == null) {
-            throw new IllegalArgumentException("User hien tai chua co ho so Referee");
+            throw new IllegalArgumentException("Current user does not have a Referee profile.");
         }
         return refereeId;
     }
 
     private void validateRequest(RaceMinuteRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu bien ban khong hop le");
+            throw new IllegalArgumentException("Race minutes data is invalid.");
         }
         if (request.getMinutesFileUrl() == null || request.getMinutesFileUrl().isBlank()) {
-            throw new IllegalArgumentException("minutesFileUrl khong duoc de trong");
+            throw new IllegalArgumentException("minutesFileUrl is required.");
         }
     }
 

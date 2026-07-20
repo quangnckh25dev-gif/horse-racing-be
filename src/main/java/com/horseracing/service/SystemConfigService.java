@@ -38,11 +38,11 @@ public class SystemConfigService {
     public SystemConfigResponse updateConfig(String key, SystemConfigUpdateRequest request, HttpServletRequest httpRequest) {
         User admin = requireAdmin(httpRequest);
         if (request == null || request.getValue() == null) {
-            throw new IllegalArgumentException("value khong duoc de trong");
+            throw new IllegalArgumentException("value is required.");
         }
 
         SystemConfig config = systemConfigRepository.findByConfigKey(key)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay config"));
+                .orElseThrow(() -> new IllegalArgumentException("Config was not found."));
 
         String oldValue = config.getConfigValue();
         config.setConfigValue(request.getValue());
@@ -65,7 +65,7 @@ public class SystemConfigService {
     private User requireAdmin(HttpServletRequest request) {
         User user = currentUserService.getCurrentUser(request);
         if (!currentUserService.isAdmin(user)) {
-            throw new SecurityException("Chi admin moi co quyen cau hinh he thong");
+            throw new SecurityException("Only admins can configure the system.");
         }
         return user;
     }

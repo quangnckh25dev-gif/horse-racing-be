@@ -34,7 +34,7 @@ public class StatsService {
                 .getResultList();
 
         if (rows.isEmpty()) {
-            throw new IllegalArgumentException("Khong tim thay jockey");
+            throw new IllegalArgumentException("Jockey was not found.");
         }
 
         return toResponse(rows.get(0));
@@ -59,7 +59,7 @@ public class StatsService {
                 .getResultList();
 
         if (rows.isEmpty()) {
-            throw new IllegalArgumentException("Khong tim thay horse");
+            throw new IllegalArgumentException("Horse was not found.");
         }
 
         return toResponse(rows.get(0));

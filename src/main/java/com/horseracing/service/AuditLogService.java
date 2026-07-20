@@ -52,7 +52,7 @@ public class AuditLogService {
     private void requireAdmin(HttpServletRequest request) {
         User user = currentUserService.getCurrentUser(request);
         if (!currentUserService.isAdmin(user)) {
-            throw new SecurityException("Chi admin moi co quyen xem audit log");
+            throw new SecurityException("Only admins can view audit logs.");
         }
     }
 

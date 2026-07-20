@@ -11,29 +11,29 @@ import java.time.LocalDate;
 
 public class TournamentRequest {
 
-    @NotBlank(message = "tournamentName khong duoc de trong")
-    @Size(max = 200, message = "tournamentName khong duoc vuot qua 200 ky tu")
+    @NotBlank(message = "tournamentName is required.")
+    @Size(max = 200, message = "tournamentName must not exceed 200 characters.")
     private String tournamentName;
 
-    @Size(max = 1000, message = "description khong duoc vuot qua 1000 ky tu")
+    @Size(max = 1000, message = "description must not exceed 1000 characters.")
     private String description;
 
-    @Size(max = 300, message = "location khong duoc vuot qua 300 ky tu")
+    @Size(max = 300, message = "location must not exceed 300 characters.")
     private String location;
 
-    @NotNull(message = "startDate khong duoc de trong")
+    @NotNull(message = "startDate is required.")
     private LocalDate startDate;
 
-    @NotNull(message = "endDate khong duoc de trong")
+    @NotNull(message = "endDate is required.")
     private LocalDate endDate;
 
-    @DecimalMin(value = "0.0", message = "budgetTotal khong duoc am")
+    @DecimalMin(value = "0.0", message = "budgetTotal cannot be negative.")
     private BigDecimal budgetTotal;
 
-    @Positive(message = "maxHorses phai lon hon 0")
+    @Positive(message = "maxHorses must be greater than 0.")
     private Integer maxHorses;
 
-    @Positive(message = "maxParticipants phai lon hon 0")
+    @Positive(message = "maxParticipants must be greater than 0.")
     private Integer maxParticipants;
 
     public String getTournamentName() { return tournamentName; }

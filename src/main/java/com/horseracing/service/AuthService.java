@@ -47,20 +47,20 @@ public class AuthService {
     }
 
     public UserResponse register(RegisterRequest request) {
-        validateRequired(request.getUsername(), "username khong duoc de trong");
-        validateRequired(request.getPassword(), "password khong duoc de trong");
-        validateRequired(request.getFullName(), "fullName khong duoc de trong");
-        validateRequired(request.getEmail(), "email khong duoc de trong");
+        validateRequired(request.getUsername(), "Username is required.");
+        validateRequired(request.getPassword(), "Password is required.");
+        validateRequired(request.getFullName(), "Full name is required.");
+        validateRequired(request.getEmail(), "Email is required.");
 
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username da ton tai");
+            throw new IllegalArgumentException("Username already exists.");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email da ton tai");
+            throw new IllegalArgumentException("Email already exists.");
         }
         if (request.getPhone() != null && !request.getPhone().isBlank()
                 && userRepository.existsByPhone(request.getPhone())) {
-            throw new IllegalArgumentException("So dien thoai da ton tai");
+            throw new IllegalArgumentException("Phone number already exists.");
         }
 
         Role role = resolveRole(request);
@@ -93,21 +93,21 @@ public class AuthService {
 
     @Transactional(noRollbackFor = IllegalArgumentException.class)
     public LoginResponse login(LoginRequest request) {
-        validateRequired(request.getUsername(), "username khong duoc de trong");
-        validateRequired(request.getPassword(), "password khong duoc de trong");
+        validateRequired(request.getUsername(), "Username is required.");
+        validateRequired(request.getPassword(), "Password is required.");
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Sai username hoac password"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password."));
         ensureSystemAvailableFor(user);
 
         if (Boolean.TRUE.equals(user.getIsLocked())) {
-            throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
+            throw new IllegalArgumentException("Account has been locked due to too many failed login attempts.");
         }
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new IllegalArgumentException("Tai khoan dang bi khoa");
+            throw new IllegalArgumentException("Account is locked.");
         }
         if (!Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new IllegalArgumentException("Tai khoan chua duoc duyet");
+            throw new IllegalArgumentException("Account has not been approved.");
         }
         if (!matchesPassword(request.getPassword(), user.getPasswordHash())) {
             int failedAttempts = user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0;
@@ -117,10 +117,10 @@ public class AuthService {
                 user.setIsLocked(true);
                 user.setIsActive(false);
                 userRepository.save(user);
-                throw new IllegalArgumentException("Tai khoan da bi khoa do dang nhap sai qua nhieu lan");
+                throw new IllegalArgumentException("Account has been locked due to too many failed login attempts.");
             }
             userRepository.save(user);
-            throw new IllegalArgumentException("Sai mat khau. Con " + (5 - failedAttempts) + " lan thu.");
+            throw new IllegalArgumentException("Incorrect password. " + (5 - failedAttempts) + " attempts remaining.");
         }
 
         user.setFailedLoginAttempts(0);
@@ -137,19 +137,19 @@ public class AuthService {
 
     @Transactional
     public LoginResponse refreshToken(TokenRequest request) {
-        validateRequired(request.getRefreshToken(), "refreshToken khong duoc de trong");
+        validateRequired(request.getRefreshToken(), "refreshToken is required.");
 
         UserToken storedToken = userTokenRepository.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token khong hop le"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token."));
         if (Boolean.TRUE.equals(storedToken.getIsRevoked()) || storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Refresh token da het han hoac da bi thu hoi");
+            throw new IllegalArgumentException("Refresh token has expired or has been revoked.");
         }
 
         User user = userRepository.findById(storedToken.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay user cua token"));
+                .orElseThrow(() -> new IllegalArgumentException("Token user was not found."));
         ensureSystemAvailableFor(user);
         if (!Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new IllegalArgumentException("Tai khoan khong duoc phep refresh token");
+            throw new IllegalArgumentException("Account is not allowed to refresh token.");
         }
 
         storedToken.setIsRevoked(true);
@@ -165,18 +165,18 @@ public class AuthService {
 
     @Transactional
     public void logout(TokenRequest request) {
-        validateRequired(request.getRefreshToken(), "refreshToken khong duoc de trong");
+        validateRequired(request.getRefreshToken(), "refreshToken is required.");
         UserToken storedToken = userTokenRepository.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token khong hop le"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token."));
         storedToken.setIsRevoked(true);
         userTokenRepository.save(storedToken);
     }
 
     public String forgotPassword(ForgotPasswordRequest request) {
-        validateRequired(request.getEmail(), "email khong duoc de trong");
+        validateRequired(request.getEmail(), "Email is required.");
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan voi email nay"));
+                .orElseThrow(() -> new IllegalArgumentException("No account was found for this email."));
         String resetToken = String.format("%06d", new java.util.Random().nextInt(1000000));
         user.setResetToken(resetToken);
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
@@ -188,13 +188,13 @@ public class AuthService {
     }
 
     public UserResponse resetPasswordWithToken(ResetPasswordRequest request) {
-        validateRequired(request.getToken(), "token khong duoc de trong");
-        validateRequired(request.getNewPassword(), "newPassword khong duoc de trong");
+        validateRequired(request.getToken(), "token is required.");
+        validateRequired(request.getNewPassword(), "newPassword is required.");
 
         User user = userRepository.findByResetToken(request.getToken())
-                .orElseThrow(() -> new IllegalArgumentException("Token khong hop le hoac khong tim thay"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid token or token was not found."));
         if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Token da het han");
+            throw new IllegalArgumentException("Token has expired.");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -205,13 +205,13 @@ public class AuthService {
     }
 
     public UserResponse changePassword(String username, ChangePasswordRequest request) {
-        validateRequired(request.getOldPassword(), "oldPassword khong duoc de trong");
-        validateRequired(request.getNewPassword(), "newPassword khong duoc de trong");
+        validateRequired(request.getOldPassword(), "oldPassword is required.");
+        validateRequired(request.getNewPassword(), "newPassword is required.");
 
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay tai khoan"));
+                .orElseThrow(() -> new IllegalArgumentException("Account was not found."));
         if (!matchesPassword(request.getOldPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Mat khau cu khong chinh xac");
+            throw new IllegalArgumentException("Old password is incorrect.");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -222,9 +222,9 @@ public class AuthService {
     private Role resolveRole(RegisterRequest request) {
         if (request.getRoleId() != null) {
             Role role = roleRepository.findById(request.getRoleId())
-                    .orElseThrow(() -> new IllegalArgumentException("roleId khong ton tai"));
+                    .orElseThrow(() -> new IllegalArgumentException("roleId does not exist."));
             if ("Admin".equalsIgnoreCase(role.getRoleName())) {
-                throw new IllegalArgumentException("Khong duoc dang ky truc tiep role Admin");
+                throw new IllegalArgumentException("Admin role cannot be registered directly.");
             }
             return role;
         }
@@ -235,11 +235,11 @@ public class AuthService {
         }
         roleName = normalizeRoleName(roleName);
         if ("Admin".equalsIgnoreCase(roleName)) {
-            throw new IllegalArgumentException("Khong duoc dang ky truc tiep role Admin");
+            throw new IllegalArgumentException("Admin role cannot be registered directly.");
         }
 
         return roleRepository.findByRoleName(roleName)
-                .orElseThrow(() -> new IllegalArgumentException("roleName khong ton tai"));
+                .orElseThrow(() -> new IllegalArgumentException("roleName does not exist."));
     }
 
     private String normalizeRoleName(String roleName) {
@@ -274,10 +274,10 @@ public class AuthService {
                 .filter(value -> !value.isBlank())
                 .orElse(null);
         if (until == null) {
-            throw new IllegalArgumentException("He thong dang bao tri. Chi admin duoc phep dang nhap.");
+            throw new IllegalArgumentException("The system is under maintenance. Only admins can log in.");
         }
-        throw new IllegalArgumentException("He thong dang bao tri. Du kien mo lai vao " + until
-                + ". Chi admin duoc phep dang nhap.");
+        throw new IllegalArgumentException("The system is under maintenance. Expected reopening time: " + until
+                + ". Only admins can log in.");
     }
 
     private boolean matchesPassword(String rawPassword, String storedPassword) {

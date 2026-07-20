@@ -53,9 +53,9 @@ public class NotificationService {
     public NotificationResponse markAsRead(Integer notificationId, Integer currentUserId) {
         ensureUserExists(currentUserId);
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay notification"));
+                .orElseThrow(() -> new IllegalArgumentException("Notification was not found."));
         if (!currentUserId.equals(notification.getUserId())) {
-            throw new IllegalArgumentException("Notification khong thuoc user hien tai");
+            throw new IllegalArgumentException("Notification does not belong to the current user.");
         }
 
         notification.setIsRead(true);
@@ -70,21 +70,21 @@ public class NotificationService {
 
     private void validateRequest(NotificationRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Du lieu notification khong hop le");
+            throw new IllegalArgumentException("Notification data is invalid.");
         }
 
         if (request.getUserId() == null) {
-            throw new IllegalArgumentException("userId khong duoc de trong");
+            throw new IllegalArgumentException("userId is required.");
         }
 
         if (request.getTitle() == null || request.getTitle().isBlank()) {
-            throw new IllegalArgumentException("title khong duoc de trong");
+            throw new IllegalArgumentException("title is required.");
         }
     }
 
     private void ensureUserExists(Integer userId) {
         if (userId == null || !userRepository.existsById(userId)) {
-            throw new IllegalArgumentException("Khong tim thay user");
+            throw new IllegalArgumentException("User was not found.");
         }
     }
 

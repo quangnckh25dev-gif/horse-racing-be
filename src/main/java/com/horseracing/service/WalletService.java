@@ -97,7 +97,7 @@ public class WalletService {
         DepositRequest depositRequest = getPendingDepositRequest(id);
 
         Wallet wallet = walletRepository.findById(depositRequest.getWalletId())
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay wallet"));
+                .orElseThrow(() -> new IllegalArgumentException("Wallet was not found."));
         wallet.setBalance(wallet.getBalance().add(depositRequest.getAmount()));
         Wallet savedWallet = walletRepository.save(wallet);
 
@@ -138,7 +138,7 @@ public class WalletService {
         BigDecimal validAmount = validateAmount(amount);
         Wallet wallet = getOrCreateWallet(userId);
         if (wallet.getBalance().compareTo(validAmount) < 0) {
-            throw new IllegalArgumentException("So du vi khong du de dat cuoc");
+            throw new IllegalArgumentException("Wallet balance is insufficient for betting.");
         }
 
         wallet.setBalance(wallet.getBalance().subtract(validAmount));
@@ -169,37 +169,37 @@ public class WalletService {
 
     private BigDecimal validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount phai lon hon 0");
+            throw new IllegalArgumentException("amount must be greater than 0.");
         }
         return amount;
     }
 
     private String normalizePaymentMethod(String paymentMethod) {
         if (paymentMethod == null || paymentMethod.isBlank()) {
-            throw new IllegalArgumentException("paymentMethod khong duoc de trong");
+            throw new IllegalArgumentException("paymentMethod is required.");
         }
         String normalized = paymentMethod.trim().toUpperCase(Locale.ROOT);
         if (!"BANK".equals(normalized) && !"MOMO".equals(normalized)) {
-            throw new IllegalArgumentException("paymentMethod chi chap nhan BANK hoac MOMO");
+            throw new IllegalArgumentException("paymentMethod only accepts BANK or MOMO.");
         }
         return normalized;
     }
 
     private DepositRequest getPendingDepositRequest(Integer id) {
         if (id == null) {
-            throw new IllegalArgumentException("depositRequestId khong hop le");
+            throw new IllegalArgumentException("depositRequestId is invalid.");
         }
         DepositRequest depositRequest = depositRequestRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay deposit request"));
+                .orElseThrow(() -> new IllegalArgumentException("Deposit request was not found."));
         if (!"Pending".equalsIgnoreCase(depositRequest.getStatus())) {
-            throw new IllegalArgumentException("Chi xu ly deposit request dang Pending");
+            throw new IllegalArgumentException("Only Pending deposit requests can be processed.");
         }
         return depositRequest;
     }
 
     private void requireAdmin(User user) {
         if (!currentUserService.isAdmin(user)) {
-            throw new IllegalArgumentException("Chi Admin moi duoc thuc hien thao tac nay");
+            throw new IllegalArgumentException("Only admins can perform this action.");
         }
     }
 
