@@ -26,6 +26,8 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
 
     boolean existsByRoundId(Integer roundId);
 
+    long countByStatus(String status);
+
     @Query(value = """
             SELECT r.*
             FROM Races r
@@ -39,6 +41,21 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
     List<Race> findPublicRaces(@Param("tournamentId") Integer tournamentId,
                                @Param("roundId") Integer roundId,
                                @Param("status") String status);
+
+    @Query(value = """
+            SELECT TOP 5 r.*
+            FROM Races r
+            ORDER BY
+                CASE r.Status
+                    WHEN 'Ongoing' THEN 1
+                    WHEN 'RegistrationOpen' THEN 2
+                    WHEN 'Scheduled' THEN 3
+                    WHEN 'Finished' THEN 4
+                    ELSE 5
+                END,
+                r.RaceDate ASC
+            """, nativeQuery = true)
+    List<Race> findFeaturedDashboardRaces();
 
     @Query(value = """
             SELECT r.*
