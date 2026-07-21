@@ -71,7 +71,6 @@ public class RaceRefereeService {
     }
 
     @Transactional
-    //của buiquangann
     public RaceRefereeResponse assignReferee(Integer raceId, RaceRefereeRequest request, User organizer) {
         Race race = getRaceOrThrow(raceId);
         ensureOwnedRace(race, organizer);
@@ -152,8 +151,8 @@ public class RaceRefereeService {
     private void createAssignmentNotification(Referee referee, Race race) {
         Notification notification = new Notification();
         notification.setUserId(referee.getUserId());
-        notification.setTitle("Ban duoc phan cong trong tai");
-        notification.setBody("Ban duoc phan cong vao cuoc dua: " + race.getRaceName());
+        notification.setTitle("Referee assignment received");
+        notification.setBody("You have been assigned to race: " + race.getRaceName());
         notification.setNotifType("RefereeAssigned");
         notification.setRelatedEntityId(race.getRaceId());
         notification.setRelatedEntity("Race");

@@ -79,7 +79,6 @@ public class RaceResultService {
     }
 
     @Transactional
-    //của buiquangann
     public RaceResultResponse createResult(Integer raceId, RaceResultRequest request, User refereeUser) {
         Referee referee = requireAssignedReferee(raceId, refereeUser);
         RaceEntry entry = getEligibleEntry(raceId, request == null ? null : request.getEntryId());
@@ -127,7 +126,6 @@ public class RaceResultService {
     }
 
     @Transactional
-    //của buiquangann
     public List<RaceResultResponse> approveResults(Integer raceId, User organizer) {
         ensureOwnedRace(raceId, organizer);
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
@@ -170,7 +168,6 @@ public class RaceResultService {
     }
 
     @Transactional
-    //của buiquangann
     public List<RaceResultResponse> publishResults(Integer raceId, User organizer) {
         ensureOwnedRace(raceId, organizer);
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
@@ -257,13 +254,13 @@ public class RaceResultService {
 
     private void notifyAssignedReferees(Race race, String reason) {
         String body = reason == null || reason.isBlank()
-                ? "Ket qua race " + race.getRaceName() + " bi tu choi. Vui long kiem tra lai."
+                ? "Race results were rejected. Please review and update them."
                 : reason.trim();
         raceRefereeRepository.findByRaceId(race.getRaceId()).forEach(assignment -> {
             refereeRepository.findById(assignment.getRefereeId()).ifPresent(referee -> {
                 Notification notification = new Notification();
                 notification.setUserId(referee.getUserId());
-                notification.setTitle("Ket qua race bi tu choi");
+                notification.setTitle("Race results rejected");
                 notification.setBody(body);
                 notification.setNotifType("ResultRejected");
                 notification.setRelatedEntity("Race");
