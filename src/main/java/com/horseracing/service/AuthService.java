@@ -184,7 +184,7 @@ public class AuthService {
         userRepository.save(user);
 
         emailService.sendResetTokenEmail(user.getEmail(), resetToken);
-        return "Ma xac nhan da duoc gui den email cua ban";
+        return "Verification code has been sent to your email";
     }
 
     public UserResponse resetPasswordWithToken(ResetPasswordRequest request) {

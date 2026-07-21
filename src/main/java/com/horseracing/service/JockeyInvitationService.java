@@ -213,8 +213,8 @@ public class JockeyInvitationService {
 
         Notification notification = new Notification();
         notification.setUserId(jockey.getUserId());
-        notification.setTitle("Ban nhan duoc loi moi tham gia race");
-        notification.setBody(message == null || message.isBlank() ? "Mot horse owner da moi ban tham gia race." : message);
+        notification.setTitle("You received a race invitation");
+        notification.setBody(message == null || message.isBlank() ? "A horse owner invited you to join a race." : message);
         notification.setNotifType("InvitationReceived");
         notification.setRelatedEntityId(invitation.getInvitationId());
         notification.setRelatedEntity("Invitation");

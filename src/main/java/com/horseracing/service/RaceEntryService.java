@@ -233,7 +233,7 @@ public class RaceEntryService {
 
         Notification notification = new Notification();
         notification.setUserId(owner.getUserId());
-        notification.setTitle(approved ? "Dang ky race da duoc duyet" : "Dang ky race bi tu choi");
+        notification.setTitle(approved ? "Race entry approved" : "Race entry rejected");
         notification.setBody(reason == null || reason.isBlank() ? null : reason);
         notification.setNotifType(approved ? "EntryApproved" : "EntryRejected");
         notification.setRelatedEntityId(entry.getEntryId());
@@ -250,9 +250,9 @@ public class RaceEntryService {
     }
 
     private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {
-        String title = "Co dang ky thi dau moi cho duyet";
-        String body = ownerUser.getFullName() + " da dang ky ngua "
-                + horse.getHorseName() + " vao race " + race.getRaceName() + ".";
+        String title = "New race entry pending approval";
+        String body = ownerUser.getFullName() + " registered horse "
+                + horse.getHorseName() + " for race " + race.getRaceName() + ".";
 
         Tournament tournament = tournamentRepository.findById(race.getTournamentId()).orElse(null);
         if (tournament == null || tournament.getCreatedBy() == null) {

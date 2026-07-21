@@ -16,13 +16,13 @@ public class EmailService {
     public void sendResetTokenEmail(String toEmail, String token) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
-        message.setSubject("Yeu cau Dat lai Mat khau - Horse Racing System");
-        message.setText("Chào bạn,\n\n" +
-                "Bạn đã yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã xác nhận dưới đây để tiếp tục:\n\n" +
-                "MÃ XÁC NHẬN (TOKEN): " + token + "\n\n" +
-                "Lưu ý: Mã xác nhận này sẽ hết hạn trong vòng 15 phút.\n\n" +
-                "Trân trọng,\n" +
-                "Ban quản trị Horse Racing System");
+        message.setSubject("Password Reset Request - Horse Racing System");
+        message.setText("Hello,\n\n" +
+                "You requested to reset your password. Please use the verification code below to continue:\n\n" +
+                "VERIFICATION CODE: " + token + "\n\n" +
+                "Note: This verification code will expire in 15 minutes.\n\n" +
+                "Best regards,\n" +
+                "Horse Racing System Administration");
 
         mailSender.send(message);
     }
