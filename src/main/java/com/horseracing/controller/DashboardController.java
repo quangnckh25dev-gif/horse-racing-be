@@ -20,4 +20,9 @@ public class DashboardController {
     public ApiResponse<?> getDashboard() {
         return ApiResponse.success(200, "Dashboard loaded successfully", dashboardService.getDashboard());
     }
+
+    @GetMapping("/api/dashboard")
+    public ApiResponse<?> getSharedDashboard() {
+        return ApiResponse.success(200, "Dashboard loaded successfully", dashboardService.getSharedDashboard());
+    }
 }
