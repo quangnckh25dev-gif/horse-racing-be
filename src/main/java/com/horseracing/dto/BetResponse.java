@@ -9,7 +9,10 @@ public class BetResponse {
     private Integer raceId;
     private String raceName;
     private Integer entryId;
+    private Integer horseId;
     private String horseName;
+    private Integer jockeyId;
+    private String jockeyName;
     private String betType;
     private String betTypeLabel;
     private Integer targetPosition;
@@ -33,19 +36,30 @@ public class BetResponse {
     public BetResponse(Integer betId, Integer userId, Integer raceId, String raceName, Integer entryId,
                        String horseName, String betType, BigDecimal amount, BigDecimal odds,
                        BigDecimal potentialPayout, String status, LocalDateTime createdAt, LocalDateTime settledAt) {
-        this(betId, userId, raceId, raceName, entryId, horseName, betType, null, amount, odds,
+        this(betId, userId, raceId, raceName, entryId, null, horseName, null, null, betType, null, amount, odds,
                 potentialPayout, status, createdAt, settledAt);
     }
 
     public BetResponse(Integer betId, Integer userId, Integer raceId, String raceName, Integer entryId,
                        String horseName, String betType, Integer targetPosition, BigDecimal amount, BigDecimal odds,
                        BigDecimal potentialPayout, String status, LocalDateTime createdAt, LocalDateTime settledAt) {
+        this(betId, userId, raceId, raceName, entryId, null, horseName, null, null, betType, targetPosition,
+                amount, odds, potentialPayout, status, createdAt, settledAt);
+    }
+
+    public BetResponse(Integer betId, Integer userId, Integer raceId, String raceName, Integer entryId,
+                       Integer horseId, String horseName, Integer jockeyId, String jockeyName,
+                       String betType, Integer targetPosition, BigDecimal amount, BigDecimal odds,
+                       BigDecimal potentialPayout, String status, LocalDateTime createdAt, LocalDateTime settledAt) {
         this.betId = betId;
         this.userId = userId;
         this.raceId = raceId;
         this.raceName = raceName;
         this.entryId = entryId;
+        this.horseId = horseId;
         this.horseName = horseName;
+        this.jockeyId = jockeyId;
+        this.jockeyName = jockeyName;
         this.betType = betType;
         this.betTypeLabel = toBetTypeLabel(betType);
         this.targetPosition = targetPosition;
@@ -65,7 +79,10 @@ public class BetResponse {
     public Integer getRaceId() { return raceId; }
     public String getRaceName() { return raceName; }
     public Integer getEntryId() { return entryId; }
+    public Integer getHorseId() { return horseId; }
     public String getHorseName() { return horseName; }
+    public Integer getJockeyId() { return jockeyId; }
+    public String getJockeyName() { return jockeyName; }
     public String getBetType() { return betType; }
     public String getBetTypeLabel() { return betTypeLabel; }
     public Integer getTargetPosition() { return targetPosition; }

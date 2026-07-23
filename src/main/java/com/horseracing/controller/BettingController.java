@@ -41,7 +41,7 @@ public class BettingController {
 
     @GetMapping("/api/bets/history")
     public ApiResponse<?> getMyHistory(HttpServletRequest request) {
-        return ApiResponse.success(200, "Bet history loaded successfully", bettingService.getMyHistory(request));
+        return ApiResponse.success(200, "Betting history loaded successfully", bettingService.getMyHistory(request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

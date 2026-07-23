@@ -53,6 +53,8 @@ public class WalletTransactionResponse {
             case "Deposit" -> "Deposit";
             case "BetPlaced" -> "Bet Placed";
             case "BetWon" -> "Bet Won";
+            case "BetRefund" -> "Refunded";
+            case "PrizeAwarded" -> "Prize Awarded";
             default -> value;
         };
     }
