@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -64,8 +65,17 @@ public class WalletController {
     }
 
     @GetMapping("/api/wallets/transactions")
-    public ApiResponse<?> getMyTransactions(HttpServletRequest request) {
-        return ApiResponse.success(200, "Wallet transaction history loaded successfully", walletService.getMyTransactions(request));
+    public ApiResponse<?> getMyTransactions(@RequestParam(required = false) String filter,
+                                            @RequestParam(required = false) String transactionType,
+                                            HttpServletRequest request) {
+        return ApiResponse.success(200, "Wallet transaction history loaded successfully",
+                walletService.getMyTransactions(request, filter, transactionType));
+    }
+
+    @GetMapping("/api/wallets/transactions/summary")
+    public ApiResponse<?> getMyTransactionSummary(HttpServletRequest request) {
+        return ApiResponse.success(200, "Wallet transaction summary loaded successfully",
+                walletService.getMyTransactionSummary(request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

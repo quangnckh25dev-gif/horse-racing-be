@@ -370,13 +370,21 @@ public class BettingService {
         Race race = raceRepository.findById(bet.getRaceId()).orElse(null);
         RaceEntry entry = raceEntryRepository.findById(bet.getEntryId()).orElse(null);
         Horse horse = entry == null ? null : horseRepository.findById(entry.getHorseId()).orElse(null);
+        Integer jockeyId = entry == null ? null : entry.getJockeyId();
+        String jockeyName = jockeyId == null ? null : jockeyRepository.findById(jockeyId)
+                .flatMap(jockey -> userRepository.findById(jockey.getUserId()))
+                .map(User::getFullName)
+                .orElse(null);
         return new BetResponse(
                 bet.getBetId(),
                 bet.getUserId(),
                 bet.getRaceId(),
                 race == null ? null : race.getRaceName(),
                 bet.getEntryId(),
+                horse == null ? null : horse.getHorseId(),
                 horse == null ? null : horse.getHorseName(),
+                jockeyId,
+                jockeyName,
                 bet.getBetType(),
                 bet.getTargetPosition(),
                 bet.getAmount(),

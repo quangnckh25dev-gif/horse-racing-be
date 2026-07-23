@@ -6,6 +6,7 @@ import com.horseracing.dto.DepositRequestResponse;
 import com.horseracing.dto.WalletDepositRequest;
 import com.horseracing.dto.WalletResponse;
 import com.horseracing.dto.WalletTransactionResponse;
+import com.horseracing.dto.WalletTransactionSummaryResponse;
 import com.horseracing.entity.DepositRequest;
 import com.horseracing.entity.User;
 import com.horseracing.entity.Wallet;
@@ -125,12 +126,44 @@ public class WalletService {
     }
 
     public List<WalletTransactionResponse> getMyTransactions(HttpServletRequest request) {
+        return getMyTransactions(request, null, null);
+    }
+
+    public List<WalletTransactionResponse> getMyTransactions(HttpServletRequest request, String filter,
+                                                             String transactionType) {
         User user = currentUserService.getCurrentUser(request);
         Wallet wallet = getOrCreateWallet(user.getUserId());
         return walletTransactionRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getWalletId())
                 .stream()
+                .filter(transaction -> matchesTransactionFilter(transaction, filter))
+                .filter(transaction -> matchesTransactionType(transaction, transactionType))
                 .map(this::toTransactionResponse)
                 .toList();
+    }
+
+    public WalletTransactionSummaryResponse getMyTransactionSummary(HttpServletRequest request) {
+        User user = currentUserService.getCurrentUser(request);
+        Wallet wallet = getOrCreateWallet(user.getUserId());
+        List<WalletTransaction> transactions =
+                walletTransactionRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getWalletId());
+
+        BigDecimal totalMoneyIn = BigDecimal.ZERO;
+        BigDecimal totalMoneyOut = BigDecimal.ZERO;
+        for (WalletTransaction transaction : transactions) {
+            BigDecimal amount = transaction.getAmount() == null ? BigDecimal.ZERO : transaction.getAmount();
+            if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+                totalMoneyIn = totalMoneyIn.add(amount);
+            } else {
+                totalMoneyOut = totalMoneyOut.add(amount.abs());
+            }
+        }
+
+        return new WalletTransactionSummaryResponse(
+                wallet.getBalance(),
+                totalMoneyIn,
+                totalMoneyOut,
+                transactions.size()
+        );
     }
 
     @Transactional
@@ -221,6 +254,44 @@ public class WalletService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private boolean matchesTransactionFilter(WalletTransaction transaction, String filter) {
+        String normalized = normalizeFilterValue(filter);
+        if (normalized == null || "all".equals(normalized)) {
+            return true;
+        }
+
+        BigDecimal amount = transaction.getAmount() == null ? BigDecimal.ZERO : transaction.getAmount();
+        if ("moneyin".equals(normalized) || "in".equals(normalized)) {
+            return amount.compareTo(BigDecimal.ZERO) >= 0;
+        }
+        if ("moneyout".equals(normalized) || "out".equals(normalized)) {
+            return amount.compareTo(BigDecimal.ZERO) < 0;
+        }
+
+        String transactionKey = normalizeFilterValue(transaction.getTransactionType());
+        String transactionLabel = normalizeFilterValue(toTransactionTypeLabel(transaction.getTransactionType()));
+        return normalized.equals(transactionKey) || normalized.equals(transactionLabel);
+    }
+
+    private boolean matchesTransactionType(WalletTransaction transaction, String transactionType) {
+        String normalized = normalizeFilterValue(transactionType);
+        if (normalized == null || "all".equals(normalized)) {
+            return true;
+        }
+        return normalized.equals(normalizeFilterValue(transaction.getTransactionType()));
+    }
+
+    private String normalizeFilterValue(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim()
+                .replace(" ", "")
+                .replace("_", "")
+                .replace("-", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
     private void createTransaction(Wallet wallet, BigDecimal amount, String type, String description,
                                    String relatedEntity, Integer relatedEntityId) {
         WalletTransaction transaction = new WalletTransaction();
@@ -254,6 +325,20 @@ public class WalletService {
                 transaction.getRelatedEntityId(),
                 transaction.getCreatedAt()
         );
+    }
+
+    private String toTransactionTypeLabel(String value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "Deposit" -> "Deposit";
+            case "BetPlaced" -> "Bet Placed";
+            case "BetWon" -> "Bet Won";
+            case "BetRefund" -> "Refunded";
+            case "PrizeAwarded" -> "Prize Awarded";
+            default -> value;
+        };
     }
 
     private DepositRequestResponse toDepositRequestResponse(DepositRequest request) {
