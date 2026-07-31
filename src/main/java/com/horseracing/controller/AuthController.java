@@ -1,6 +1,7 @@
 package com.horseracing.controller;
 
 import com.horseracing.dto.ForgotPasswordRequest;
+import com.horseracing.dto.GoogleLoginRequest;
 import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.RegisterRequest;
 import com.horseracing.dto.TokenRequest;
@@ -50,6 +51,11 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<?> login(@RequestBody LoginRequest request) {
         return ApiResponse.success(200, "Login successful", authService.login(request));
+    }
+
+    @PostMapping("/google")
+    public ApiResponse<?> googleLogin(@RequestBody GoogleLoginRequest request) {
+        return ApiResponse.success(200, "Google login successful", authService.googleLogin(request));
     }
 
     @PostMapping("/refresh")

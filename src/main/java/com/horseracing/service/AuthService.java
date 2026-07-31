@@ -2,6 +2,7 @@ package com.horseracing.service;
 
 import com.horseracing.dto.ChangePasswordRequest;
 import com.horseracing.dto.ForgotPasswordRequest;
+import com.horseracing.dto.GoogleLoginRequest;
 import com.horseracing.dto.LoginRequest;
 import com.horseracing.dto.LoginResponse;
 import com.horseracing.dto.OptionResponse;
@@ -17,12 +18,16 @@ import com.horseracing.repository.SystemConfigRepository;
 import com.horseracing.repository.UserRepository;
 import com.horseracing.repository.UserTokenRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -33,6 +38,7 @@ public class AuthService {
     private final EmailService emailService;
     private final UserTokenRepository userTokenRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final WebClient googleWebClient;
 
     public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder,
                        JwtService jwtService, EmailService emailService, UserTokenRepository userTokenRepository,
@@ -44,6 +50,9 @@ public class AuthService {
         this.emailService = emailService;
         this.userTokenRepository = userTokenRepository;
         this.systemConfigRepository = systemConfigRepository;
+        this.googleWebClient = WebClient.builder()
+                .baseUrl("https://oauth2.googleapis.com")
+                .build();
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -98,7 +107,7 @@ public class AuthService {
         validateRequired(request.getPassword(), "Password is required.");
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password."));
+                .orElseThrow(() -> new IllegalArgumentException("Account is not registered."));
         ensureSystemAvailableFor(user);
 
         if (Boolean.TRUE.equals(user.getIsLocked())) {
@@ -121,7 +130,44 @@ public class AuthService {
                 throw new IllegalArgumentException("Account has been locked due to too many failed login attempts.");
             }
             userRepository.save(user);
-            throw new IllegalArgumentException("Incorrect password. " + (5 - failedAttempts) + " attempts remaining.");
+            throw new IllegalArgumentException("Wrong password. " + (5 - failedAttempts) + " attempts remaining.");
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+
+        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "Spectator";
+        String accessToken = jwtService.generateToken(user.getUserId(), user.getUsername(), roleName);
+        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        saveRefreshToken(user.getUserId(), refreshToken);
+
+        return new LoginResponse(accessToken, refreshToken, toUserResponse(user));
+    }
+
+    @Transactional
+    public LoginResponse googleLogin(GoogleLoginRequest request) {
+        validateRequired(request.getIdToken(), "Google idToken is required.");
+
+        Map<String, Object> tokenInfo = verifyGoogleIdToken(request.getIdToken());
+        String email = valueAsString(tokenInfo.get("email"));
+        validateRequired(email, "Google account email is required.");
+
+        String emailVerified = valueAsString(tokenInfo.get("email_verified"));
+        if (!"true".equalsIgnoreCase(emailVerified)) {
+            throw new IllegalArgumentException("Google account email is not verified.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .map(existingUser -> validateGoogleSpectator(existingUser))
+                .orElseGet(() -> createGoogleSpectator(tokenInfo));
+
+        ensureSystemAvailableFor(user);
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new IllegalArgumentException("Account is inactive.");
+        }
+        if (!Boolean.TRUE.equals(user.getIsApproved())) {
+            throw new IllegalArgumentException("Account is waiting for admin approval.");
         }
 
         user.setFailedLoginAttempts(0);
@@ -241,6 +287,81 @@ public class AuthService {
 
         return roleRepository.findByRoleName(roleName)
                 .orElseThrow(() -> new IllegalArgumentException("roleName does not exist."));
+    }
+
+    private Map<String, Object> verifyGoogleIdToken(String idToken) {
+        try {
+            Map<String, Object> tokenInfo = googleWebClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/tokeninfo")
+                            .queryParam("id_token", idToken)
+                            .build())
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                    })
+                    .block();
+            if (tokenInfo == null || tokenInfo.containsKey("error")) {
+                throw new IllegalArgumentException("Invalid Google token.");
+            }
+            return tokenInfo;
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid Google token.");
+        }
+    }
+
+    private User validateGoogleSpectator(User user) {
+        String roleName = user.getRole() == null ? null : user.getRole().getRoleName();
+        if (!"Spectator".equalsIgnoreCase(roleName)) {
+            throw new IllegalArgumentException("This email is already registered with another role.");
+        }
+        return user;
+    }
+
+    private User createGoogleSpectator(Map<String, Object> tokenInfo) {
+        Role spectatorRole = roleRepository.findByRoleName("Spectator")
+                .orElseThrow(() -> new IllegalArgumentException("Spectator role does not exist."));
+        String email = valueAsString(tokenInfo.get("email"));
+        String fullName = valueAsString(tokenInfo.get("name"));
+        if (fullName == null || fullName.isBlank()) {
+            fullName = email;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        User user = new User();
+        user.setUsername(generateGoogleUsername(email));
+        user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setAvatarUrl(valueAsString(tokenInfo.get("picture")));
+        user.setRole(spectatorRole);
+        user.setIsActive(true);
+        user.setIsApproved(true);
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+        return userRepository.save(user);
+    }
+
+    private String generateGoogleUsername(String email) {
+        String baseUsername = email.split("@")[0]
+                .replaceAll("[^A-Za-z0-9_]", "")
+                .toLowerCase(Locale.ROOT);
+        if (baseUsername.isBlank()) {
+            baseUsername = "spectator";
+        }
+
+        String username = baseUsername;
+        int suffix = 1;
+        while (userRepository.existsByUsername(username)) {
+            username = baseUsername + suffix;
+            suffix++;
+        }
+        return username;
+    }
+
+    private String valueAsString(Object value) {
+        return value == null ? null : value.toString();
     }
 
     private String normalizeRoleName(String roleName) {
