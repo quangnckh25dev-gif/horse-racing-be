@@ -51,6 +51,7 @@ public class AuthService {
         validateRequired(request.getPassword(), "Password is required.");
         validateRequired(request.getFullName(), "Full name is required.");
         validateRequired(request.getEmail(), "Email is required.");
+        validateRequired(request.getPhone(), "Phone number is required.");
 
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username already exists.");
@@ -74,7 +75,7 @@ public class AuthService {
         user.setPhone(request.getPhone());
         user.setRole(role);
         user.setIsActive(true);
-        user.setIsApproved(false);
+        user.setIsApproved("Spectator".equalsIgnoreCase(role.getRoleName()));
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -104,10 +105,10 @@ public class AuthService {
             throw new IllegalArgumentException("Account has been locked due to too many failed login attempts.");
         }
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new IllegalArgumentException("Account is locked.");
+            throw new IllegalArgumentException("Account is inactive.");
         }
         if (!Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new IllegalArgumentException("Account has not been approved.");
+            throw new IllegalArgumentException("Account is waiting for admin approval.");
         }
         if (!matchesPassword(request.getPassword(), user.getPasswordHash())) {
             int failedAttempts = user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0;
@@ -231,7 +232,7 @@ public class AuthService {
 
         String roleName = request.getRoleName();
         if (roleName == null || roleName.isBlank()) {
-            roleName = "Spectator";
+            throw new IllegalArgumentException("Role is required.");
         }
         roleName = normalizeRoleName(roleName);
         if ("Admin".equalsIgnoreCase(roleName)) {
