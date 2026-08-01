@@ -10,18 +10,21 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class ViolationService {
 
-    private static final Map<String, ViolationRule> RULE_BY_VIOLATION = Map.ofEntries(
-            Map.entry("XuatPhatSai", new ViolationRule("Xuat phat sai", BigDecimal.valueOf(3), false)),
-            Map.entry("LanLane", new ViolationRule("Lan lane", BigDecimal.valueOf(5), false)),
-            Map.entry("CanDuong", new ViolationRule("Can duong", BigDecimal.valueOf(10), false)),
-            Map.entry("ViPhamNang", new ViolationRule("Vi pham nang", BigDecimal.ZERO, true))
-    );
+    private static final Map<String, ViolationRule> RULE_BY_VIOLATION = new LinkedHashMap<>();
+
+    static {
+        RULE_BY_VIOLATION.put("FalseStart", new ViolationRule("False Start", BigDecimal.valueOf(3), false));
+        RULE_BY_VIOLATION.put("LaneViolation", new ViolationRule("Lane Violation", BigDecimal.valueOf(5), false));
+        RULE_BY_VIOLATION.put("Obstruction", new ViolationRule("Obstruction", BigDecimal.valueOf(10), false));
+        RULE_BY_VIOLATION.put("SeriousViolation", new ViolationRule("Serious Violation", BigDecimal.ZERO, true));
+    }
 
     private final ViolationRepository violationRepository;
     private final RaceRankingService raceRankingService;
@@ -67,8 +70,8 @@ public class ViolationService {
         violation.setViolationType(violationType);
         violation.setPenaltySeconds(rule.penaltySeconds());
         violation.setIsDq(rule.isDq());
-        violation.setEvidenceImageUrl(request.getEvidenceImageUrl());
-        violation.setDescription(request.getDescription());
+        violation.setEvidenceImageUrl(trimToNull(request.getEvidenceImageUrl()));
+        violation.setDescription(trimToNull(request.getDescription()));
         violation.setRecordedAt(LocalDateTime.now());
 
         Violation saved = violationRepository.save(violation);
@@ -98,8 +101,12 @@ public class ViolationService {
             violation.setIsDq(rule.isDq());
         }
 
-        violation.setEvidenceImageUrl(request.getEvidenceImageUrl());
-        violation.setDescription(request.getDescription());
+        if (request.getEvidenceImageUrl() != null) {
+            violation.setEvidenceImageUrl(trimToNull(request.getEvidenceImageUrl()));
+        }
+        if (request.getDescription() != null) {
+            violation.setDescription(trimToNull(request.getDescription()));
+        }
 
         Violation saved = violationRepository.save(violation);
         raceRankingService.recalculateRace(saved.getRaceId());
@@ -160,16 +167,27 @@ public class ViolationService {
         }
 
         String trimmed = violationType.trim();
-        if (RULE_BY_VIOLATION.containsKey(trimmed)) {
-            return trimmed;
+        String legacyType = switch (trimmed) {
+            case "XuatPhatSai" -> "FalseStart";
+            case "LanLane" -> "LaneViolation";
+            case "CanDuong" -> "Obstruction";
+            case "ViPhamNang" -> "SeriousViolation";
+            default -> trimmed;
+        };
+        if (RULE_BY_VIOLATION.containsKey(legacyType)) {
+            return legacyType;
         }
 
         return RULE_BY_VIOLATION.entrySet()
                 .stream()
-                .filter(entry -> entry.getValue().label().equalsIgnoreCase(trimmed))
+                .filter(entry -> entry.getValue().label().equalsIgnoreCase(legacyType))
                 .map(Map.Entry::getKey)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Violation type is invalid."));
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private ViolationResponse toResponse(Violation violation) {

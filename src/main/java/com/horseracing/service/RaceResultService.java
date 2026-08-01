@@ -97,7 +97,7 @@ public class RaceResultService {
 
         RaceResult saved = raceResultRepository.save(result);
         raceRankingService.recalculateRace(raceId);
-        return toResponse(saved);
+        return toResponse(getResultOrThrow(saved.getResultId()));
     }
 
     @Transactional
@@ -122,7 +122,7 @@ public class RaceResultService {
 
         RaceResult saved = raceResultRepository.save(result);
         raceRankingService.recalculateRace(raceId);
-        return toResponse(saved);
+        return toResponse(getResultOrThrow(saved.getResultId()));
     }
 
     @Transactional
@@ -250,6 +250,11 @@ public class RaceResultService {
             throw new IllegalArgumentException("Race does not have results yet.");
         }
         return results;
+    }
+
+    private RaceResult getResultOrThrow(Integer resultId) {
+        return raceResultRepository.findById(resultId)
+                .orElseThrow(() -> new IllegalArgumentException("Result was not found."));
     }
 
     private void notifyAssignedReferees(Race race, String reason) {
