@@ -136,7 +136,7 @@ public class RaceSummaryResponse {
             return null;
         }
         return switch (value) {
-            case "Scheduled" -> "Scheduled";
+            case "Draft" -> "Draft";
             case "RegistrationOpen" -> "Registration Open";
             case "Ongoing" -> "Ongoing";
             case "Finished" -> "Finished";
@@ -146,7 +146,7 @@ public class RaceSummaryResponse {
     }
 
     private boolean isBettingOpen(String status, LocalDateTime raceDate) {
-        if (!"Scheduled".equals(status) && !"RegistrationOpen".equals(status)) {
+        if (!"RegistrationOpen".equals(status)) {
             return false;
         }
         return raceDate == null || raceDate.isAfter(LocalDateTime.now());
