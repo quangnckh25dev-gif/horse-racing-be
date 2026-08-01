@@ -7,6 +7,7 @@ public class RaceComplaintRequest {
     private String evidenceUrl;
     private String refereeNote;
     private String organizerNote;
+    private Boolean resultCorrectionRequired;
 
     public Integer getRaceId() { return raceId; }
     public void setRaceId(Integer raceId) { this.raceId = raceId; }
@@ -20,4 +21,6 @@ public class RaceComplaintRequest {
     public void setRefereeNote(String refereeNote) { this.refereeNote = refereeNote; }
     public String getOrganizerNote() { return organizerNote; }
     public void setOrganizerNote(String organizerNote) { this.organizerNote = organizerNote; }
+    public Boolean getResultCorrectionRequired() { return resultCorrectionRequired; }
+    public void setResultCorrectionRequired(Boolean resultCorrectionRequired) { this.resultCorrectionRequired = resultCorrectionRequired; }
 }

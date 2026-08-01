@@ -14,7 +14,9 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
             SELECT *
             FROM RaceEntries
             WHERE RaceID = :raceId
-              AND RegistrationStatus IN ('Approved', 'Ready')
+              AND RegistrationStatus = 'Ready'
+              AND JockeyID IS NOT NULL
+              AND ISNULL(JockeyConfirmed, 0) = 1
             ORDER BY
               CASE WHEN LaneNumber IS NULL THEN 1 ELSE 0 END,
               LaneNumber,
@@ -26,7 +28,9 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
             SELECT *
             FROM RaceEntries
             WHERE RaceID = :raceId
-              AND RegistrationStatus IN ('Approved', 'Ready')
+              AND RegistrationStatus = 'Ready'
+              AND JockeyID IS NOT NULL
+              AND ISNULL(JockeyConfirmed, 0) = 1
               AND ISNULL(RoundStatus, 'Qualified') <> 'Eliminated'
             ORDER BY
               CASE WHEN LaneNumber IS NULL THEN 1 ELSE 0 END,

@@ -22,7 +22,9 @@ public interface ViolationRepository extends JpaRepository<Violation, Integer> {
             FROM RaceEntries
             WHERE RaceID = :raceId
               AND EntryID = :entryId
-              AND RegistrationStatus IN ('Approved', 'Ready')
+              AND RegistrationStatus = 'Ready'
+              AND JockeyID IS NOT NULL
+              AND ISNULL(JockeyConfirmed, 0) = 1
             """, nativeQuery = true)
     int countEligibleEntryInRace(@Param("raceId") Integer raceId, @Param("entryId") Integer entryId);
 

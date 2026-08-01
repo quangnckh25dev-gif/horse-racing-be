@@ -15,6 +15,8 @@ import java.util.List;
 @Service
 public class RaceRankingService {
 
+    private static final String ENTRY_STATUS_READY = "Ready";
+
     private final RaceResultRepository raceResultRepository;
     private final ViolationRepository violationRepository;
     private final RaceEntryRepository raceEntryRepository;
@@ -38,10 +40,12 @@ public class RaceRankingService {
             BigDecimal penalty = violationRepository.sumPenaltySecondsByRaceAndEntry(raceId, result.getEntryId());
             boolean dqByViolation = violationRepository.countDqByRaceAndEntry(raceId, result.getEntryId()) > 0;
             boolean preRaceRejected = isPreRaceRejected(result.getEntryId());
+            boolean readyWithConfirmedJockey = isReadyWithConfirmedJockey(result.getEntryId());
 
             result.setPenaltyTime(penalty == null ? BigDecimal.ZERO : penalty);
             result.setDq(dqByViolation);
-            if (Boolean.TRUE.equals(result.getDnf()) || dqByViolation || preRaceRejected || result.getFinishTime() == null) {
+            if (Boolean.TRUE.equals(result.getDnf()) || dqByViolation || preRaceRejected
+                    || !readyWithConfirmedJockey || result.getFinishTime() == null) {
                 result.setFinalTime(null);
                 result.setFinishPosition(null);
             } else {
@@ -53,6 +57,7 @@ public class RaceRankingService {
                 .filter(result -> !Boolean.TRUE.equals(result.getDnf())
                         && !Boolean.TRUE.equals(result.getDq())
                         && !isPreRaceRejected(result.getEntryId())
+                        && isReadyWithConfirmedJockey(result.getEntryId())
                         && result.getFinalTime() != null)
                 .sorted(Comparator.comparing(RaceResult::getFinalTime)
                         .thenComparing(RaceResult::getResultId))
@@ -69,6 +74,14 @@ public class RaceRankingService {
         return raceEntryRepository.findById(entryId)
                 .map(RaceEntry::getRegistrationStatus)
                 .map(status -> "PreRaceRejected".equalsIgnoreCase(status))
+                .orElse(false);
+    }
+
+    private boolean isReadyWithConfirmedJockey(Integer entryId) {
+        return raceEntryRepository.findById(entryId)
+                .map(entry -> ENTRY_STATUS_READY.equalsIgnoreCase(entry.getRegistrationStatus())
+                        && entry.getJockeyId() != null
+                        && Boolean.TRUE.equals(entry.getJockeyConfirmed()))
                 .orElse(false);
     }
 }

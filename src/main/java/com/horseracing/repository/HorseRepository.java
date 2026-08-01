@@ -16,6 +16,17 @@ public interface HorseRepository extends JpaRepository<Horse, Integer> {
     boolean existsByRegisterCode(String registerCode);
 
     @Query(value = """
+            SELECT CASE WHEN COUNT(1) > 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END
+            FROM Horses
+            WHERE OwnerID = :ownerId
+              AND LOWER(LTRIM(RTRIM(HorseName))) = LOWER(LTRIM(RTRIM(:horseName)))
+              AND (:horseId IS NULL OR HorseID <> :horseId)
+            """, nativeQuery = true)
+    boolean existsDuplicateNameForOwner(@Param("ownerId") Integer ownerId,
+                                        @Param("horseName") String horseName,
+                                        @Param("horseId") Integer horseId);
+
+    @Query(value = """
             SELECT ranked.HorseRank
             FROM (
                 SELECT

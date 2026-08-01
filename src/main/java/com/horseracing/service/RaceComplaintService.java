@@ -132,6 +132,9 @@ public class RaceComplaintService {
     public RaceComplaintResponse refereeResolve(Integer id, RaceComplaintRequest request, HttpServletRequest httpRequest) {
         Referee referee = getCurrentReferee(httpRequest);
         RaceComplaint complaint = getPendingComplaintForReferee(id, referee.getRefereeId());
+        if (requiresResultCorrection(request) && hasPublishedResults(complaint.getRaceId())) {
+            throw new IllegalArgumentException("Published results must be forwarded to the organizer for correction review.");
+        }
         complaint.setStatus(STATUS_RESOLVED);
         complaint.setRefereeId(referee.getRefereeId());
         complaint.setRefereeNote(trimToNull(request == null ? null : request.getRefereeNote()));
@@ -218,11 +221,19 @@ public class RaceComplaintService {
     }
 
     private void ensureRaceCanBeComplained(Race race) {
-        boolean published = raceResultRepository.findByRaceId(race.getRaceId()).stream()
-                .anyMatch(result -> "Published".equalsIgnoreCase(result.getApprovalStatus()));
+        boolean published = hasPublishedResults(race.getRaceId());
         if (!"Finished".equalsIgnoreCase(race.getStatus()) && !published) {
             throw new IllegalArgumentException("Race complaints can only be created after the race is finished or results are published.");
         }
+    }
+
+    private boolean hasPublishedResults(Integer raceId) {
+        return raceResultRepository.findByRaceId(raceId).stream()
+                .anyMatch(result -> "Published".equalsIgnoreCase(result.getApprovalStatus()));
+    }
+
+    private boolean requiresResultCorrection(RaceComplaintRequest request) {
+        return request != null && Boolean.TRUE.equals(request.getResultCorrectionRequired());
     }
 
     private void ensureOwnerOwnsEntry(User ownerUser, RaceEntry entry) {
