@@ -64,8 +64,8 @@ public class RaceEntryController {
     }
 
     @GetMapping("/api/entries/{entryId}")
-    public ApiResponse<?> getEntry(@PathVariable Integer entryId) {
-        return ApiResponse.success(200, "Entry detail loaded successfully", raceEntryService.getEntry(entryId));
+    public ApiResponse<?> getEntry(@PathVariable Integer entryId, HttpServletRequest httpRequest) {
+        return ApiResponse.success(200, "Entry detail loaded successfully", raceEntryService.getEntry(entryId, httpRequest));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
