@@ -26,6 +26,8 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
 
     boolean existsByRoundId(Integer roundId);
 
+    boolean existsByRoundIdAndRaceIdNot(Integer roundId, Integer raceId);
+
     long countByStatus(String status);
 
     @Query(value = """

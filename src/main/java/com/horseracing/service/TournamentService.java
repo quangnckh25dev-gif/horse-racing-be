@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -25,8 +24,13 @@ import java.util.Set;
 public class TournamentService {
 
     private static final String DRAFT = "Draft";
-    private static final String PENDING_APPROVAL = "PendingApproval";
+    private static final Set<Integer> ALLOWED_MAX_HORSES = Set.of(8, 12, 16);
     private static final Set<String> PUBLIC_STATUSES = Set.of("Open", "Ongoing", "Finished", "Cancelled");
+    private static final List<DefaultRound> DEFAULT_ROUNDS = List.of(
+            new DefaultRound("Qualify", 1),
+            new DefaultRound("Semi Final", 2),
+            new DefaultRound("Final", 3)
+    );
 
     private final TournamentRepository tournamentRepository;
     private final RoundRepository roundRepository;
@@ -82,19 +86,21 @@ public class TournamentService {
     //của buiquangann
     public TournamentResponse createTournament(TournamentRequest request, User organizer) {
         requireOrganizer(organizer);
-        validateDates(request);
+        validateTournamentRequest(request);
 
         Tournament tournament = new Tournament();
         applyRequest(tournament, request);
         tournament.setStatus(DRAFT);
         tournament.setCreatedBy(organizer.getUserId());
-        return toResponse(tournamentRepository.save(tournament));
+        Tournament saved = tournamentRepository.save(tournament);
+        ensureDefaultRounds(saved);
+        return toResponse(saved);
     }
 
     @Transactional
     public TournamentResponse updateTournament(Integer tournamentId, TournamentRequest request, User organizer) {
         requireOrganizer(organizer);
-        validateDates(request);
+        validateTournamentRequest(request);
         Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
         ensureDraft(tournament, "Only Draft tournaments can be updated.");
 
@@ -108,42 +114,15 @@ public class TournamentService {
     public TournamentResponse submitTournament(Integer tournamentId, User organizer) {
         requireOrganizer(organizer);
         Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
-        ensureDraft(tournament, "Only Draft tournaments can be submitted for approval.");
-        tournament.setStatus(PENDING_APPROVAL);
-        tournament.setRejectReason(null);
-        return toResponse(tournamentRepository.save(tournament));
+        return toResponse(tournament);
     }
 
     @Transactional
     public TournamentResponse reviewTournament(Integer tournamentId, String requestedStatus,
                                                String reason, User admin) {
         requireAdmin(admin);
-        Tournament tournament = getTournamentOrThrow(tournamentId);
-        if (!PENDING_APPROVAL.equals(tournament.getStatus())) {
-            throw new IllegalArgumentException("Only tournaments pending approval can be reviewed.");
-        }
-        if ("Open".equals(requestedStatus)) {
-            tournament.setStatus("Open");
-            tournament.setApprovedByAdmin(admin.getUserId());
-            tournament.setApprovedAt(LocalDateTime.now());
-            tournament.setRejectReason(null);
-            raceRepository.findByTournamentId(tournamentId).forEach(race -> {
-                if ("Scheduled".equals(race.getStatus())) {
-                    race.setStatus("RegistrationOpen");
-                }
-            });
-        } else if (DRAFT.equals(requestedStatus)) {
-            if (reason == null || reason.isBlank()) {
-                throw new IllegalArgumentException("reason is required when rejecting a tournament.");
-            }
-            tournament.setStatus(DRAFT);
-            tournament.setApprovedByAdmin(null);
-            tournament.setApprovedAt(null);
-            tournament.setRejectReason(reason.trim());
-        } else {
-            throw new IllegalArgumentException("Admin can only change tournament status to Open or Draft.");
-        }
-        return toResponse(tournamentRepository.save(tournament));
+        getTournamentOrThrow(tournamentId);
+        throw new IllegalArgumentException("Admin tournament approval is no longer supported.");
     }
 
     private TournamentDetailResponse buildDetail(Tournament tournament) {
@@ -168,9 +147,33 @@ public class TournamentService {
                 .orElseThrow(() -> new IllegalArgumentException("Tournament was not found for the current organizer."));
     }
 
-    private void validateDates(TournamentRequest request) {
+    private void validateTournamentRequest(TournamentRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Tournament data is required.");
+        }
+        if (request.getTournamentName() == null || request.getTournamentName().isBlank()) {
+            throw new IllegalArgumentException("tournamentName is required.");
+        }
+        if (request.getLocation() == null || request.getLocation().isBlank()) {
+            throw new IllegalArgumentException("location is required.");
+        }
+        if (request.getStartDate() == null) {
+            throw new IllegalArgumentException("startDate is required.");
+        }
+        if (request.getEndDate() == null) {
+            throw new IllegalArgumentException("endDate is required.");
+        }
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("endDate must be greater than or equal to startDate.");
+        }
+        if (request.getBudgetTotal() != null && request.getBudgetTotal().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("budgetTotal cannot be negative.");
+        }
+        if (!ALLOWED_MAX_HORSES.contains(request.getMaxHorses())) {
+            throw new IllegalArgumentException("maxHorses only accepts 8, 12, or 16.");
+        }
+        if (request.getMaxParticipants() != null && request.getMaxParticipants() <= 0) {
+            throw new IllegalArgumentException("maxParticipants must be greater than 0.");
         }
     }
 
@@ -208,6 +211,22 @@ public class TournamentService {
         tournament.setMaxParticipants(request.getMaxParticipants());
     }
 
+    private void ensureDefaultRounds(Tournament tournament) {
+        List<Round> existingRounds = roundRepository.findByTournamentIdOrderByRoundOrderAsc(tournament.getTournamentId());
+        if (!existingRounds.isEmpty()) {
+            return;
+        }
+        DEFAULT_ROUNDS.forEach(defaultRound -> {
+            Round round = new Round();
+            round.setTournamentId(tournament.getTournamentId());
+            round.setRoundName(defaultRound.name());
+            round.setRoundOrder(defaultRound.order());
+            round.setStartDate(tournament.getStartDate());
+            round.setEndDate(tournament.getEndDate());
+            roundRepository.save(round);
+        });
+    }
+
     private String trimToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
@@ -234,5 +253,8 @@ public class TournamentService {
                 race.getRaceName(), race.getRaceDate(), race.getTrackLength(), race.getTrackType(),
                 race.getMaxParticipants(), race.getPrizeFirst(), race.getPrizeSecond(), race.getPrizeThird(),
                 race.getStatus(), race.getRegistrationOpen(), race.getRegistrationClose());
+    }
+
+    private record DefaultRound(String name, Integer order) {
     }
 }

@@ -18,6 +18,7 @@ public class TournamentRequest {
     @Size(max = 1000, message = "description must not exceed 1000 characters.")
     private String description;
 
+    @NotBlank(message = "location is required.")
     @Size(max = 300, message = "location must not exceed 300 characters.")
     private String location;
 

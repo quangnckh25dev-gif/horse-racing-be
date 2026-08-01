@@ -12,10 +12,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
 public class RoundService {
+    private static final Map<Integer, String> DEFAULT_ROUNDS = Map.of(
+            1, "Qualify",
+            2, "Semi Final",
+            3, "Final"
+    );
+
     private final RoundRepository roundRepository;
     private final TournamentRepository tournamentRepository;
     private final RaceRepository raceRepository;
@@ -30,33 +37,23 @@ public class RoundService {
     public List<RoundSummaryResponse> getRoundsByTournament(Integer tournamentId) {
         ensureTournamentExists(tournamentId);
         return roundRepository.findByTournamentIdOrderByRoundOrderAsc(tournamentId).stream()
-                .map(this::toResponse).toList();
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional
-    //của buiquangann
     public RoundSummaryResponse createRound(Integer tournamentId, RoundRequest request, User organizer) {
-        Tournament tournament = getOwnedDraftTournament(tournamentId, organizer);
-        validateRequest(request, tournament);
-        if (roundRepository.existsByTournamentIdAndRoundOrder(tournamentId, request.getRoundOrder())) {
-            throw new IllegalArgumentException("roundOrder already exists in this tournament.");
-        }
-        Round round = new Round();
-        round.setTournamentId(tournamentId);
-        applyRequest(round, request);
-        return toResponse(roundRepository.save(round));
+        getOwnedDraftTournament(tournamentId, organizer);
+        throw new IllegalArgumentException("Default rounds are created automatically and cannot be added manually.");
     }
 
     @Transactional
     public RoundSummaryResponse updateRound(Integer roundId, RoundRequest request, User organizer) {
         Round round = getRoundOrThrow(roundId);
         Tournament tournament = getOwnedDraftTournament(round.getTournamentId(), organizer);
-        validateRequest(request, tournament);
-        if (roundRepository.existsByTournamentIdAndRoundOrderAndRoundIdNot(
-                round.getTournamentId(), request.getRoundOrder(), roundId)) {
-            throw new IllegalArgumentException("roundOrder already exists in this tournament.");
-        }
-        applyRequest(round, request);
+        validateDefaultRound(round);
+        validateRoundDates(request, tournament);
+        applyEditableFields(round, request);
         return toResponse(roundRepository.save(round));
     }
 
@@ -64,10 +61,7 @@ public class RoundService {
     public void deleteRound(Integer roundId, User organizer) {
         Round round = getRoundOrThrow(roundId);
         getOwnedDraftTournament(round.getTournamentId(), organizer);
-        if (raceRepository.existsByRoundId(roundId)) {
-            throw new IllegalArgumentException("Rounds that already have races cannot be deleted.");
-        }
-        roundRepository.delete(round);
+        throw new IllegalArgumentException("Default rounds cannot be deleted.");
     }
 
     private Tournament getOwnedDraftTournament(Integer tournamentId, User organizer) {
@@ -90,28 +84,36 @@ public class RoundService {
                 .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
     }
 
-    private void validateRequest(RoundRequest request, Tournament tournament) {
-        if (request == null || request.getRoundName() == null || request.getRoundName().isBlank())
-            throw new IllegalArgumentException("roundName is required.");
-        if (request.getRoundOrder() == null || request.getRoundOrder() <= 0)
-            throw new IllegalArgumentException("roundOrder must be greater than 0.");
-        if (request.getStartDate() != null && request.getStartDate().isBefore(tournament.getStartDate()))
+    private void validateDefaultRound(Round round) {
+        String expectedName = DEFAULT_ROUNDS.get(round.getRoundOrder());
+        if (expectedName == null || !expectedName.equals(round.getRoundName())) {
+            throw new IllegalArgumentException("Tournament rounds must be Qualify, Semi Final, and Final.");
+        }
+    }
+
+    private void validateRoundDates(RoundRequest request, Tournament tournament) {
+        if (request == null) {
+            throw new IllegalArgumentException("Round data is required.");
+        }
+        if (request.getStartDate() != null && request.getStartDate().isBefore(tournament.getStartDate())) {
             throw new IllegalArgumentException("Round startDate is outside the tournament date range.");
-        if (request.getEndDate() != null && request.getEndDate().isAfter(tournament.getEndDate()))
+        }
+        if (request.getEndDate() != null && request.getEndDate().isAfter(tournament.getEndDate())) {
             throw new IllegalArgumentException("Round endDate is outside the tournament date range.");
+        }
         if (request.getStartDate() != null && request.getEndDate() != null
-                && request.getEndDate().isBefore(request.getStartDate()))
+                && request.getEndDate().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("endDate must be after startDate.");
+        }
     }
 
     private void requireOrganizer(User user) {
-        if (user == null || user.getRole() == null || !"Organizer".equals(user.getRole().getRoleName()))
+        if (user == null || user.getRole() == null || !"Organizer".equals(user.getRole().getRoleName())) {
             throw new IllegalArgumentException("Only organizers can perform this action.");
+        }
     }
 
-    private void applyRequest(Round round, RoundRequest request) {
-        round.setRoundName(request.getRoundName().trim());
-        round.setRoundOrder(request.getRoundOrder());
+    private void applyEditableFields(Round round, RoundRequest request) {
         round.setStartDate(request.getStartDate());
         round.setEndDate(request.getEndDate());
         round.setDescription(request.getDescription());

@@ -90,7 +90,7 @@ public class RaceService {
     @Transactional
     //của buiquangann
     public RaceSummaryResponse createRace(RaceRequest request, User organizer) {
-        validateRaceRequest(request, organizer);
+        validateRaceRequest(request, organizer, null);
 
         Race race = new Race();
         applyRequest(race, request);
@@ -101,13 +101,12 @@ public class RaceService {
 
     @Transactional
     public RaceSummaryResponse updateRace(Integer raceId, RaceRequest request, User organizer) {
-        validateRaceRequest(request, organizer);
-
         Race race = getRaceOrThrow(raceId);
         ensureOwnedTournament(race.getTournamentId(), organizer);
         if (!Set.of("Scheduled", "RegistrationOpen").contains(race.getStatus())) {
             throw new IllegalArgumentException("Races that have started or finished cannot be edited.");
         }
+        validateRaceRequest(request, organizer, raceId);
         applyRequest(race, request);
 
         return toResponse(raceRepository.save(race));
@@ -181,7 +180,7 @@ public class RaceService {
                 .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
     }
 
-    private void validateRaceRequest(RaceRequest request, User organizer) {
+    private void validateRaceRequest(RaceRequest request, User organizer, Integer currentRaceId) {
         if (request == null) {
             throw new IllegalArgumentException("Race data is required.");
         }
@@ -191,16 +190,29 @@ public class RaceService {
         if (request.getRaceDate() == null) {
             throw new IllegalArgumentException("RaceDate is required.");
         }
+        if (request.getRoundId() == null) {
+            throw new IllegalArgumentException("roundId is required.");
+        }
         Tournament tournament = ensureOwnedTournament(request.getTournamentId(), organizer);
-        if (request.getRoundId() != null) {
-            Round round = ensureRoundExists(request.getRoundId());
-            if (!round.getTournamentId().equals(request.getTournamentId())) {
-                throw new IllegalArgumentException("Round does not belong to this tournament.");
-            }
+        Round round = ensureRoundExists(request.getRoundId());
+        if (!round.getTournamentId().equals(request.getTournamentId())) {
+            throw new IllegalArgumentException("Round does not belong to this tournament.");
+        }
+        if (currentRaceId == null && raceRepository.existsByRoundId(request.getRoundId())) {
+            throw new IllegalArgumentException("This round already has a race.");
+        }
+        if (currentRaceId != null && raceRepository.existsByRoundIdAndRaceIdNot(request.getRoundId(), currentRaceId)) {
+            throw new IllegalArgumentException("This round already has a race.");
         }
         if (request.getRaceDate().toLocalDate().isBefore(tournament.getStartDate())
                 || request.getRaceDate().toLocalDate().isAfter(tournament.getEndDate())) {
             throw new IllegalArgumentException("RaceDate must be within the tournament date range.");
+        }
+        if (round.getStartDate() != null && request.getRaceDate().toLocalDate().isBefore(round.getStartDate())) {
+            throw new IllegalArgumentException("RaceDate must be within the round date range.");
+        }
+        if (round.getEndDate() != null && request.getRaceDate().toLocalDate().isAfter(round.getEndDate())) {
+            throw new IllegalArgumentException("RaceDate must be within the round date range.");
         }
         if (request.getMaxParticipants() != null && request.getMaxParticipants() <= 0) {
             throw new IllegalArgumentException("MaxParticipants must be greater than 0.");
