@@ -67,7 +67,7 @@ public class OrganizerTournamentController {
     @PutMapping("/{id}/submit")
     public ApiResponse<?> submitTournament(@PathVariable Integer id, HttpServletRequest httpRequest) {
         User organizer = currentUserService.getCurrentUser(httpRequest);
-        return ApiResponse.success(200, "Tournament submitted for admin approval successfully",
+        return ApiResponse.success(200, "Tournament submission is no longer required",
                 tournamentService.submitTournament(id, organizer));
     }
 

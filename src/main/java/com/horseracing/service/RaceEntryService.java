@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class RaceEntryService {
@@ -190,8 +191,8 @@ public class RaceEntryService {
         }
         Tournament tournament = tournamentRepository.findById(race.getTournamentId())
                 .orElseThrow(() -> new IllegalArgumentException("Tournament was not found."));
-        if (!"Open".equalsIgnoreCase(tournament.getStatus())) {
-            throw new IllegalArgumentException("Tournament has not been approved by Admin for registration.");
+        if (!Set.of("Draft", "Open", "Ongoing").contains(tournament.getStatus())) {
+            throw new IllegalArgumentException("Tournament is not open for registration.");
         }
     }
 
