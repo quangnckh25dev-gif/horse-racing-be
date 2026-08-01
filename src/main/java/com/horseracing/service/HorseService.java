@@ -325,14 +325,28 @@ public class HorseService {
     }
 
     private String resolveStatusCode(Horse horse) {
-        String healthStatus = horse.getHealthStatus();
-        if (healthStatus != null && "INJURED".equals(normalizeStatus(healthStatus))) {
+        // Doc du lieu thi KHONG duoc throw: healthStatus co the la text tu do (vd chan doan suc khoe)
+        // -> normalize an toan, khong nhan dang duoc thi bo qua, fallback theo isActive.
+        String normalized = safeNormalizeStatus(horse.getHealthStatus());
+        if ("INJURED".equals(normalized)) {
             return "Injured";
         }
-        if (healthStatus != null && "INACTIVE".equals(normalizeStatus(healthStatus))) {
+        if ("INACTIVE".equals(normalized)) {
             return "Inactive";
         }
         return Boolean.TRUE.equals(horse.getIsActive()) ? "Active" : "Inactive";
+    }
+
+    // Chi dung khi DOC/hien thi: tra ve null neu khong nhan dang duoc (thay vi nem loi nhu normalizeStatus)
+    private String safeNormalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return normalizeStatus(status);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private void ensureCanUpdateHorseStatus(User user, Horse horse) {
