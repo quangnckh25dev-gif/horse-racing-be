@@ -359,6 +359,24 @@ CREATE TABLE RaceMinutes (
     UpdatedAt      DATETIME2     DEFAULT GETDATE()
 );
 
+CREATE TABLE RaceComplaints (
+    ComplaintID     INT IDENTITY(1,1) PRIMARY KEY,
+    OwnerUserID     INT            NOT NULL REFERENCES Users(UserID),
+    RaceID          INT            NOT NULL REFERENCES Races(RaceID),
+    EntryID         INT            NOT NULL REFERENCES RaceEntries(EntryID),
+    Reason          NVARCHAR(1000) NOT NULL,
+    EvidenceUrl     NVARCHAR(500),
+    Status          NVARCHAR(20)   NOT NULL DEFAULT 'Pending'
+        CHECK (Status IN ('Pending', 'Resolved', 'Rejected', 'Forwarded')),
+    RefereeID       INT            NULL REFERENCES Referees(RefereeID),
+    RefereeNote     NVARCHAR(1000),
+    OrganizerID     INT            NULL REFERENCES Users(UserID),
+    OrganizerNote   NVARCHAR(1000),
+    CreatedAt       DATETIME2      DEFAULT GETDATE(),
+    ResolvedAt      DATETIME2,
+    UpdatedAt       DATETIME2      DEFAULT GETDATE()
+);
+
 -- ============================================================
 -- 12. LEADERBOARD / RANKING
 -- ============================================================
@@ -520,6 +538,8 @@ CREATE UNIQUE INDEX UX_Horses_RegisterCode ON Horses(RegisterCode) WHERE Registe
 CREATE INDEX IX_Races_TournamentID ON Races(TournamentID);
 CREATE INDEX IX_RaceEntries_RaceID ON RaceEntries(RaceID);
 CREATE INDEX IX_RaceResults_RaceID ON RaceResults(RaceID);
+CREATE INDEX IX_RaceComplaints_RaceID ON RaceComplaints(RaceID);
+CREATE INDEX IX_RaceComplaints_Status ON RaceComplaints(Status);
 CREATE INDEX IX_Violations_RaceID  ON Violations(RaceID);
 CREATE INDEX IX_Bets_RaceID        ON Bets(RaceID);
 CREATE INDEX IX_Bets_Status        ON Bets(Status);
