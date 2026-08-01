@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 --  HORSE RACING TOURNAMENT MANAGEMENT SYSTEM — DATABASE v2
 --  MS SQL Server - synchronized with Business Flow v3 and backend fixes
 --  Replaces DB26.6.2026 for dev drop-and-recreate usage
@@ -177,7 +177,7 @@ CREATE TABLE Tournaments (
     MaxHorses      INT           NULL,
     MaxParticipants INT          NULL,        -- (8) added to match API maxParticipants
     Status         NVARCHAR(30)  NOT NULL DEFAULT 'Draft',
-    -- Draft | PendingApproval | Open | Ongoing | Finished | Cancelled
+    -- Draft | Open | Ongoing | Finished | Cancelled
     CreatedBy      INT           REFERENCES Users(UserID),   -- created by Organizer
     ApprovedByAdmin INT          NULL REFERENCES Users(UserID),
     ApprovedAt     DATETIME2     NULL,
@@ -197,7 +197,7 @@ CREATE TABLE Rounds (
 );
 
 -- ============================================================
--- 5. RACES  (Status: Scheduled | RegistrationOpen | Ongoing | Finished | Cancelled)
+-- 5. RACES  (Status: Draft | RegistrationOpen | Ongoing | Finished | Cancelled)
 --    Referee updates race status; app layer controls allowed transitions.
 -- ============================================================
 CREATE TABLE Races (
@@ -212,7 +212,7 @@ CREATE TABLE Races (
     PrizeFirst      DECIMAL(18,2)  DEFAULT 0,
     PrizeSecond     DECIMAL(18,2)  DEFAULT 0,
     PrizeThird      DECIMAL(18,2)  DEFAULT 0,
-    Status          NVARCHAR(30)   NOT NULL DEFAULT 'Scheduled',
+    Status          NVARCHAR(30)   NOT NULL DEFAULT 'Draft',
     RegistrationOpen  DATETIME2    NULL,
     RegistrationClose DATETIME2    NULL,
     CreatedAt       DATETIME2      DEFAULT GETDATE(),
@@ -246,7 +246,7 @@ CREATE TABLE RaceEntries (
     HorseID            INT NOT NULL REFERENCES Horses(HorseID),
     JockeyID           INT NULL REFERENCES Jockeys(JockeyID),
     LaneNumber         INT,
-    RegistrationStatus NVARCHAR(30) NOT NULL DEFAULT 'Pending', -- (3) source of truth: Pending|Approved|Rejected|Withdrawn|Ready
+    RegistrationStatus NVARCHAR(30) NOT NULL DEFAULT 'Pending', -- source of truth: Pending|Approved|Rejected|Withdrawn|Approved Without Jockey|Ready|PreRaceRejected
     OrganizerApproved  BIT          NOT NULL DEFAULT 0,          -- helper flag; backend must keep it in sync with RegistrationStatus
     ApprovedBy         INT          NULL REFERENCES Users(UserID),  -- approver user
     RejectReason       NVARCHAR(500) NULL,
@@ -266,13 +266,36 @@ CREATE TABLE JockeyInvitations (
     JockeyID       INT           NOT NULL REFERENCES Jockeys(JockeyID),
     InvitedByOwner INT           NOT NULL REFERENCES HorseOwners(OwnerID),
     Message        NVARCHAR(500),
+    DealAmount     DECIMAL(18,2) NOT NULL DEFAULT 0,
+    RejectReason   NVARCHAR(500) NULL,
     Status         NVARCHAR(20)  NOT NULL DEFAULT 'Pending',  -- Pending|Accepted|Declined
     InvitedAt      DATETIME2     DEFAULT GETDATE(),
     RespondedAt    DATETIME2
 );
 
 -- ============================================================
--- 8. RACE RESULTS
+-- 8. PRE-RACE CHECKS
+-- ============================================================
+CREATE TABLE PreRaceChecks (
+    PreRaceCheckID INT IDENTITY(1,1) PRIMARY KEY,
+    RaceID         INT          NOT NULL,
+    EntryID        INT          NOT NULL,
+    HorseID        INT          NOT NULL,
+    RefereeID      INT          NOT NULL,
+    Status         NVARCHAR(20) NOT NULL DEFAULT 'Pending'
+        CHECK (Status IN ('Pending', 'Checked', 'Rejected')),
+    Reason         NVARCHAR(500) NULL,
+    CheckedAt      DATETIME2     NULL,
+    CONSTRAINT UQ_PreRaceChecks_Race_Entry UNIQUE (RaceID, EntryID),
+    FOREIGN KEY (RaceID) REFERENCES Races(RaceID),
+    FOREIGN KEY (EntryID) REFERENCES RaceEntries(EntryID),
+    FOREIGN KEY (HorseID) REFERENCES Horses(HorseID),
+    FOREIGN KEY (RefereeID) REFERENCES Referees(RefereeID)
+);
+GO
+
+-- ============================================================
+-- 9. RACE RESULTS
 --    Referee enters FinishTime; system computes FinalTime = FinishTime + PenaltyTime.
 --    FinishPosition ranks by ascending FinalTime; DQ/DNF are placed last.
 -- ============================================================
@@ -299,7 +322,7 @@ CREATE TABLE RaceResults (
 );
 
 -- ============================================================
--- 9. VIOLATIONS  (numeric PenaltySeconds + evidence image)
+-- 10. VIOLATIONS  (numeric PenaltySeconds + evidence image)
 --    Rule: false start +3s, lane violation +5s, obstruction +10s, serious violation -> DQ
 -- ============================================================
 CREATE TABLE Violations (
@@ -316,7 +339,7 @@ CREATE TABLE Violations (
 );
 
 -- ============================================================
--- 10. RACE MINUTES  (signed minutes image/PDF + sent-to-owner flag)
+-- 11. RACE MINUTES  (signed minutes image/PDF + sent-to-owner flag)
 -- ============================================================
 CREATE TABLE RaceMinutes (
     MinuteID       INT IDENTITY(1,1) PRIMARY KEY,
@@ -333,7 +356,7 @@ CREATE TABLE RaceMinutes (
 );
 
 -- ============================================================
--- 11. LEADERBOARD / RANKING
+-- 12. LEADERBOARD / RANKING
 -- ============================================================
 CREATE TABLE JockeyTournamentStats (
     StatID       INT IDENTITY(1,1) PRIMARY KEY,
@@ -359,7 +382,7 @@ CREATE TABLE HorseTournamentStats (
 );
 
 -- ============================================================
--- 12. WALLET + BETTING
+-- 13. WALLET + BETTING
 -- ============================================================
 CREATE TABLE Wallets (
     WalletID  INT IDENTITY(1,1) PRIMARY KEY,
@@ -805,7 +828,7 @@ SELECT
   (SELECT COUNT(*) FROM Users   WHERE IsActive = 1)                                        AS TotalActiveUsers,
   (SELECT COUNT(*) FROM Users   WHERE IsApproved = 0)                                      AS PendingApprovals,
   (SELECT COUNT(*) FROM Tournaments WHERE Status = 'Ongoing')                              AS OngoingTournaments,
-  (SELECT COUNT(*) FROM Races   WHERE Status IN ('Scheduled','RegistrationOpen','Ongoing')) AS UpcomingRaces,
+  (SELECT COUNT(*) FROM Races   WHERE Status IN ('RegistrationOpen','Ongoing')) AS UpcomingRaces,
   (SELECT COUNT(*) FROM Races   WHERE Status = 'Finished')                                 AS FinishedRaces,
   (SELECT COUNT(*) FROM Horses)                                                            AS TotalHorses,
   (SELECT COUNT(*) FROM Jockeys)                                                           AS TotalJockeys,
@@ -1084,7 +1107,7 @@ END;
 IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'FLOW_REFEREE_RESULT_RACE')
 BEGIN
     INSERT INTO Races (TournamentID, RoundID, RaceName, RaceDate, TrackLength, TrackType, MaxParticipants, PrizeFirst, PrizeSecond, PrizeThird, Status, RegistrationOpen, RegistrationClose)
-    VALUES (@FlowTournamentID, @FlowRoundID, N'FLOW_REFEREE_RESULT_RACE', DATEADD(DAY, 2, GETDATE()), 1200, N'Flat', 8, 15000000, 7000000, 3000000, 'Scheduled', DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, -1, GETDATE()));
+    VALUES (@FlowTournamentID, @FlowRoundID, N'FLOW_REFEREE_RESULT_RACE', DATEADD(DAY, 2, GETDATE()), 1200, N'Flat', 8, 15000000, 7000000, 3000000, 'RegistrationOpen', DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, -1, GETDATE()));
 END;
 IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'FLOW_BETTING_RACE')
 BEGIN
@@ -1317,7 +1340,7 @@ IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'DEMO_SHOWCASE_OPEN_RACE')
     VALUES (@DemoTournamentID, @DemoRound1ID, N'DEMO_SHOWCASE_OPEN_RACE', DATEADD(DAY, 3, GETDATE()), 1000, N'Flat', 10, 18000000, 9000000, 4000000, 'RegistrationOpen', DATEADD(DAY, -1, GETDATE()), DATEADD(DAY, 2, GETDATE()));
 IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'DEMO_SHOWCASE_REFEREE_RACE')
     INSERT INTO Races (TournamentID, RoundID, RaceName, RaceDate, TrackLength, TrackType, MaxParticipants, PrizeFirst, PrizeSecond, PrizeThird, Status, RegistrationOpen, RegistrationClose)
-    VALUES (@DemoTournamentID, @DemoRound1ID, N'DEMO_SHOWCASE_REFEREE_RACE', DATEADD(DAY, 2, GETDATE()), 1300, N'Flat', 10, 22000000, 11000000, 5000000, 'Scheduled', DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, -1, GETDATE()));
+    VALUES (@DemoTournamentID, @DemoRound1ID, N'DEMO_SHOWCASE_REFEREE_RACE', DATEADD(DAY, 2, GETDATE()), 1300, N'Flat', 10, 22000000, 11000000, 5000000, 'RegistrationOpen', DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, -1, GETDATE()));
 IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'DEMO_SHOWCASE_FINISHED_RACE')
     INSERT INTO Races (TournamentID, RoundID, RaceName, RaceDate, TrackLength, TrackType, MaxParticipants, PrizeFirst, PrizeSecond, PrizeThird, Status, RegistrationOpen, RegistrationClose)
     VALUES (@DemoTournamentID, @DemoRound2ID, N'DEMO_SHOWCASE_FINISHED_RACE', DATEADD(DAY, -2, GETDATE()), 1500, N'Flat', 10, 30000000, 16000000, 7000000, 'Finished', DATEADD(DAY, -10, GETDATE()), DATEADD(DAY, -4, GETDATE()));
@@ -1477,7 +1500,7 @@ DECLARE @RefDemoRound2ID INT = (SELECT RoundID FROM Rounds WHERE TournamentID = 
 
 IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'REF1_PRECHECK_RACE')
     INSERT INTO Races (TournamentID, RoundID, RaceName, RaceDate, TrackLength, TrackType, MaxParticipants, PrizeFirst, PrizeSecond, PrizeThird, Status, RegistrationOpen, RegistrationClose)
-    VALUES (@RefDemoTournamentID, @RefDemoRound1ID, N'REF1_PRECHECK_RACE', DATEADD(DAY, 1, GETDATE()), 1000, N'Flat', 8, 15000000, 8000000, 3000000, 'Scheduled', DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, -1, GETDATE()));
+    VALUES (@RefDemoTournamentID, @RefDemoRound1ID, N'REF1_PRECHECK_RACE', DATEADD(DAY, 1, GETDATE()), 1000, N'Flat', 8, 15000000, 8000000, 3000000, 'RegistrationOpen', DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, -1, GETDATE()));
 IF NOT EXISTS (SELECT 1 FROM Races WHERE RaceName = N'REF1_ONGOING_INPUT_RACE')
     INSERT INTO Races (TournamentID, RoundID, RaceName, RaceDate, TrackLength, TrackType, MaxParticipants, PrizeFirst, PrizeSecond, PrizeThird, Status, RegistrationOpen, RegistrationClose)
     VALUES (@RefDemoTournamentID, @RefDemoRound1ID, N'REF1_ONGOING_INPUT_RACE', DATEADD(HOUR, 2, GETDATE()), 1200, N'Flat', 8, 20000000, 10000000, 5000000, 'Ongoing', DATEADD(DAY, -4, GETDATE()), DATEADD(DAY, -2, GETDATE()));
@@ -1500,7 +1523,7 @@ IF NOT EXISTS (SELECT 1 FROM RaceReferees WHERE RaceID = @RefFinishedRaceID AND 
 
 IF NOT EXISTS (SELECT 1 FROM RaceStatusHistory WHERE RaceID = @RefOngoingRaceID AND NewStatus = 'Ongoing')
     INSERT INTO RaceStatusHistory (RaceID, OldStatus, NewStatus, ChangedBy)
-    VALUES (@RefOngoingRaceID, 'Scheduled', 'Ongoing', @RefereeUserID);
+    VALUES (@RefOngoingRaceID, 'RegistrationOpen', 'Ongoing', @RefereeUserID);
 IF NOT EXISTS (SELECT 1 FROM RaceStatusHistory WHERE RaceID = @RefFinishedRaceID AND NewStatus = 'Finished')
     INSERT INTO RaceStatusHistory (RaceID, OldStatus, NewStatus, ChangedBy)
     VALUES (@RefFinishedRaceID, 'Ongoing', 'Finished', @RefereeUserID);
@@ -1593,9 +1616,176 @@ SELECT
 PRINT N'============================================================';
 PRINT N' HorseRacingDB v2 created successfully!';
 PRINT N' Business Flow v3 synchronized with settle-on-publish, DQ, and prize-to-wallet fixes.';
+PRINT N' Phase 1-8 schema included: admin user filters, direct tournament flow, race status flow, entry health approval, jockey deals, assigned referee races, and pre-race checks.';
 PRINT N'============================================================';
 GO
 
 
 
 
+
+/* ============================================================
+   PHASE 1 -> 6 DATA NORMALIZATION
+   File: DTB_8.2.2026.sql
+
+   Business state after phase 6:
+   - Tournament approval by Admin is removed.
+   - Tournaments use Draft/Open/Ongoing/Finished/Cancelled.
+   - Every tournament has exactly 3 default rounds:
+       1. Qualify
+       2. Semi Final
+       3. Final
+   - Race statuses use Draft, RegistrationOpen, Ongoing, Finished, Cancelled.
+   - Old race status Scheduled is migrated to Draft.
+   - One round has at most one race.
+   - Horse health and active flags are aligned.
+   ============================================================ */
+
+USE HorseRacingDB;
+GO
+
+BEGIN TRANSACTION;
+
+UPDATE dbo.Races
+SET Status = 'Draft'
+WHERE Status = 'Scheduled';
+
+UPDATE dbo.Tournaments
+SET Status = 'Draft'
+WHERE Status = 'PendingApproval'
+   OR Status IS NULL
+   OR LTRIM(RTRIM(Status)) = '';
+
+UPDATE dbo.Horses
+SET HealthStatus = 'Active'
+WHERE HealthStatus IS NULL
+   OR LTRIM(RTRIM(HealthStatus)) = '';
+
+UPDATE dbo.Horses
+SET IsActive = 0
+WHERE HealthStatus = 'Inactive';
+
+UPDATE dbo.Horses
+SET IsActive = 1
+WHERE HealthStatus IN ('Active', 'Injured');
+
+INSERT INTO dbo.Rounds (TournamentID, RoundName, RoundOrder, StartDate, EndDate)
+SELECT
+    t.TournamentID,
+    v.RoundName,
+    v.RoundOrder,
+    t.StartDate,
+    t.EndDate
+FROM dbo.Tournaments t
+CROSS APPLY (
+    VALUES
+        ('Qualify', 1),
+        ('Semi Final', 2),
+        ('Final', 3)
+) v(RoundName, RoundOrder)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Rounds r
+    WHERE r.TournamentID = t.TournamentID
+      AND r.RoundOrder = v.RoundOrder
+);
+
+UPDATE dbo.Rounds
+SET RoundName = 'Qualify'
+WHERE RoundOrder = 1
+  AND RoundName <> 'Qualify';
+
+UPDATE dbo.Rounds
+SET RoundName = 'Semi Final'
+WHERE RoundOrder = 2
+  AND RoundName <> 'Semi Final';
+
+UPDATE dbo.Rounds
+SET RoundName = 'Final'
+WHERE RoundOrder = 3
+  AND RoundName <> 'Final';
+
+DELETE r
+FROM dbo.Rounds r
+WHERE r.RoundOrder NOT IN (1, 2, 3)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dbo.Races ra
+      WHERE ra.RoundID = r.RoundID
+  );
+
+;WITH race_order AS (
+    SELECT
+        ra.RaceID,
+        ra.TournamentID,
+        ROW_NUMBER() OVER (
+            PARTITION BY ra.TournamentID
+            ORDER BY ra.RaceDate, ra.RaceID
+        ) AS rn
+    FROM dbo.Races ra
+),
+target_round AS (
+    SELECT
+        r.TournamentID,
+        r.RoundID,
+        r.RoundOrder
+    FROM dbo.Rounds r
+    WHERE r.RoundOrder IN (1, 2, 3)
+)
+UPDATE ra
+SET ra.RoundID = tr.RoundID
+FROM dbo.Races ra
+JOIN race_order ro
+    ON ro.RaceID = ra.RaceID
+JOIN target_round tr
+    ON tr.TournamentID = ro.TournamentID
+   AND tr.RoundOrder = ro.rn
+WHERE ro.rn <= 3;
+
+;WITH race_order AS (
+    SELECT
+        RaceID,
+        ROW_NUMBER() OVER (
+            PARTITION BY TournamentID
+            ORDER BY RaceDate, RaceID
+        ) AS rn
+    FROM dbo.Races
+)
+UPDATE ra
+SET
+    ra.Status = 'Cancelled',
+    ra.RoundID = NULL
+FROM dbo.Races ra
+JOIN race_order ro
+    ON ro.RaceID = ra.RaceID
+WHERE ro.rn > 3;
+
+COMMIT TRANSACTION;
+GO
+
+PRINT 'DTB_8.2.2026 phase 6 normalization completed.';
+GO
+
+SELECT Status, COUNT(*) AS Total
+FROM dbo.Races
+GROUP BY Status
+ORDER BY Status;
+
+SELECT Status, COUNT(*) AS Total
+FROM dbo.Tournaments
+GROUP BY Status
+ORDER BY Status;
+
+SELECT TournamentID, COUNT(*) AS RoundCount
+FROM dbo.Rounds
+GROUP BY TournamentID
+HAVING COUNT(*) <> 3
+ORDER BY TournamentID;
+
+SELECT RoundID, COUNT(*) AS RaceCount
+FROM dbo.Races
+WHERE RoundID IS NOT NULL
+GROUP BY RoundID
+HAVING COUNT(*) > 1
+ORDER BY RoundID;
+GO
