@@ -23,6 +23,19 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
     List<RaceEntry> findPublicEntriesByRaceId(@Param("raceId") Integer raceId);
 
     @Query(value = """
+            SELECT *
+            FROM RaceEntries
+            WHERE RaceID = :raceId
+              AND RegistrationStatus IN ('Approved', 'Ready')
+              AND ISNULL(RoundStatus, 'Qualified') <> 'Eliminated'
+            ORDER BY
+              CASE WHEN LaneNumber IS NULL THEN 1 ELSE 0 END,
+              LaneNumber,
+              EntryID
+            """, nativeQuery = true)
+    List<RaceEntry> findAdvancementEligibleEntriesByRaceId(@Param("raceId") Integer raceId);
+
+    @Query(value = """
             SELECT re.*
             FROM RaceEntries re
             JOIN Horses h ON re.HorseID = h.HorseID
@@ -44,6 +57,22 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
     long countByRaceIdAndRegistrationStatusNot(Integer raceId, String registrationStatus);
 
     boolean existsByRaceIdAndHorseIdAndRegistrationStatusNot(Integer raceId, Integer horseId, String registrationStatus);
+
+    boolean existsByRaceIdAndHorseId(Integer raceId, Integer horseId);
+
+    @Query(value = """
+            SELECT COUNT(1)
+            FROM RaceEntries re
+            JOIN Races r ON r.RaceID = re.RaceID
+            JOIN Rounds ro ON ro.RoundID = r.RoundID
+            WHERE r.TournamentID = :tournamentId
+              AND re.HorseID = :horseId
+              AND re.RoundStatus = 'Eliminated'
+              AND ro.RoundOrder < :roundOrder
+            """, nativeQuery = true)
+    int countEliminatedBeforeRound(@Param("tournamentId") Integer tournamentId,
+                                   @Param("horseId") Integer horseId,
+                                   @Param("roundOrder") Integer roundOrder);
 
     @Query(value = """
             SELECT COUNT(*)
