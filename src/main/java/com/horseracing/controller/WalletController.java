@@ -49,8 +49,13 @@ public class WalletController {
     }
 
     @GetMapping("/api/admin/deposit-requests")
-    public ApiResponse<?> getAllDepositRequests(HttpServletRequest request) {
-        return ApiResponse.success(200, "Deposit requests loaded successfully", walletService.getAllDepositRequests(request));
+    public ApiResponse<?> getAllDepositRequests(@RequestParam(required = false) String status,
+                                                @RequestParam(required = false) String paymentMethod,
+                                                @RequestParam(required = false) String date,
+                                                @RequestParam(required = false) String keyword,
+                                                HttpServletRequest request) {
+        return ApiResponse.success(200, "Deposit requests loaded successfully",
+                walletService.getAllDepositRequests(request, status, paymentMethod, date, keyword));
     }
 
     @PutMapping("/api/admin/deposit-requests/{id}/approve")

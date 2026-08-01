@@ -407,6 +407,22 @@ CREATE TABLE DepositRequests (
     CreatedAt        DATETIME2     DEFAULT GETDATE(),
     UpdatedAt        DATETIME2     DEFAULT GETDATE()
 );
+CREATE TABLE DepositComplaints (
+    ComplaintID      INT IDENTITY(1,1) PRIMARY KEY,
+    UserID           INT           NOT NULL REFERENCES Users(UserID),
+    DepositRequestID INT           NULL REFERENCES DepositRequests(DepositRequestID),
+    TransferCode     NVARCHAR(50),
+    Amount           DECIMAL(18,2) NOT NULL CHECK (Amount > 0),
+    PaymentMethod    NVARCHAR(20)  NOT NULL CHECK (PaymentMethod IN ('BANK', 'MOMO')),
+    Reason           NVARCHAR(1000) NOT NULL,
+    EvidenceUrl      NVARCHAR(500),
+    Status           NVARCHAR(20)  NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Resolved', 'Rejected')),
+    AdminNote        NVARCHAR(500),
+    ResolvedBy       INT           NULL REFERENCES Users(UserID),
+    ResolvedAt       DATETIME2,
+    CreatedAt        DATETIME2     DEFAULT GETDATE(),
+    UpdatedAt        DATETIME2     DEFAULT GETDATE()
+);
 CREATE TABLE WalletTransactions (
     TransactionID   INT IDENTITY(1,1) PRIMARY KEY,
     WalletID        INT           NOT NULL REFERENCES Wallets(WalletID),
