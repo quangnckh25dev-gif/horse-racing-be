@@ -47,18 +47,21 @@ public class HorseService {
         this.currentUserService = currentUserService;
     }
 
-    public List<HorseResponse> getHorses(HttpServletRequest httpRequest) {
+    public List<HorseResponse> getHorses(String keyword, String status, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
+        List<Horse> horses;
         if (currentUserService.isAdmin(user)) {
-            return horseRepository.findAll().stream().map(this::toHorseResponse).toList();
-        }
-        if (isOrganizer(user)) {
-            return horseRepository.findAll().stream().map(this::toHorseResponse).toList();
+            horses = horseRepository.findAll();
+        } else if (isOrganizer(user)) {
+            horses = horseRepository.findAll();
+        } else {
+            HorseOwner owner = getOwnerByUserId(user.getUserId());
+            horses = horseRepository.findByOwnerId(owner.getOwnerId());
         }
 
-        HorseOwner owner = getOwnerByUserId(user.getUserId());
-        return horseRepository.findByOwnerId(owner.getOwnerId())
-                .stream()
+        return horses.stream()
+                .filter(horse -> matchesKeyword(horse, keyword))
+                .filter(horse -> matchesStatus(horse, status))
                 .map(this::toHorseResponse)
                 .toList();
     }
@@ -115,7 +118,7 @@ public class HorseService {
 
         Horse horse = new Horse();
         horse.setOwnerId(owner.getOwnerId());
-        applyHorseFields(horse, request);
+        applyHorseFields(horse, request, user);
         if (horse.getRegisterCode() == null) {
             horse.setRegisterCode(generateRegisterCode());
         }
@@ -128,7 +131,7 @@ public class HorseService {
         Horse horse = getHorseEntity(horseId);
         ensureOwnerOwnsHorse(user, horse);
         validateHorseRequest(request);
-        applyHorseFields(horse, request);
+        applyHorseFields(horse, request, user);
 
         return toHorseResponse(horseRepository.save(horse));
     }
@@ -187,17 +190,20 @@ public class HorseService {
         return toHealthResponse(healthRecordRepository.save(record));
     }
 
-    private void applyHorseFields(Horse horse, HorseRequest request) {
+    private void applyHorseFields(Horse horse, HorseRequest request, User updatedBy) {
         horse.setHorseName(request.getHorseName().trim());
         horse.setBreed(trimToNull(request.getBreed()));
-        horse.setBirthYear(request.getBirthYear());
+        horse.setBirthYear(resolveBirthYear(request));
         horse.setColor(trimToNull(request.getColor()));
         horse.setGender(trimToNull(request.getGender()));
         horse.setWeightKg(resolveWeight(request));
         if (horse.getRegisterCode() == null) {
             horse.setRegisterCode(generateRegisterCode());
         }
-        if (horse.getHealthStatus() == null || horse.getHealthStatus().isBlank()) {
+        String requestedStatus = firstNonBlank(request.getStatus(), request.getHealthStatus());
+        if (requestedStatus != null) {
+            applyHorseStatus(horse, requestedStatus, updatedBy);
+        } else if (horse.getHealthStatus() == null || horse.getHealthStatus().isBlank()) {
             horse.setHealthStatus(HEALTH_ACTIVE);
         }
         if (horse.getIsActive() == null) {
@@ -214,7 +220,7 @@ public class HorseService {
             throw new IllegalArgumentException("horseName is required.");
         }
 
-        BigDecimal weight = request.getWeightKg();
+        BigDecimal weight = resolveWeight(request);
         if (weight == null) {
             throw new IllegalArgumentException("weightKg is required.");
         }
@@ -222,7 +228,7 @@ public class HorseService {
             throw new IllegalArgumentException("weightKg must be greater than 0.");
         }
 
-        Integer birthYear = request.getBirthYear();
+        Integer birthYear = resolveBirthYear(request);
         if (birthYear == null) {
             throw new IllegalArgumentException("birthYear is required.");
         }
@@ -260,10 +266,26 @@ public class HorseService {
     }
 
     private BigDecimal resolveWeight(HorseRequest request) {
-        return request.getWeightKg();
+        if (request.getWeightKg() != null) {
+            return request.getWeightKg();
+        }
+        return request.getWeight();
     }
 
-    private void applyHorseStatus(Horse horse, String status, User organizer) {
+    private Integer resolveBirthYear(HorseRequest request) {
+        if (request.getBirthYear() != null) {
+            return request.getBirthYear();
+        }
+        if (request.getAge() == null) {
+            return null;
+        }
+        if (request.getAge() <= 0) {
+            throw new IllegalArgumentException("age must be greater than 0.");
+        }
+        return Year.now().getValue() - request.getAge();
+    }
+
+    private void applyHorseStatus(Horse horse, String status, User updatedBy) {
         String normalized = normalizeStatus(status);
         if ("ACTIVE".equals(normalized)) {
             horse.setHealthStatus(HEALTH_ACTIVE);
@@ -275,7 +297,9 @@ public class HorseService {
             horse.setHealthStatus(HEALTH_INACTIVE);
             horse.setIsActive(false);
         }
-        horse.setHealthUpdatedBy(organizer.getUserId());
+        if (updatedBy != null) {
+            horse.setHealthUpdatedBy(updatedBy.getUserId());
+        }
         horse.setHealthUpdatedAt(LocalDateTime.now());
     }
 
@@ -299,6 +323,27 @@ public class HorseService {
         return Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT);
+    }
+
+    private boolean matchesKeyword(Horse horse, String keyword) {
+        String normalizedKeyword = normalizeText(keyword);
+        if (normalizedKeyword.isBlank()) {
+            return true;
+        }
+        return normalizeText(horse.getHorseName()).contains(normalizedKeyword)
+                || normalizeText(horse.getBreed()).contains(normalizedKeyword)
+                || normalizeText(horse.getRegisterCode()).contains(normalizedKeyword)
+                || normalizeText(horse.getColor()).contains(normalizedKeyword)
+                || normalizeText(horse.getGender()).contains(normalizedKeyword);
+    }
+
+    private boolean matchesStatus(Horse horse, String status) {
+        String normalizedStatus = normalizeText(status);
+        if (normalizedStatus.isBlank()) {
+            return true;
+        }
+        return normalizeText(resolveStatusCode(horse)).equals(normalizedStatus)
+                || normalizeText(horse.getHealthStatus()).equals(normalizedStatus);
     }
 
     private HorseResponse toHorseResponse(Horse horse) {
