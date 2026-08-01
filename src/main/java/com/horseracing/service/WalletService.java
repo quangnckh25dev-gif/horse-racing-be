@@ -16,9 +16,11 @@ import com.horseracing.repository.WalletRepository;
 import com.horseracing.repository.WalletTransactionRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -58,6 +60,7 @@ public class WalletService {
     @Transactional
     public DepositRequestResponse createDepositRequest(DepositRequestCreateRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
+        requireRole(user, "Spectator", "Only spectators can create deposit requests.");
         BigDecimal amount = validateAmount(request == null ? null : request.getAmount());
         String paymentMethod = normalizePaymentMethod(request == null ? null : request.getPaymentMethod());
         Wallet wallet = getOrCreateWallet(user.getUserId());
@@ -83,9 +86,22 @@ public class WalletService {
     }
 
     public List<DepositRequestResponse> getAllDepositRequests(HttpServletRequest request) {
+        return getAllDepositRequests(request, null, null, null, null);
+    }
+
+    public List<DepositRequestResponse> getAllDepositRequests(HttpServletRequest request, String status,
+                                                              String paymentMethod, String date,
+                                                              String keyword) {
         User user = currentUserService.getCurrentUser(request);
         requireAdmin(user);
-        return depositRequestRepository.findAllByOrderByCreatedAtDesc()
+        String cleanStatus = normalizeOptionalStatus(status);
+        String cleanPaymentMethod = paymentMethod == null || paymentMethod.isBlank()
+                ? null
+                : normalizePaymentMethod(paymentMethod);
+        LocalDate cleanDate = parseDate(date);
+        String cleanKeyword = trimToNull(keyword);
+
+        return depositRequestRepository.searchAdminDepositRequests(cleanStatus, cleanPaymentMethod, cleanDate, cleanKeyword)
                 .stream()
                 .map(this::toDepositRequestResponse)
                 .toList();
@@ -241,6 +257,13 @@ public class WalletService {
                 });
     }
 
+    @Scheduled(fixedDelay = 5000)
+    @Transactional
+    public void autoRejectExpiredDepositRequests() {
+        LocalDateTime now = LocalDateTime.now();
+        depositRequestRepository.autoRejectExpiredPendingRequests(now.minusSeconds(30), now);
+    }
+
     private BigDecimal validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("amount must be greater than 0.");
@@ -259,6 +282,31 @@ public class WalletService {
         return normalized;
     }
 
+    private String normalizeOptionalStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        String cleanStatus = status.trim();
+        if (!"Pending".equalsIgnoreCase(cleanStatus)
+                && !"Approved".equalsIgnoreCase(cleanStatus)
+                && !"Rejected".equalsIgnoreCase(cleanStatus)) {
+            throw new IllegalArgumentException("status only accepts Pending, Approved, or Rejected.");
+        }
+        return cleanStatus.substring(0, 1).toUpperCase(Locale.ROOT)
+                + cleanStatus.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    private LocalDate parseDate(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(date.trim());
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException("date must be in yyyy-MM-dd format.");
+        }
+    }
+
     private DepositRequest getPendingDepositRequest(Integer id) {
         if (id == null) {
             throw new IllegalArgumentException("depositRequestId is invalid.");
@@ -274,6 +322,12 @@ public class WalletService {
     private void requireAdmin(User user) {
         if (!currentUserService.isAdmin(user)) {
             throw new IllegalArgumentException("Only admins can perform this action.");
+        }
+    }
+
+    private void requireRole(User user, String roleName, String message) {
+        if (user == null || user.getRole() == null || !roleName.equalsIgnoreCase(user.getRole().getRoleName())) {
+            throw new IllegalArgumentException(message);
         }
     }
 
