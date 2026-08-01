@@ -106,6 +106,8 @@ public class BetResponse {
             case "PLACE" -> "Top 2";
             case "SHOW" -> "Top 3";
             case "EXACT" -> "Exact Position";
+            case "EXACT_POSITION" -> "Exact Position";
+            case "VIOLATION" -> "Violation";
             default -> value;
         };
     }

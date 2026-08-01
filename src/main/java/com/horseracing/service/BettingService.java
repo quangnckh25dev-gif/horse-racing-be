@@ -3,14 +3,21 @@ package com.horseracing.service;
 import com.horseracing.dto.BetOptionResponse;
 import com.horseracing.dto.BetRequest;
 import com.horseracing.dto.BetResponse;
+import com.horseracing.dto.BetSelectionResponse;
+import com.horseracing.dto.BetTicketResponse;
+import com.horseracing.dto.BettingHistoryResponse;
 import com.horseracing.dto.SettleBetResponse;
 import com.horseracing.entity.Bet;
+import com.horseracing.entity.BetSelection;
+import com.horseracing.entity.BetTicket;
 import com.horseracing.entity.Horse;
 import com.horseracing.entity.Race;
 import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.RaceResult;
 import com.horseracing.entity.User;
 import com.horseracing.repository.BetRepository;
+import com.horseracing.repository.BetSelectionRepository;
+import com.horseracing.repository.BetTicketRepository;
 import com.horseracing.repository.HorseRepository;
 import com.horseracing.repository.JockeyRepository;
 import com.horseracing.repository.RaceEntryRepository;
@@ -18,6 +25,7 @@ import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RaceResultRepository;
 import com.horseracing.repository.SystemConfigRepository;
 import com.horseracing.repository.UserRepository;
+import com.horseracing.repository.ViolationRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -40,15 +48,17 @@ public class BettingService {
     private static final String STATUS_LOST = "Lost";
     private static final BigDecimal DEFAULT_ODDS = BigDecimal.valueOf(2);
     private static final BigDecimal DEFAULT_EXACT_POSITION_FACTOR = BigDecimal.valueOf(0.25);
-    private static final BigDecimal DEFAULT_ODDS_FACTOR_PLACE = BigDecimal.valueOf(0.75);
-    private static final BigDecimal DEFAULT_ODDS_FACTOR_SHOW = BigDecimal.valueOf(0.50);
+    private static final BigDecimal DEFAULT_VIOLATION_ODDS = BigDecimal.valueOf(1.80);
     private static final BigDecimal DEFAULT_ODDS_MAX = BigDecimal.valueOf(8);
-    private static final Set<String> VALID_BET_TYPES = Set.of("WIN", "PLACE", "SHOW", "EXACT");
+    private static final Set<String> VALID_BET_TYPES = Set.of("WIN", "EXACT_POSITION", "VIOLATION");
 
     private final BetRepository betRepository;
+    private final BetTicketRepository betTicketRepository;
+    private final BetSelectionRepository betSelectionRepository;
     private final RaceRepository raceRepository;
     private final RaceEntryRepository raceEntryRepository;
     private final RaceResultRepository raceResultRepository;
+    private final ViolationRepository violationRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final HorseRepository horseRepository;
     private final JockeyRepository jockeyRepository;
@@ -57,9 +67,12 @@ public class BettingService {
     private final WalletService walletService;
 
     public BettingService(BetRepository betRepository,
+                          BetTicketRepository betTicketRepository,
+                          BetSelectionRepository betSelectionRepository,
                           RaceRepository raceRepository,
                           RaceEntryRepository raceEntryRepository,
                           RaceResultRepository raceResultRepository,
+                          ViolationRepository violationRepository,
                           SystemConfigRepository systemConfigRepository,
                           HorseRepository horseRepository,
                           JockeyRepository jockeyRepository,
@@ -67,9 +80,12 @@ public class BettingService {
                           CurrentUserService currentUserService,
                           WalletService walletService) {
         this.betRepository = betRepository;
+        this.betTicketRepository = betTicketRepository;
+        this.betSelectionRepository = betSelectionRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
         this.raceResultRepository = raceResultRepository;
+        this.violationRepository = violationRepository;
         this.systemConfigRepository = systemConfigRepository;
         this.horseRepository = horseRepository;
         this.jockeyRepository = jockeyRepository;
@@ -100,12 +116,17 @@ public class BettingService {
                 .toList();
     }
 
-    public List<BetResponse> getMyHistory(HttpServletRequest request) {
+    public BettingHistoryResponse getMyHistory(HttpServletRequest request) {
         User user = currentUserService.getCurrentUser(request);
-        return betRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())
+        List<BetResponse> singleBets = betRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())
                 .stream()
                 .map(this::toResponse)
                 .toList();
+        List<BetTicketResponse> parlayTickets = betTicketRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())
+                .stream()
+                .map(this::toTicketResponse)
+                .toList();
+        return new BettingHistoryResponse(singleBets, parlayTickets);
     }
 
     @Transactional
@@ -114,7 +135,7 @@ public class BettingService {
         Race race = ensureRaceOpenForBetting(raceId);
         RaceEntry entry = validateBetRequest(race, request);
         String betType = normalizeBetType(request.getBetType());
-        Integer targetPosition = resolveTargetPosition(race, request, betType);
+        Integer targetPosition = resolveTargetPosition(race, request.getTargetPosition(), betType);
 
         BigDecimal odds = calculateOddsForBet(entry, betType, targetPosition);
         if (odds.compareTo(BigDecimal.ONE) <= 0) {
@@ -138,13 +159,61 @@ public class BettingService {
     }
 
     @Transactional
+    public BetTicketResponse placeParlayTicket(Integer raceId, BetRequest request, HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        Race race = ensureRaceOpenForBetting(raceId);
+        BigDecimal amount = validateAmount(request == null ? null : request.getAmount());
+        if (request.getSelections() == null || request.getSelections().size() < 2) {
+            throw new IllegalArgumentException("A parlay ticket requires at least two selections.");
+        }
+
+        BigDecimal totalOdds = BigDecimal.ONE;
+        List<BetSelection> selections = new ArrayList<>();
+        for (BetRequest.SelectionRequest selectionRequest : request.getSelections()) {
+            RaceEntry entry = validateSelectionRequest(race, selectionRequest);
+            String betType = normalizeBetType(selectionRequest.getBetType());
+            Integer targetPosition = resolveTargetPosition(race, selectionRequest.getTargetPosition(), betType);
+            BigDecimal odds = calculateOddsForBet(entry, betType, targetPosition);
+            totalOdds = totalOdds.multiply(odds);
+
+            BetSelection selection = new BetSelection();
+            selection.setRaceId(raceId);
+            selection.setEntryId(entry.getEntryId());
+            selection.setBetType(betType);
+            selection.setTargetPosition(targetPosition);
+            selection.setOdds(odds);
+            selection.setResolved(false);
+            selection.setWon(null);
+            selections.add(selection);
+        }
+
+        totalOdds = totalOdds.setScale(2, RoundingMode.HALF_UP);
+        BetTicket ticket = new BetTicket();
+        ticket.setUserId(user.getUserId());
+        ticket.setRaceId(raceId);
+        ticket.setAmount(amount);
+        ticket.setOdds(totalOdds);
+        ticket.setPotentialPayout(amount.multiply(totalOdds).setScale(2, RoundingMode.HALF_UP));
+        ticket.setStatus(STATUS_PENDING);
+
+        BetTicket savedTicket = betTicketRepository.save(ticket);
+        for (BetSelection selection : selections) {
+            selection.setTicketId(savedTicket.getTicketId());
+        }
+        betSelectionRepository.saveAll(selections);
+        walletService.debitForBetTicket(user.getUserId(), savedTicket.getAmount(), savedTicket.getTicketId());
+        return toTicketResponse(savedTicket);
+    }
+
+    @Transactional
     public SettleBetResponse settleRaceBets(Integer raceId) {
         ensureRaceExists(raceId);
         List<Bet> pendingBets = betRepository.findByRaceIdAndStatus(raceId, STATUS_PENDING);
+        List<BetTicket> pendingTickets = betTicketRepository.findByRaceIdAndStatus(raceId, STATUS_PENDING);
         List<RaceResult> results = raceResultRepository.findByRaceId(raceId);
 
-        if (pendingBets.isEmpty() || results.isEmpty()) {
-            return new SettleBetResponse(raceId, pendingBets.size(), 0, 0);
+        if ((pendingBets.isEmpty() && pendingTickets.isEmpty()) || results.isEmpty()) {
+            return new SettleBetResponse(raceId, pendingBets.size() + pendingTickets.size(), 0, 0);
         }
 
         Map<Integer, RaceResult> resultByEntryId = new HashMap<>();
@@ -158,7 +227,7 @@ public class BettingService {
 
         for (Bet bet : pendingBets) {
             RaceResult result = resultByEntryId.get(bet.getEntryId());
-            if (isWinningBet(bet, result)) {
+            if (isWinningSelection(raceId, bet.getEntryId(), bet.getBetType(), bet.getTargetPosition(), result)) {
                 bet.setStatus(STATUS_WON);
                 walletService.creditBetWin(bet.getUserId(), bet.getPotentialPayout(), bet.getBetId());
                 won++;
@@ -170,21 +239,56 @@ public class BettingService {
         }
 
         betRepository.saveAll(pendingBets);
-        return new SettleBetResponse(raceId, pendingBets.size(), won, lost);
+
+        for (BetTicket ticket : pendingTickets) {
+            List<BetSelection> selections = betSelectionRepository.findByTicketIdOrderBySelectionIdAsc(ticket.getTicketId());
+            boolean allWon = true;
+            for (BetSelection selection : selections) {
+                boolean selectionWon = isWinningSelection(
+                        raceId,
+                        selection.getEntryId(),
+                        selection.getBetType(),
+                        selection.getTargetPosition(),
+                        resultByEntryId.get(selection.getEntryId())
+                );
+                selection.setResolved(true);
+                selection.setWon(selectionWon);
+                if (!selectionWon) {
+                    allWon = false;
+                }
+            }
+            if (allWon) {
+                ticket.setStatus(STATUS_WON);
+                walletService.creditBetTicketWin(ticket.getUserId(), ticket.getPotentialPayout(), ticket.getTicketId());
+                won++;
+            } else {
+                ticket.setStatus(STATUS_LOST);
+                lost++;
+            }
+            ticket.setSettledAt(now);
+            betSelectionRepository.saveAll(selections);
+        }
+
+        betTicketRepository.saveAll(pendingTickets);
+        return new SettleBetResponse(raceId, pendingBets.size() + pendingTickets.size(), won, lost);
     }
 
-    private boolean isWinningBet(Bet bet, RaceResult result) {
+    private boolean isWinningSelection(Integer raceId, Integer entryId, String betType,
+                                       Integer targetPosition, RaceResult result) {
+        if ("VIOLATION".equals(betType)) {
+            return violationRepository.countEntryViolations(raceId, entryId) > 0;
+        }
         if (result == null || Boolean.TRUE.equals(result.getDnf()) || Boolean.TRUE.equals(result.getDq())
                 || result.getFinishPosition() == null) {
             return false;
         }
 
-        return switch (bet.getBetType()) {
+        return switch (betType) {
             case "WIN" -> Integer.valueOf(1).equals(result.getFinishPosition());
             case "PLACE" -> result.getFinishPosition() <= 2;
             case "SHOW" -> result.getFinishPosition() <= 3;
-            case "EXACT" -> bet.getTargetPosition() != null
-                    && bet.getTargetPosition().equals(result.getFinishPosition());
+            case "EXACT" -> targetPosition != null && targetPosition.equals(result.getFinishPosition());
+            case "EXACT_POSITION" -> targetPosition != null && targetPosition.equals(result.getFinishPosition());
             default -> false;
         };
     }
@@ -215,9 +319,7 @@ public class BettingService {
         if (request.getEntryId() == null) {
             throw new IllegalArgumentException("entryId is required.");
         }
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount must be greater than 0.");
-        }
+        validateAmount(request.getAmount());
 
         RaceEntry entry = raceEntryRepository.findById(request.getEntryId())
                 .orElseThrow(() -> new IllegalArgumentException("Race entry was not found."));
@@ -231,23 +333,45 @@ public class BettingService {
         return entry;
     }
 
+    private RaceEntry validateSelectionRequest(Race race, BetRequest.SelectionRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Selection data is invalid.");
+        }
+        BetRequest wrapper = new BetRequest();
+        wrapper.setEntryId(request.getEntryId());
+        wrapper.setBetType(request.getBetType());
+        wrapper.setTargetPosition(request.getTargetPosition());
+        wrapper.setAmount(BigDecimal.ONE);
+        return validateBetRequest(race, wrapper);
+    }
+
+    private BigDecimal validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be greater than 0.");
+        }
+        return amount;
+    }
+
     private String normalizeBetType(String betType) {
         String normalized = betType == null || betType.isBlank()
                 ? "WIN"
                 : betType.trim().toUpperCase(Locale.ROOT);
+        if ("EXACT".equals(normalized)) {
+            normalized = "EXACT_POSITION";
+        }
         if (!VALID_BET_TYPES.contains(normalized)) {
-            throw new IllegalArgumentException("betType only accepts WIN, PLACE, SHOW, EXACT.");
+            throw new IllegalArgumentException("betType only accepts WIN, EXACT_POSITION, or VIOLATION.");
         }
         return normalized;
     }
 
-    private Integer resolveTargetPosition(Race race, BetRequest request, String betType) {
-        if (!"EXACT".equals(betType)) {
+    private Integer resolveTargetPosition(Race race, Integer requestedTargetPosition, String betType) {
+        if (!"EXACT_POSITION".equals(betType)) {
             return null;
         }
-        Integer targetPosition = request.getTargetPosition();
+        Integer targetPosition = requestedTargetPosition;
         if (targetPosition == null || targetPosition <= 0) {
-            throw new IllegalArgumentException("targetPosition is required when betType is EXACT.");
+            throw new IllegalArgumentException("targetPosition is required when betType is EXACT_POSITION.");
         }
         int maxPosition = resolveMaxBetPosition(raceEntryRepository.findPublicEntriesByRaceId(race.getRaceId()));
         if (targetPosition > maxPosition) {
@@ -260,9 +384,8 @@ public class BettingService {
         Integer horseRank = horseRepository.findHorseRank(entry.getHorseId()).orElse(null);
         BigDecimal baseOdds = resolveBaseOdds(entry, horseRank);
         BigDecimal odds = switch (betType) {
-            case "PLACE" -> baseOdds.multiply(readConfigDecimal("ODDS_FACTOR_PLACE", DEFAULT_ODDS_FACTOR_PLACE));
-            case "SHOW" -> baseOdds.multiply(readConfigDecimal("ODDS_FACTOR_SHOW", DEFAULT_ODDS_FACTOR_SHOW));
-            case "EXACT" -> calculateExactOdds(baseOdds, targetPosition);
+            case "EXACT_POSITION" -> calculateExactOdds(baseOdds, targetPosition);
+            case "VIOLATION" -> readConfigDecimal("ODDS_VIOLATION", DEFAULT_VIOLATION_ODDS);
             default -> baseOdds;
         };
         return normalizeOdds(odds);
@@ -279,13 +402,11 @@ public class BettingService {
         BigDecimal baseOdds = resolveBaseOdds(entry, horseRank);
 
         options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "WIN", null, baseOdds, baseOdds));
-        options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "PLACE", null,
-                baseOdds, baseOdds.multiply(readConfigDecimal("ODDS_FACTOR_PLACE", DEFAULT_ODDS_FACTOR_PLACE))));
-        options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "SHOW", null,
-                baseOdds, baseOdds.multiply(readConfigDecimal("ODDS_FACTOR_SHOW", DEFAULT_ODDS_FACTOR_SHOW))));
+        options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "VIOLATION", null,
+                baseOdds, readConfigDecimal("ODDS_VIOLATION", DEFAULT_VIOLATION_ODDS)));
 
         for (int position = 1; position <= maxPosition; position++) {
-            options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "EXACT", position,
+            options.add(toBetOptionResponse(entry, horse, jockeyName, horseRank, "EXACT_POSITION", position,
                     baseOdds, calculateExactOdds(baseOdds, position)));
         }
 
@@ -392,6 +513,44 @@ public class BettingService {
                 bet.getStatus(),
                 bet.getCreatedAt(),
                 bet.getSettledAt()
+        );
+    }
+
+    private BetTicketResponse toTicketResponse(BetTicket ticket) {
+        Race race = raceRepository.findById(ticket.getRaceId()).orElse(null);
+        List<BetSelectionResponse> selections = betSelectionRepository
+                .findByTicketIdOrderBySelectionIdAsc(ticket.getTicketId())
+                .stream()
+                .map(this::toSelectionResponse)
+                .toList();
+        return new BetTicketResponse(
+                ticket.getTicketId(),
+                ticket.getUserId(),
+                ticket.getRaceId(),
+                race == null ? null : race.getRaceName(),
+                ticket.getAmount(),
+                ticket.getOdds(),
+                ticket.getPotentialPayout(),
+                ticket.getStatus(),
+                selections,
+                ticket.getCreatedAt(),
+                ticket.getSettledAt()
+        );
+    }
+
+    private BetSelectionResponse toSelectionResponse(BetSelection selection) {
+        RaceEntry entry = raceEntryRepository.findById(selection.getEntryId()).orElse(null);
+        Horse horse = entry == null ? null : horseRepository.findById(entry.getHorseId()).orElse(null);
+        return new BetSelectionResponse(
+                selection.getSelectionId(),
+                selection.getEntryId(),
+                horse == null ? null : horse.getHorseId(),
+                horse == null ? null : horse.getHorseName(),
+                selection.getBetType(),
+                selection.getTargetPosition(),
+                selection.getOdds(),
+                selection.getResolved(),
+                selection.getWon()
         );
     }
 }
