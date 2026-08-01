@@ -12,6 +12,7 @@ import com.horseracing.entity.User;
 import com.horseracing.entity.Wallet;
 import com.horseracing.entity.WalletTransaction;
 import com.horseracing.repository.DepositRequestRepository;
+import com.horseracing.repository.UserRepository;
 import com.horseracing.repository.WalletRepository;
 import com.horseracing.repository.WalletTransactionRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,15 +33,18 @@ public class WalletService {
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final DepositRequestRepository depositRequestRepository;
+    private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
 
     public WalletService(WalletRepository walletRepository,
                          WalletTransactionRepository walletTransactionRepository,
                          DepositRequestRepository depositRequestRepository,
+                         UserRepository userRepository,
                          CurrentUserService currentUserService) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
         this.depositRequestRepository = depositRequestRepository;
+        this.userRepository = userRepository;
         this.currentUserService = currentUserService;
     }
 
@@ -437,9 +441,14 @@ public class WalletService {
     }
 
     private DepositRequestResponse toDepositRequestResponse(DepositRequest request) {
+        User user = userRepository.findById(request.getUserId()).orElse(null);
         return new DepositRequestResponse(
                 request.getDepositRequestId(),
                 request.getUserId(),
+                user == null ? null : user.getUsername(),
+                user == null ? null : user.getFullName(),
+                user == null ? null : user.getEmail(),
+                user == null ? null : user.getPhone(),
                 request.getWalletId(),
                 request.getAmount(),
                 request.getPaymentMethod(),
