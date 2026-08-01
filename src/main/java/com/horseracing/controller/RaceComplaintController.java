@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,15 +33,19 @@ public class RaceComplaintController {
     }
 
     @GetMapping("/api/complaints/races/mine")
-    public ApiResponse<?> getMyComplaints(HttpServletRequest request) {
+    public ApiResponse<?> getMyComplaints(HttpServletRequest request,
+                                          @RequestParam(required = false) String status,
+                                          @RequestParam(required = false) String keyword) {
         return ApiResponse.success(200, "My race complaints loaded successfully",
-                raceComplaintService.getMyComplaints(request));
+                raceComplaintService.getMyComplaints(request, status, keyword));
     }
 
     @GetMapping("/api/referee/complaints/races")
-    public ApiResponse<?> getRefereeComplaints(HttpServletRequest request) {
+    public ApiResponse<?> getRefereeComplaints(HttpServletRequest request,
+                                               @RequestParam(required = false) String status,
+                                               @RequestParam(required = false) String keyword) {
         return ApiResponse.success(200, "Race complaints loaded successfully",
-                raceComplaintService.getRefereeComplaints(request));
+                raceComplaintService.getRefereeComplaints(request, status, keyword));
     }
 
     @GetMapping("/api/referee/complaints/races/{id}")
@@ -74,9 +79,11 @@ public class RaceComplaintController {
     }
 
     @GetMapping("/api/organizer/complaints/races")
-    public ApiResponse<?> getOrganizerComplaints(HttpServletRequest request) {
+    public ApiResponse<?> getOrganizerComplaints(HttpServletRequest request,
+                                                @RequestParam(required = false) String status,
+                                                @RequestParam(required = false) String keyword) {
         return ApiResponse.success(200, "Forwarded race complaints loaded successfully",
-                raceComplaintService.getOrganizerComplaints(request));
+                raceComplaintService.getOrganizerComplaints(request, status, keyword));
     }
 
     @PutMapping("/api/organizer/complaints/races/{id}/resolve")

@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -84,9 +85,18 @@ public class RaceResultService {
 
     @Transactional
     public List<RaceResultResponse> getResultsByRace(Integer raceId) {
+        return getResultsByRace(raceId, null, null);
+    }
+
+    @Transactional
+    public List<RaceResultResponse> getResultsByRace(Integer raceId, String status, String keyword) {
         ensureRaceExists(raceId);
+        String statusFilter = normalizeOptionalApprovalStatus(status);
+        String keywordFilter = trimToNull(keyword);
         raceRankingService.recalculateRace(raceId);
         return raceResultRepository.findByRaceId(raceId).stream()
+                .filter(result -> statusFilter == null || statusFilter.equalsIgnoreCase(result.getApprovalStatus()))
+                .filter(result -> matchesResultKeyword(result, keywordFilter))
                 .map(this::toResponse)
                 .toList();
     }
@@ -434,6 +444,35 @@ public class RaceResultService {
 
     private String trimToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeOptionalApprovalStatus(String status) {
+        String cleanStatus = trimToNull(status);
+        if (cleanStatus == null) {
+            return null;
+        }
+        if (!STATUS_PENDING.equalsIgnoreCase(cleanStatus)
+                && !STATUS_APPROVED.equalsIgnoreCase(cleanStatus)
+                && !STATUS_REJECTED.equalsIgnoreCase(cleanStatus)
+                && !STATUS_PUBLISHED.equalsIgnoreCase(cleanStatus)) {
+            throw new IllegalArgumentException("status only accepts Pending, Approved, Rejected, or Published.");
+        }
+        return cleanStatus;
+    }
+
+    private boolean matchesResultKeyword(RaceResult result, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        String normalized = keyword.toLowerCase(Locale.ROOT);
+        return contains(raceResultRepository.findHorseNameByEntryId(result.getEntryId()), normalized)
+                || contains(raceResultRepository.findJockeyNameByEntryId(result.getEntryId()), normalized)
+                || contains(String.valueOf(result.getFinishPosition()), normalized)
+                || contains(result.getApprovalStatus(), normalized);
+    }
+
+    private boolean contains(String value, String keyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     private BigDecimal parseFinishTime(String finishTime) {

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,8 +34,10 @@ public class JockeyInvitationController {
     }
 
     @GetMapping("/api/invitations/received")
-    public ApiResponse<?> getReceivedInvitations(HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Received invitations loaded successfully", invitationService.getReceivedInvitations(httpRequest));
+    public ApiResponse<?> getReceivedInvitations(HttpServletRequest httpRequest,
+                                                 @RequestParam(required = false) String status,
+                                                 @RequestParam(required = false) String keyword) {
+        return ApiResponse.success(200, "Received invitations loaded successfully", invitationService.getReceivedInvitations(httpRequest, status, keyword));
     }
 
     @PatchMapping("/api/invitations/{invitationId}/respond")
@@ -43,8 +46,10 @@ public class JockeyInvitationController {
     }
 
     @GetMapping("/api/invitations/sent")
-    public ApiResponse<?> getSentInvitations(HttpServletRequest httpRequest) {
-        return ApiResponse.success(200, "Sent invitations loaded successfully", invitationService.getSentInvitations(httpRequest));
+    public ApiResponse<?> getSentInvitations(HttpServletRequest httpRequest,
+                                             @RequestParam(required = false) String status,
+                                             @RequestParam(required = false) String keyword) {
+        return ApiResponse.success(200, "Sent invitations loaded successfully", invitationService.getSentInvitations(httpRequest, status, keyword));
     }
 
     // Owner cancels a pending invitation.

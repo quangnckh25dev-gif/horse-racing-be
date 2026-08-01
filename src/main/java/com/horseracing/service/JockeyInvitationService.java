@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class JockeyInvitationService {
@@ -112,21 +113,29 @@ public class JockeyInvitationService {
         return toResponse(saved);
     }
 
-    public List<JockeyInvitationResponse> getReceivedInvitations(HttpServletRequest httpRequest) {
+    public List<JockeyInvitationResponse> getReceivedInvitations(HttpServletRequest httpRequest, String status, String keyword) {
         User user = currentUserService.getCurrentUser(httpRequest);
         Jockey jockey = jockeyRepository.findByUserId(user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Current user does not have a Jockey profile."));
+        String statusFilter = normalizeOptionalInvitationStatus(status);
+        String keywordFilter = trimToNull(keyword);
         return invitationRepository.findByJockeyIdOrderByInvitedAtDesc(jockey.getJockeyId())
                 .stream()
+                .filter(invitation -> matchesInvitationStatus(invitation, statusFilter))
+                .filter(invitation -> matchesInvitationKeyword(invitation, keywordFilter))
                 .map(this::toResponse)
                 .toList();
     }
 
-    public List<JockeyInvitationResponse> getSentInvitations(HttpServletRequest httpRequest) {
+    public List<JockeyInvitationResponse> getSentInvitations(HttpServletRequest httpRequest, String status, String keyword) {
         User user = currentUserService.getCurrentUser(httpRequest);
         HorseOwner owner = getOwnerByUserId(user.getUserId());
+        String statusFilter = normalizeOptionalInvitationStatus(status);
+        String keywordFilter = trimToNull(keyword);
         return invitationRepository.findByInvitedByOwnerOrderByInvitedAtDesc(owner.getOwnerId())
                 .stream()
+                .filter(invitation -> matchesInvitationStatus(invitation, statusFilter))
+                .filter(invitation -> matchesInvitationKeyword(invitation, keywordFilter))
                 .map(this::toResponse)
                 .toList();
     }
@@ -217,6 +226,56 @@ public class JockeyInvitationService {
             throw new IllegalArgumentException("dealAmount must be greater than 0.");
         }
         return dealAmount;
+    }
+
+    private String normalizeOptionalInvitationStatus(String status) {
+        String cleanStatus = trimToNull(status);
+        if (cleanStatus == null) {
+            return null;
+        }
+        if ("Rejected".equalsIgnoreCase(cleanStatus) || "Reject".equalsIgnoreCase(cleanStatus)) {
+            return "Declined";
+        }
+        if ("Accept".equalsIgnoreCase(cleanStatus)) {
+            return "Accepted";
+        }
+        if (!"Pending".equalsIgnoreCase(cleanStatus)
+                && !"Accepted".equalsIgnoreCase(cleanStatus)
+                && !"Declined".equalsIgnoreCase(cleanStatus)
+                && !"Cancelled".equalsIgnoreCase(cleanStatus)) {
+            throw new IllegalArgumentException("status only accepts Pending, Accepted, Declined, or Cancelled.");
+        }
+        return cleanStatus;
+    }
+
+    private boolean matchesInvitationStatus(JockeyInvitation invitation, String status) {
+        return status == null || status.equalsIgnoreCase(invitation.getStatus());
+    }
+
+    private boolean matchesInvitationKeyword(JockeyInvitation invitation, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        String normalized = keyword.toLowerCase(Locale.ROOT);
+        RaceEntry entry = raceEntryRepository.findById(invitation.getEntryId()).orElse(null);
+        Race race = entry == null ? null : raceRepository.findById(entry.getRaceId()).orElse(null);
+        Horse horse = entry == null ? null : horseRepository.findById(entry.getHorseId()).orElse(null);
+        HorseOwner owner = horse == null ? null : horseOwnerRepository.findById(horse.getOwnerId()).orElse(null);
+        User ownerUser = owner == null ? null : userRepository.findById(owner.getUserId()).orElse(null);
+        Jockey jockey = jockeyRepository.findById(invitation.getJockeyId()).orElse(null);
+        User jockeyUser = jockey == null ? null : userRepository.findById(jockey.getUserId()).orElse(null);
+        return contains(invitation.getMessage(), normalized)
+                || contains(invitation.getResponseReason(), normalized)
+                || contains(race == null ? null : race.getRaceName(), normalized)
+                || contains(horse == null ? null : horse.getHorseName(), normalized)
+                || contains(ownerUser == null ? null : ownerUser.getFullName(), normalized)
+                || contains(ownerUser == null ? null : ownerUser.getUsername(), normalized)
+                || contains(jockeyUser == null ? null : jockeyUser.getFullName(), normalized)
+                || contains(jockeyUser == null ? null : jockeyUser.getUsername(), normalized);
+    }
+
+    private boolean contains(String value, String keyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     private String trimToNull(String value) {

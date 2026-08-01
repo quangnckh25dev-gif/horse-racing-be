@@ -7,7 +7,10 @@ import com.horseracing.repository.AuditLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class AuditLogService {
@@ -20,10 +23,19 @@ public class AuditLogService {
         this.currentUserService = currentUserService;
     }
 
-    public List<AuditLogResponse> getLogs(HttpServletRequest request) {
+    public List<AuditLogResponse> getLogs(HttpServletRequest request, String action, String tableName,
+                                          String keyword, String date) {
         requireAdmin(request);
+        String actionFilter = trimToNull(action);
+        String tableFilter = trimToNull(tableName);
+        String keywordFilter = trimToNull(keyword);
+        LocalDate dateFilter = parseDate(date);
         return auditLogRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
+                .filter(log -> matchesText(log.getAction(), actionFilter))
+                .filter(log -> matchesText(log.getTableName(), tableFilter))
+                .filter(log -> matchesDate(log, dateFilter))
+                .filter(log -> matchesKeyword(log, keywordFilter))
                 .map(this::toResponse)
                 .toList();
     }
@@ -54,6 +66,48 @@ public class AuditLogService {
         if (!currentUserService.isAdmin(user)) {
             throw new SecurityException("Only admins can view audit logs.");
         }
+    }
+
+    private boolean matchesText(String value, String filter) {
+        return filter == null || (value != null && value.equalsIgnoreCase(filter));
+    }
+
+    private boolean matchesDate(AuditLog auditLog, LocalDate date) {
+        return date == null || (auditLog.getCreatedAt() != null && date.equals(auditLog.getCreatedAt().toLocalDate()));
+    }
+
+    private boolean matchesKeyword(AuditLog auditLog, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        String normalized = keyword.toLowerCase(Locale.ROOT);
+        return contains(auditLog.getAction(), normalized)
+                || contains(auditLog.getTableName(), normalized)
+                || contains(auditLog.getOldValue(), normalized)
+                || contains(auditLog.getNewValue(), normalized)
+                || contains(auditLog.getIpAddress(), normalized)
+                || contains(String.valueOf(auditLog.getUserId()), normalized)
+                || contains(String.valueOf(auditLog.getRecordId()), normalized);
+    }
+
+    private boolean contains(String value, String keyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
+    }
+
+    private LocalDate parseDate(String date) {
+        String value = trimToNull(date);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("date must be in yyyy-MM-dd format.");
+        }
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private AuditLogResponse toResponse(AuditLog auditLog) {

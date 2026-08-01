@@ -13,7 +13,9 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
@@ -87,11 +89,22 @@ public class DepositComplaintService {
                 .toList();
     }
 
-    public List<DepositComplaintResponse> getAllComplaints(HttpServletRequest request) {
+    public List<DepositComplaintResponse> getAllComplaints(HttpServletRequest request, String status,
+                                                           String paymentMethod, String keyword, String date) {
         User admin = currentUserService.getCurrentUser(request);
         requireAdmin(admin);
+        String statusFilter = normalizeOptionalStatus(status);
+        String paymentMethodFilter = paymentMethod == null || paymentMethod.isBlank()
+                ? null
+                : normalizePaymentMethod(paymentMethod);
+        String keywordFilter = trimToNull(keyword);
+        LocalDate dateFilter = parseDate(date);
         return depositComplaintRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
+                .filter(complaint -> statusFilter == null || statusFilter.equalsIgnoreCase(complaint.getStatus()))
+                .filter(complaint -> paymentMethodFilter == null || paymentMethodFilter.equalsIgnoreCase(complaint.getPaymentMethod()))
+                .filter(complaint -> matchesDate(complaint, dateFilter))
+                .filter(complaint -> matchesKeyword(complaint, keywordFilter))
                 .map(this::toResponse)
                 .toList();
     }
@@ -181,6 +194,54 @@ public class DepositComplaintService {
             throw new IllegalArgumentException("paymentMethod only accepts BANK or MOMO.");
         }
         return normalized;
+    }
+
+    private String normalizeOptionalStatus(String status) {
+        String cleanStatus = trimToNull(status);
+        if (cleanStatus == null) {
+            return null;
+        }
+        if (!STATUS_PENDING.equalsIgnoreCase(cleanStatus)
+                && !STATUS_RESOLVED.equalsIgnoreCase(cleanStatus)
+                && !STATUS_REJECTED.equalsIgnoreCase(cleanStatus)) {
+            throw new IllegalArgumentException("status only accepts Pending, Resolved, or Rejected.");
+        }
+        return cleanStatus;
+    }
+
+    private boolean matchesDate(DepositComplaint complaint, LocalDate date) {
+        return date == null || (complaint.getCreatedAt() != null && date.equals(complaint.getCreatedAt().toLocalDate()));
+    }
+
+    private boolean matchesKeyword(DepositComplaint complaint, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        User user = userRepository.findById(complaint.getUserId()).orElse(null);
+        String normalized = keyword.toLowerCase(Locale.ROOT);
+        return contains(complaint.getTransferCode(), normalized)
+                || contains(complaint.getReason(), normalized)
+                || contains(complaint.getEvidenceUrl(), normalized)
+                || contains(user == null ? null : user.getUsername(), normalized)
+                || contains(user == null ? null : user.getFullName(), normalized)
+                || contains(user == null ? null : user.getEmail(), normalized)
+                || contains(user == null ? null : user.getPhone(), normalized);
+    }
+
+    private boolean contains(String value, String keyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
+    }
+
+    private LocalDate parseDate(String date) {
+        String value = trimToNull(date);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("date must be in yyyy-MM-dd format.");
+        }
     }
 
     private String trimToNull(String value) {

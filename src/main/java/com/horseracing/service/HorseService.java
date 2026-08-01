@@ -370,8 +370,7 @@ public class HorseService {
     }
 
     private String resolveStatusCode(Horse horse) {
-        // Doc du lieu thi KHONG duoc throw: healthStatus co the la text tu do (vd chan doan suc khoe)
-        // -> normalize an toan, khong nhan dang duoc thi bo qua, fallback theo isActive.
+        // Health text can be free-form, so status display falls back to isActive when it cannot be normalized.
         String normalized = safeNormalizeStatus(horse.getHealthStatus());
         if ("INJURED".equals(normalized)) {
             return "Injured";
@@ -382,7 +381,7 @@ public class HorseService {
         return Boolean.TRUE.equals(horse.getIsActive()) ? "Active" : "Inactive";
     }
 
-    // Chi dung khi DOC/hien thi: tra ve null neu khong nhan dang duoc (thay vi nem loi nhu normalizeStatus)
+    // Read-only normalization used for display.
     private String safeNormalizeStatus(String status) {
         if (status == null || status.isBlank()) {
             return null;

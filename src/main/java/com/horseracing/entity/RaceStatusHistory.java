@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "RaceStatusHistory")
 public class RaceStatusHistory {
-    //của buiquangann
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "HistoryID")

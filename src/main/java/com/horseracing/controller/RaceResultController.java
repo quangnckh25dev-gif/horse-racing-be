@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,11 +33,13 @@ public class RaceResultController {
     }
 
     @GetMapping
-    public ApiResponse<?> getResults(@PathVariable Integer raceId) {
+    public ApiResponse<?> getResults(@PathVariable Integer raceId,
+                                     @RequestParam(required = false) String status,
+                                     @RequestParam(required = false) String keyword) {
         return ApiResponse.success(
                 200,
                 "Race results loaded successfully",
-                raceResultService.getResultsByRace(raceId)
+                raceResultService.getResultsByRace(raceId, status, keyword)
         );
     }
 

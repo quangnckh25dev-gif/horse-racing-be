@@ -83,7 +83,6 @@ public class TournamentService {
     }
 
     @Transactional
-    //của buiquangann
     public TournamentResponse createTournament(TournamentRequest request, User organizer) {
         requireOrganizer(organizer);
         validateTournamentRequest(request);
@@ -110,7 +109,6 @@ public class TournamentService {
     }
 
     @Transactional
-    //của buiquangann
     public TournamentResponse submitTournament(Integer tournamentId, User organizer) {
         requireOrganizer(organizer);
         Tournament tournament = getOwnedTournamentOrThrow(tournamentId, organizer.getUserId());
