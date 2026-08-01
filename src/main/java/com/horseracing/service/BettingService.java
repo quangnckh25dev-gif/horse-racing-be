@@ -326,9 +326,10 @@ public class BettingService {
         if (!race.getRaceId().equals(entry.getRaceId())) {
             throw new IllegalArgumentException("Race entry does not belong to this race.");
         }
-        if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())
-                && !"Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Betting is only allowed on approved entries.");
+        if (!"Ready".equalsIgnoreCase(entry.getRegistrationStatus())
+                || entry.getJockeyId() == null
+                || !Boolean.TRUE.equals(entry.getJockeyConfirmed())) {
+            throw new IllegalArgumentException("Only ready entries with confirmed jockey can race.");
         }
         return entry;
     }

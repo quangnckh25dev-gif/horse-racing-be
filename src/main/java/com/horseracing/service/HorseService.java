@@ -115,6 +115,7 @@ public class HorseService {
         User user = currentUserService.getCurrentUser(httpRequest);
         HorseOwner owner = getOwnerByUserId(user.getUserId());
         validateHorseRequest(request);
+        ensureUniqueHorseName(owner.getOwnerId(), request.getHorseName(), null);
 
         Horse horse = new Horse();
         horse.setOwnerId(owner.getOwnerId());
@@ -131,6 +132,7 @@ public class HorseService {
         Horse horse = getHorseEntity(horseId);
         ensureOwnerOwnsHorse(user, horse);
         validateHorseRequest(request);
+        ensureUniqueHorseName(horse.getOwnerId(), request.getHorseName(), horse.getHorseId());
         applyHorseFields(horse, request, user);
 
         return toHorseResponse(horseRepository.save(horse));
@@ -235,6 +237,12 @@ public class HorseService {
         int currentYear = Year.now().getValue();
         if (birthYear < 1980 || birthYear > currentYear) {
             throw new IllegalArgumentException("birthYear is invalid.");
+        }
+    }
+
+    private void ensureUniqueHorseName(Integer ownerId, String horseName, Integer ignoredHorseId) {
+        if (horseRepository.existsDuplicateNameForOwner(ownerId, horseName.trim(), ignoredHorseId)) {
+            throw new IllegalArgumentException("Horse name already exists for this owner.");
         }
     }
 

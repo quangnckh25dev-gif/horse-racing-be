@@ -133,7 +133,7 @@ public class ViolationService {
             throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
         if (violationRepository.countEligibleEntryInRace(raceId, entryId) == 0) {
-            throw new IllegalArgumentException("Violations can only be recorded for approved race entries.");
+            throw new IllegalArgumentException("Only ready entries with confirmed jockey can race.");
         }
     }
 

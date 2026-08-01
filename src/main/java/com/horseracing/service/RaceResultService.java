@@ -40,6 +40,8 @@ public class RaceResultService {
     private static final String STATUS_APPROVED = "Approved";
     private static final String STATUS_REJECTED = "Rejected";
     private static final String STATUS_PUBLISHED = "Published";
+    private static final String ENTRY_STATUS_READY = "Ready";
+    private static final String READY_ENTRY_REQUIRED_MESSAGE = "Only ready entries with confirmed jockey can race.";
 
     private final RaceResultRepository raceResultRepository;
     private final RaceRepository raceRepository;
@@ -259,11 +261,17 @@ public class RaceResultService {
         if (!entry.getRaceId().equals(raceId)) {
             throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
-        if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())
-                && !"Ready".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Results can only be submitted for approved entries.");
+        if (!isReadyWithConfirmedJockey(entry)) {
+            throw new IllegalArgumentException(READY_ENTRY_REQUIRED_MESSAGE);
         }
         return entry;
+    }
+
+    private boolean isReadyWithConfirmedJockey(RaceEntry entry) {
+        return entry != null
+                && ENTRY_STATUS_READY.equalsIgnoreCase(entry.getRegistrationStatus())
+                && entry.getJockeyId() != null
+                && Boolean.TRUE.equals(entry.getJockeyConfirmed());
     }
 
     private Race ensureOwnedRace(Integer raceId, User organizer) {

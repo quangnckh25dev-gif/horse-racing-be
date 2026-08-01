@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 @Service
 public class PreRaceCheckService {
@@ -29,7 +28,8 @@ public class PreRaceCheckService {
     private static final String STATUS_CHECKED = "Checked";
     private static final String STATUS_REJECTED = "Rejected";
     private static final String ENTRY_STATUS_PRE_RACE_REJECTED = "PreRaceRejected";
-    private static final Set<String> CHECKABLE_ENTRY_STATUSES = Set.of("Approved", "Ready");
+    private static final String ENTRY_STATUS_READY = "Ready";
+    private static final String READY_ENTRY_REQUIRED_MESSAGE = "Only ready entries with confirmed jockey can race.";
 
     private final PreRaceCheckRepository preRaceCheckRepository;
     private final RaceRepository raceRepository;
@@ -70,7 +70,7 @@ public class PreRaceCheckService {
 
         raceEntryRepository.findByRaceId(raceId)
                 .stream()
-                .filter(entry -> CHECKABLE_ENTRY_STATUSES.contains(entry.getRegistrationStatus()))
+                .filter(this::isReadyWithConfirmedJockey)
                 .filter(entry -> !preRaceCheckRepository.existsByRaceIdAndEntryId(raceId, entry.getEntryId()))
                 .forEach(entry -> {
                     PreRaceCheck check = new PreRaceCheck();
@@ -146,11 +146,18 @@ public class PreRaceCheckService {
         if (!raceId.equals(entry.getRaceId())) {
             throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
-        if (!CHECKABLE_ENTRY_STATUSES.contains(entry.getRegistrationStatus())
+        if (!isReadyWithConfirmedJockey(entry)
                 && !ENTRY_STATUS_PRE_RACE_REJECTED.equals(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Only approved or ready entries can be checked.");
+            throw new IllegalArgumentException(READY_ENTRY_REQUIRED_MESSAGE);
         }
         return entry;
+    }
+
+    private boolean isReadyWithConfirmedJockey(RaceEntry entry) {
+        return entry != null
+                && ENTRY_STATUS_READY.equalsIgnoreCase(entry.getRegistrationStatus())
+                && entry.getJockeyId() != null
+                && Boolean.TRUE.equals(entry.getJockeyConfirmed());
     }
 
     private PreRaceCheck createPendingCheck(Integer raceId, RaceEntry entry, Referee referee) {
