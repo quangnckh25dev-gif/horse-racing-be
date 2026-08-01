@@ -10,6 +10,8 @@ public interface RaceRefereeRepository extends JpaRepository<RaceReferee, Intege
 
     List<RaceReferee> findByRaceId(Integer raceId);
 
+    List<RaceReferee> findByRefereeId(Integer refereeId);
+
     Optional<RaceReferee> findByRaceIdAndRefereeId(Integer raceId, Integer refereeId);
 
     boolean existsByRaceIdAndRefereeId(Integer raceId, Integer refereeId);

@@ -49,7 +49,7 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
             SELECT COUNT(*)
             FROM RaceEntries
             WHERE RaceID = :raceId
-              AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn')
+              AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn', 'PreRaceRejected')
             """, nativeQuery = true)
     long countActiveRegistrations(@Param("raceId") Integer raceId);
 
@@ -58,7 +58,7 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
             FROM RaceEntries
             WHERE RaceID = :raceId
               AND HorseID = :horseId
-              AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn')
+              AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn', 'PreRaceRejected')
             """, nativeQuery = true)
     boolean existsActiveRegistration(@Param("raceId") Integer raceId, @Param("horseId") Integer horseId);
 }

@@ -125,6 +125,9 @@ public class ViolationService {
         if (entryId == null || violationRepository.countEntryInRace(raceId, entryId) == 0) {
             throw new IllegalArgumentException("This entry does not belong to the selected race.");
         }
+        if (violationRepository.countEligibleEntryInRace(raceId, entryId) == 0) {
+            throw new IllegalArgumentException("Violations can only be recorded for approved race entries.");
+        }
     }
 
     private Integer ensureAssignedReferee(Integer raceId, User currentUser) {

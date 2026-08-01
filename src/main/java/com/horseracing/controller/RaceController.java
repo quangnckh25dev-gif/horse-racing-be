@@ -45,12 +45,15 @@ public class RaceController {
     }
 
     @GetMapping("/assigned")
-    public ApiResponse<?> getAssignedRaces(HttpServletRequest httpRequest) {
+    public ApiResponse<?> getAssignedRaces(
+            @RequestParam(required = false) String status,
+            HttpServletRequest httpRequest
+    ) {
         User currentUser = currentUserService.getCurrentUser(httpRequest);
         return ApiResponse.success(
                 200,
                 "Assigned races loaded successfully",
-                raceService.getAssignedRacesForReferee(currentUser)
+                raceService.getAssignedRacesForReferee(currentUser, status)
         );
     }
 
