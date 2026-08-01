@@ -79,11 +79,19 @@ public class RaceService {
         return toResponse(getRaceOrThrow(raceId));
     }
 
-    public List<RaceSummaryResponse> getAssignedRacesForReferee(User refereeUser) {
+    public List<RaceSummaryResponse> getAssignedRacesForReferee(User refereeUser, String status) {
         requireRole(refereeUser, "Referee");
-        return raceRepository.findAssignedRacesByRefereeUserId(refereeUser.getUserId())
+        String statusFilter = (status == null || status.isBlank()) ? null : resolveStatus(status, status);
+        Referee referee = refereeRepository.findByUserId(refereeUser.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User does not have a Referee profile."));
+        return raceRefereeRepository.findByRefereeId(referee.getRefereeId())
                 .stream()
-                .map(this::toResponse)
+                .map(assignment -> raceRepository.findById(assignment.getRaceId())
+                        .filter(race -> !"Draft".equalsIgnoreCase(race.getStatus()))
+                        .filter(race -> statusFilter == null || statusFilter.equals(race.getStatus()))
+                        .map(race -> toResponse(race, assignment.getRole()))
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
                 .toList();
     }
 
@@ -331,6 +339,10 @@ public class RaceService {
     }
 
     private RaceSummaryResponse toResponse(Race race) {
+        return toResponse(race, null);
+    }
+
+    private RaceSummaryResponse toResponse(Race race, String refereeRole) {
         return new RaceSummaryResponse(
                 race.getRaceId(),
                 race.getTournamentId(),
@@ -345,7 +357,8 @@ public class RaceService {
                 race.getPrizeThird(),
                 race.getStatus(),
                 race.getRegistrationOpen(),
-                race.getRegistrationClose()
+                race.getRegistrationClose(),
+                refereeRole
         );
     }
 }

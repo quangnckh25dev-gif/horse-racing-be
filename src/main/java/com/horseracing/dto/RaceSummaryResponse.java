@@ -22,6 +22,7 @@ public class RaceSummaryResponse {
     private String bettingStatusLabel;
     private LocalDateTime registrationOpen;
     private LocalDateTime registrationClose;
+    private String refereeRole;
 
     public RaceSummaryResponse(Integer raceId, Integer tournamentId, Integer roundId, String raceName,
                                LocalDateTime raceDate, Integer trackLength, String trackType,
@@ -45,6 +46,16 @@ public class RaceSummaryResponse {
         this.bettingStatusLabel = this.bettingOpen ? "Betting Open" : "Betting Closed";
         this.registrationOpen = registrationOpen;
         this.registrationClose = registrationClose;
+    }
+
+    public RaceSummaryResponse(Integer raceId, Integer tournamentId, Integer roundId, String raceName,
+                               LocalDateTime raceDate, Integer trackLength, String trackType,
+                               Integer maxParticipants, BigDecimal prizeFirst, BigDecimal prizeSecond,
+                               BigDecimal prizeThird, String status, LocalDateTime registrationOpen,
+                               LocalDateTime registrationClose, String refereeRole) {
+        this(raceId, tournamentId, roundId, raceName, raceDate, trackLength, trackType, maxParticipants,
+                prizeFirst, prizeSecond, prizeThird, status, registrationOpen, registrationClose);
+        this.refereeRole = refereeRole;
     }
 
     public Integer getRaceId() {
@@ -125,6 +136,10 @@ public class RaceSummaryResponse {
 
     public LocalDateTime getRegistrationClose() {
         return registrationClose;
+    }
+
+    public String getRefereeRole() {
+        return refereeRole;
     }
 
     private BigDecimal safeMoney(BigDecimal value) {
