@@ -6,6 +6,10 @@ import java.time.LocalDateTime;
 public class DepositRequestResponse {
     private Integer depositRequestId;
     private Integer userId;
+    private String username;
+    private String fullName;
+    private String email;
+    private String phone;
     private Integer walletId;
     private BigDecimal amount;
     private String paymentMethod;
@@ -18,12 +22,17 @@ public class DepositRequestResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public DepositRequestResponse(Integer depositRequestId, Integer userId, Integer walletId,
+    public DepositRequestResponse(Integer depositRequestId, Integer userId, String username,
+                                  String fullName, String email, String phone, Integer walletId,
                                   BigDecimal amount, String paymentMethod, String transferCode,
                                   String qrCodeUrl, String status, String adminNote, Integer approvedBy,
                                   LocalDateTime approvedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.depositRequestId = depositRequestId;
         this.userId = userId;
+        this.username = username;
+        this.fullName = fullName;
+        this.email = email;
+        this.phone = phone;
         this.walletId = walletId;
         this.amount = amount;
         this.paymentMethod = paymentMethod;
@@ -39,6 +48,10 @@ public class DepositRequestResponse {
 
     public Integer getDepositRequestId() { return depositRequestId; }
     public Integer getUserId() { return userId; }
+    public String getUsername() { return username; }
+    public String getFullName() { return fullName; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
     public Integer getWalletId() { return walletId; }
     public BigDecimal getAmount() { return amount; }
     public String getPaymentMethod() { return paymentMethod; }
