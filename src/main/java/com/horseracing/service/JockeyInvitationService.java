@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -38,6 +39,7 @@ public class JockeyInvitationService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final CurrentUserService currentUserService;
+    private final WalletService walletService;
 
     public JockeyInvitationService(JockeyInvitationRepository invitationRepository,
                                    RaceEntryRepository raceEntryRepository,
@@ -47,7 +49,8 @@ public class JockeyInvitationService {
                                    RaceRepository raceRepository,
                                    UserRepository userRepository,
                                    NotificationRepository notificationRepository,
-                                   CurrentUserService currentUserService) {
+                                   CurrentUserService currentUserService,
+                                   WalletService walletService) {
         this.invitationRepository = invitationRepository;
         this.raceEntryRepository = raceEntryRepository;
         this.jockeyRepository = jockeyRepository;
@@ -57,6 +60,7 @@ public class JockeyInvitationService {
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.currentUserService = currentUserService;
+        this.walletService = walletService;
     }
 
     @Transactional
@@ -73,8 +77,9 @@ public class JockeyInvitationService {
         if (request == null || request.getJockeyId() == null) {
             throw new IllegalArgumentException("jockeyId is required.");
         }
+        BigDecimal dealAmount = validateDealAmount(request.getDealAmount());
         if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
-            throw new IllegalArgumentException("Only BTC-approved entries can invite a jockey.");
+            throw new IllegalArgumentException("Only organizer-approved entries can invite a jockey.");
         }
         if (Boolean.TRUE.equals(entry.getJockeyConfirmed()) || entry.getJockeyId() != null) {
             throw new IllegalArgumentException("This entry already has a confirmed jockey.");
@@ -98,10 +103,12 @@ public class JockeyInvitationService {
         invitation.setEntryId(entryId);
         invitation.setJockeyId(jockey.getJockeyId());
         invitation.setInvitedByOwner(owner.getOwnerId());
+        invitation.setDealAmount(dealAmount);
+        invitation.setMessage(trimToNull(request.getMessage()));
         invitation.setStatus("Pending");
 
         JockeyInvitation saved = invitationRepository.save(invitation);
-        notifyJockey(saved, request.getMessage());
+        notifyJockey(saved, saved.getMessage());
         return toResponse(saved);
     }
 
@@ -143,23 +150,36 @@ public class JockeyInvitationService {
         }
 
         String status = normalizeResponseStatus(request.getStatus());
-        invitation.setStatus(status);
-        invitation.setRespondedAt(LocalDateTime.now());
 
         if ("Accepted".equals(status)) {
             RaceEntry entry = getEntry(invitation.getEntryId());
             if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
-                throw new IllegalArgumentException("Only BTC-approved entries can accept invitations.");
+                throw new IllegalArgumentException("Only organizer-approved entries can accept invitations.");
             }
             if (Boolean.TRUE.equals(entry.getJockeyConfirmed()) || entry.getJockeyId() != null) {
                 throw new IllegalArgumentException("This entry already has a confirmed jockey.");
             }
+            Horse horse = horseRepository.findById(entry.getHorseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
+            HorseOwner owner = horseOwnerRepository.findById(horse.getOwnerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Horse owner was not found."));
+            walletService.transferJockeyDeal(owner.getUserId(), jockey.getUserId(),
+                    invitation.getDealAmount(), invitation.getInvitationId());
             entry.setJockeyId(jockey.getJockeyId());
             entry.setJockeyConfirmed(true);
             entry.setRegistrationStatus("Ready");
             raceEntryRepository.save(entry);
+            invitation.setResponseReason(null);
+        } else {
+            String reason = trimToNull(request.getReason());
+            if (reason == null) {
+                throw new IllegalArgumentException("Reject reason is required.");
+            }
+            invitation.setResponseReason(reason);
         }
 
+        invitation.setStatus(status);
+        invitation.setRespondedAt(LocalDateTime.now());
         return toResponse(invitationRepository.save(invitation));
     }
 
@@ -190,6 +210,17 @@ public class JockeyInvitationService {
             return "Declined";
         }
         throw new IllegalArgumentException("status only accepts Accepted or Declined.");
+    }
+
+    private BigDecimal validateDealAmount(BigDecimal dealAmount) {
+        if (dealAmount == null || dealAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("dealAmount must be greater than 0.");
+        }
+        return dealAmount;
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private RaceEntry getEntry(Integer entryId) {
@@ -242,7 +273,10 @@ public class JockeyInvitationService {
                 jockeyUser == null ? null : jockeyUser.getFullName(),
                 invitation.getInvitedByOwner(),
                 ownerUser == null ? null : ownerUser.getFullName(),
+                invitation.getDealAmount(),
+                invitation.getMessage(),
                 invitation.getStatus(),
+                invitation.getResponseReason(),
                 invitation.getInvitedAt(),
                 invitation.getRespondedAt()
         );
