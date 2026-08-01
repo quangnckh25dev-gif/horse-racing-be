@@ -3,6 +3,7 @@ package com.horseracing.dto;
 public class RaceMinuteRequest {
 
     private String content;
+    private String weatherCondition;
     private String preRaceChecks;
     private String postRaceNotes;
     private String minutesFileUrl;
@@ -14,6 +15,14 @@ public class RaceMinuteRequest {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getWeatherCondition() {
+        return weatherCondition;
+    }
+
+    public void setWeatherCondition(String weatherCondition) {
+        this.weatherCondition = weatherCondition;
     }
 
     public String getPreRaceChecks() {

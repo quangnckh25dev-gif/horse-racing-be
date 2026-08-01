@@ -346,6 +346,7 @@ CREATE TABLE RaceMinutes (
     RaceID         INT           NOT NULL UNIQUE REFERENCES Races(RaceID),
     RefereeID      INT           NOT NULL REFERENCES Referees(RefereeID),
     Content        NVARCHAR(MAX),
+    WeatherCondition NVARCHAR(200),
     PreRaceChecks  NVARCHAR(MAX),
     PostRaceNotes  NVARCHAR(MAX),
     MinutesFileURL NVARCHAR(500),   -- signed minutes image/PDF
@@ -1420,8 +1421,8 @@ IF NOT EXISTS (SELECT 1 FROM Violations WHERE RaceID = @DemoFinishedRaceID AND E
 EXEC sp_UpdateRaceResultRanking @DemoFinishedRaceID;
 
 IF NOT EXISTS (SELECT 1 FROM RaceMinutes WHERE RaceID = @DemoFinishedRaceID)
-    INSERT INTO RaceMinutes (RaceID, RefereeID, Content, PreRaceChecks, PostRaceNotes, MinutesFileURL, SentToOwners, SentAt)
-    VALUES (@DemoFinishedRaceID, @Referee2ID, N'Demo race minutes were created and sent to owners.', N'Horses, jockeys, and lanes were checked before the race.', N'Two violations were recorded.', N'demo-uploads/showcase-minutes.webp', 1, GETDATE());
+    INSERT INTO RaceMinutes (RaceID, RefereeID, Content, WeatherCondition, PreRaceChecks, PostRaceNotes, MinutesFileURL, SentToOwners, SentAt)
+    VALUES (@DemoFinishedRaceID, @Referee2ID, N'Demo race minutes were created and sent to owners.', N'Clear weather', N'Horses, jockeys, and lanes were checked before the race.', N'Two violations were recorded.', N'demo-uploads/showcase-minutes.webp', 1, GETDATE());
 
 IF NOT EXISTS (SELECT 1 FROM Bets WHERE UserID = @Spectator2UserID AND RaceID = @DemoOpenRaceID AND EntryID = @DemoOpenEntry1 AND BetType = 'WIN')
 BEGIN
@@ -1579,9 +1580,10 @@ IF NOT EXISTS (SELECT 1 FROM Violations WHERE RaceID = @RefFinishedRaceID AND En
 EXEC sp_UpdateRaceResultRanking @RefFinishedRaceID;
 
 IF NOT EXISTS (SELECT 1 FROM RaceMinutes WHERE RaceID = @RefFinishedRaceID)
-    INSERT INTO RaceMinutes (RaceID, RefereeID, Content, PreRaceChecks, PostRaceNotes, MinutesFileURL, SentToOwners, SentAt)
+    INSERT INTO RaceMinutes (RaceID, RefereeID, Content, WeatherCondition, PreRaceChecks, PostRaceNotes, MinutesFileURL, SentToOwners, SentAt)
     VALUES (@RefFinishedRaceID, @RefereeID,
             N'Referee1 demo: race finished and results were approved by Organizer but not published yet.',
+            N'Clear weather',
             N'Horses, jockeys, starting lanes, and health status were checked before the race.',
             N'One false start violation was recorded. The system added 3 seconds and recalculated ranking.',
             N'demo-uploads/referee1-minutes.webp', 1, GETDATE());

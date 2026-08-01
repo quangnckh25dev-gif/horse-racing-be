@@ -17,6 +17,20 @@ public interface RaceMinuteRepository extends JpaRepository<RaceMinute, Integer>
     @Query(value = "SELECT COUNT(1) FROM Races WHERE RaceID = :raceId", nativeQuery = true)
     int countRaceById(@Param("raceId") Integer raceId);
 
+    @Query(value = "SELECT COUNT(1) FROM RaceResults WHERE RaceID = :raceId", nativeQuery = true)
+    int countResultsByRaceId(@Param("raceId") Integer raceId);
+
+    @Query(value = "SELECT Status FROM Races WHERE RaceID = :raceId", nativeQuery = true)
+    String findRaceStatusByRaceId(@Param("raceId") Integer raceId);
+
+    @Query(value = """
+            SELECT t.CreatedBy
+            FROM Races r
+            JOIN Tournaments t ON r.TournamentID = t.TournamentID
+            WHERE r.RaceID = :raceId
+            """, nativeQuery = true)
+    Integer findOrganizerUserIdByRaceId(@Param("raceId") Integer raceId);
+
     @Query(value = "SELECT COUNT(1) FROM Referees WHERE RefereeID = :refereeId", nativeQuery = true)
     int countRefereeById(@Param("refereeId") Integer refereeId);
 

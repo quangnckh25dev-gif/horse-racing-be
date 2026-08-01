@@ -50,10 +50,11 @@ public class RaceMinuteService {
         RaceMinute minute = new RaceMinute();
         minute.setRaceId(raceId);
         minute.setRefereeId(refereeId);
-        minute.setContent(request.getContent());
+        minute.setContent(trimToNull(request.getContent()));
+        minute.setWeatherCondition(trimToNull(request.getWeatherCondition()));
         minute.setPreRaceChecks(request.getPreRaceChecks());
         minute.setPostRaceNotes(resolvePostRaceNotes(request));
-        minute.setMinutesFileUrl(request.getMinutesFileUrl());
+        minute.setMinutesFileUrl(trimToNull(request.getMinutesFileUrl()));
         minute.setSentToOwners(false);
         minute.setCreatedAt(now);
         minute.setUpdatedAt(now);
@@ -70,10 +71,11 @@ public class RaceMinuteService {
                 .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet."));
 
         minute.setRefereeId(refereeId);
-        minute.setContent(request.getContent());
+        minute.setContent(trimToNull(request.getContent()));
+        minute.setWeatherCondition(trimToNull(request.getWeatherCondition()));
         minute.setPreRaceChecks(request.getPreRaceChecks());
         minute.setPostRaceNotes(resolvePostRaceNotes(request));
-        minute.setMinutesFileUrl(request.getMinutesFileUrl());
+        minute.setMinutesFileUrl(trimToNull(request.getMinutesFileUrl()));
         minute.setUpdatedAt(LocalDateTime.now());
 
         return toResponse(raceMinuteRepository.save(minute));
@@ -83,6 +85,8 @@ public class RaceMinuteService {
     public RaceMinuteResponse sendMinutesToOwners(Integer raceId, User currentUser) {
         ensureRaceExists(raceId);
         ensureAssignedReferee(raceId, currentUser);
+        ensureRaceFinished(raceId);
+        ensureRaceHasResults(raceId);
 
         RaceMinute minute = raceMinuteRepository.findByRaceId(raceId)
                 .orElseThrow(() -> new IllegalArgumentException("This race does not have minutes yet."));
@@ -106,17 +110,7 @@ public class RaceMinuteService {
             throw new IllegalArgumentException("minutesFileUrl is required before handing over to BTC.");
         }
 
-        userRepository.findActiveOrganizersAndAdmins().forEach(user -> {
-            Notification notification = new Notification();
-            notification.setUserId(user.getUserId());
-            notification.setTitle("Ket qua race san sang de BTC duyet");
-            notification.setBody("Referee da ban giao ket qua va bien ban cho race #" + raceId + ".");
-            notification.setNotifType("ResultReadyForReview");
-            notification.setRelatedEntityId(raceId);
-            notification.setRelatedEntity("Race");
-            notification.setIsRead(false);
-            notificationRepository.save(notification);
-        });
+        notifyOrganizerAndAdmins(raceId);
 
         return toResponse(minute);
     }
@@ -146,17 +140,58 @@ public class RaceMinuteService {
         if (request == null) {
             throw new IllegalArgumentException("Race minutes data is invalid.");
         }
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            throw new IllegalArgumentException("content is required.");
+        }
+        if (request.getWeatherCondition() == null || request.getWeatherCondition().isBlank()) {
+            throw new IllegalArgumentException("weatherCondition is required.");
+        }
         if (request.getMinutesFileUrl() == null || request.getMinutesFileUrl().isBlank()) {
             throw new IllegalArgumentException("minutesFileUrl is required.");
         }
     }
 
+    private void ensureRaceFinished(Integer raceId) {
+        String status = raceMinuteRepository.findRaceStatusByRaceId(raceId);
+        if (!"Finished".equalsIgnoreCase(status)) {
+            throw new IllegalArgumentException("Race minutes can only be handed off after the race is Finished.");
+        }
+    }
+
+    private void ensureRaceHasResults(Integer raceId) {
+        if (raceMinuteRepository.countResultsByRaceId(raceId) == 0) {
+            throw new IllegalArgumentException("Race results are required before handing off to Organizer.");
+        }
+    }
+
+    private void notifyOrganizerAndAdmins(Integer raceId) {
+        Integer organizerUserId = raceMinuteRepository.findOrganizerUserIdByRaceId(raceId);
+        userRepository.findActiveOrganizersAndAdmins().stream()
+                .filter(user -> "Admin".equalsIgnoreCase(user.getRole().getRoleName())
+                        || user.getUserId().equals(organizerUserId))
+                .forEach(user -> {
+                    Notification notification = new Notification();
+                    notification.setUserId(user.getUserId());
+                    notification.setTitle("Race results are ready for review");
+                    notification.setBody("The referee handed off race results and minutes for race #" + raceId + ".");
+                    notification.setNotifType("ResultReadyForReview");
+                    notification.setRelatedEntityId(raceId);
+                    notification.setRelatedEntity("Race");
+                    notification.setIsRead(false);
+                    notificationRepository.save(notification);
+                });
+    }
+
     private String resolvePostRaceNotes(RaceMinuteRequest request) {
         if (request.getPostRaceNotes() != null) {
-            return request.getPostRaceNotes();
+            return trimToNull(request.getPostRaceNotes());
         }
 
-        return request.getNote();
+        return trimToNull(request.getNote());
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private RaceMinuteResponse toResponse(RaceMinute minute) {
@@ -165,6 +200,7 @@ public class RaceMinuteService {
                 minute.getRaceId(),
                 minute.getRefereeId(),
                 minute.getContent(),
+                minute.getWeatherCondition(),
                 minute.getPreRaceChecks(),
                 minute.getPostRaceNotes(),
                 minute.getMinutesFileUrl(),
