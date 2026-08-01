@@ -438,14 +438,36 @@ CREATE TABLE Bets (
     UserID          INT           NOT NULL REFERENCES Users(UserID),
     RaceID          INT           NOT NULL REFERENCES Races(RaceID),
     EntryID         INT           NOT NULL REFERENCES RaceEntries(EntryID),
-    BetType         NVARCHAR(30)  NOT NULL DEFAULT 'WIN',   -- WIN | PLACE(top2) | SHOW(top3) | EXACT(position)
-    TargetPosition  INT           NULL,                     -- used only for EXACT
+    BetType         NVARCHAR(30)  NOT NULL DEFAULT 'WIN',   -- WIN | EXACT_POSITION | VIOLATION
+    TargetPosition  INT           NULL,                     -- used only for EXACT_POSITION
     Amount          DECIMAL(18,2) NOT NULL,
     Odds            DECIMAL(10,2) NOT NULL DEFAULT 2.00,    -- odds snapshot at placement time
     PotentialPayout DECIMAL(18,2) NOT NULL,                 -- Amount * Odds
     Status          NVARCHAR(30)  NOT NULL DEFAULT 'Pending', -- Pending|Won|Lost|Cancelled
     CreatedAt       DATETIME2     DEFAULT GETDATE(),
     SettledAt       DATETIME2       -- UNIQUE(UserID,RaceID) removed to allow multiple bets per race
+);
+CREATE TABLE BetTickets (
+    TicketID        INT IDENTITY(1,1) PRIMARY KEY,
+    UserID          INT           NOT NULL REFERENCES Users(UserID),
+    RaceID          INT           NOT NULL REFERENCES Races(RaceID),
+    Amount          DECIMAL(18,2) NOT NULL,
+    Odds            DECIMAL(10,2) NOT NULL,
+    PotentialPayout DECIMAL(18,2) NOT NULL,
+    Status          NVARCHAR(30)  NOT NULL DEFAULT 'Pending',
+    CreatedAt       DATETIME2     DEFAULT GETDATE(),
+    SettledAt       DATETIME2
+);
+CREATE TABLE BetSelections (
+    SelectionID     INT IDENTITY(1,1) PRIMARY KEY,
+    TicketID        INT           NOT NULL REFERENCES BetTickets(TicketID),
+    RaceID          INT           NOT NULL REFERENCES Races(RaceID),
+    EntryID         INT           NOT NULL REFERENCES RaceEntries(EntryID),
+    BetType         NVARCHAR(30)  NOT NULL,                  -- WIN | EXACT_POSITION | VIOLATION
+    TargetPosition  INT           NULL,
+    Odds            DECIMAL(10,2) NOT NULL,
+    Resolved        BIT           NOT NULL DEFAULT 0,
+    Won             BIT           NULL
 );
 
 -- ============================================================
@@ -498,6 +520,9 @@ CREATE INDEX IX_RaceResults_RaceID ON RaceResults(RaceID);
 CREATE INDEX IX_Violations_RaceID  ON Violations(RaceID);
 CREATE INDEX IX_Bets_RaceID        ON Bets(RaceID);
 CREATE INDEX IX_Bets_Status        ON Bets(Status);
+CREATE INDEX IX_BetTickets_RaceID  ON BetTickets(RaceID);
+CREATE INDEX IX_BetTickets_Status  ON BetTickets(Status);
+CREATE INDEX IX_BetSelections_TicketID ON BetSelections(TicketID);
 CREATE INDEX IX_Notifications_User ON Notifications(UserID);
 GO
 
@@ -1001,6 +1026,7 @@ USING (VALUES
 ('ODDS_BASE_RANK_OVER_15', '5.00', N'Base odds for horses outside top 15'),
 ('ODDS_BASE_UNRANKED', '2.50', N'Base odds for unranked horses'),
 ('EXACT_POSITION_FACTOR', '0.75', N'Odds increase factor for exact position bets'),
+('ODDS_VIOLATION', '1.80', N'Odds for violation bets'),
 ('ODDS_MAX', '15.00', N'Maximum odds limit')
 ) AS src(ConfigKey, ConfigValue, Description)
 ON target.ConfigKey = src.ConfigKey

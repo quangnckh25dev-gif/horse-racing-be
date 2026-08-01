@@ -45,6 +45,7 @@ public class RaceResultService {
     private final HorseRepository horseRepository;
     private final HorseOwnerRepository horseOwnerRepository;
     private final WalletService walletService;
+    private final BettingService bettingService;
 
     public RaceResultService(RaceResultRepository raceResultRepository,
                              RaceRepository raceRepository,
@@ -56,7 +57,8 @@ public class RaceResultService {
                              RaceRankingService raceRankingService,
                              HorseRepository horseRepository,
                              HorseOwnerRepository horseOwnerRepository,
-                             WalletService walletService) {
+                             WalletService walletService,
+                             BettingService bettingService) {
         this.raceResultRepository = raceResultRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
@@ -68,6 +70,7 @@ public class RaceResultService {
         this.horseRepository = horseRepository;
         this.horseOwnerRepository = horseOwnerRepository;
         this.walletService = walletService;
+        this.bettingService = bettingService;
     }
 
     @Transactional
@@ -192,6 +195,7 @@ public class RaceResultService {
 
         raceResultRepository.publishRaceResult(raceId, organizer.getUserId());
         awardOwnerPrizes(raceId);
+        bettingService.settleRaceBets(raceId);
         return getPublishedResultsByRace(raceId);
     }
 

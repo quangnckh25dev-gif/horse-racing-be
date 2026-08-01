@@ -54,4 +54,11 @@ public interface ViolationRepository extends JpaRepository<Violation, Integer> {
             WHERE RaceID = :raceId AND EntryID = :entryId AND IsDQ = 1
             """, nativeQuery = true)
     int countDqByRaceAndEntry(@Param("raceId") Integer raceId, @Param("entryId") Integer entryId);
+
+    @Query(value = """
+            SELECT COUNT(1)
+            FROM Violations
+            WHERE RaceID = :raceId AND EntryID = :entryId
+            """, nativeQuery = true)
+    int countEntryViolations(@Param("raceId") Integer raceId, @Param("entryId") Integer entryId);
 }

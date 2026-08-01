@@ -201,12 +201,36 @@ public class WalletService {
     }
 
     @Transactional
+    public Wallet debitForBetTicket(Integer userId, BigDecimal amount, Integer ticketId) {
+        BigDecimal validAmount = validateAmount(amount);
+        Wallet wallet = getOrCreateWallet(userId);
+        if (wallet.getBalance().compareTo(validAmount) < 0) {
+            throw new IllegalArgumentException("Wallet balance is insufficient for betting.");
+        }
+
+        wallet.setBalance(wallet.getBalance().subtract(validAmount));
+        Wallet saved = walletRepository.save(wallet);
+        createTransaction(saved, validAmount.negate(), "BetPlaced", "Parlay ticket placed", "BetTicket", ticketId);
+        return saved;
+    }
+
+    @Transactional
     public Wallet creditBetWin(Integer userId, BigDecimal amount, Integer betId) {
         BigDecimal validAmount = validateAmount(amount);
         Wallet wallet = getOrCreateWallet(userId);
         wallet.setBalance(wallet.getBalance().add(validAmount));
         Wallet saved = walletRepository.save(wallet);
         createTransaction(saved, validAmount, "BetWon", "Bet payout received", "Bet", betId);
+        return saved;
+    }
+
+    @Transactional
+    public Wallet creditBetTicketWin(Integer userId, BigDecimal amount, Integer ticketId) {
+        BigDecimal validAmount = validateAmount(amount);
+        Wallet wallet = getOrCreateWallet(userId);
+        wallet.setBalance(wallet.getBalance().add(validAmount));
+        Wallet saved = walletRepository.save(wallet);
+        createTransaction(saved, validAmount, "BetWon", "Parlay ticket payout received", "BetTicket", ticketId);
         return saved;
     }
 

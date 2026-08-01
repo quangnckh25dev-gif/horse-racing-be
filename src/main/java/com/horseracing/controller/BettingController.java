@@ -39,6 +39,13 @@ public class BettingController {
         return ApiResponse.success(201, "Bet placed successfully", bettingService.placeBet(raceId, body, request));
     }
 
+    @PostMapping("/api/races/{raceId}/bet-tickets")
+    public ApiResponse<?> placeParlayTicket(@PathVariable Integer raceId, @RequestBody BetRequest body,
+                                            HttpServletRequest request) {
+        return ApiResponse.success(201, "Parlay ticket placed successfully",
+                bettingService.placeParlayTicket(raceId, body, request));
+    }
+
     @GetMapping("/api/bets/history")
     public ApiResponse<?> getMyHistory(HttpServletRequest request) {
         return ApiResponse.success(200, "Betting history loaded successfully", bettingService.getMyHistory(request));
