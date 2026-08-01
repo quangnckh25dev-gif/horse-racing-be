@@ -96,7 +96,6 @@ public class RaceService {
     }
 
     @Transactional
-    //của buiquangann
     public RaceSummaryResponse createRace(RaceRequest request, User organizer) {
         validateRaceRequest(request, organizer, null);
 
@@ -121,7 +120,6 @@ public class RaceService {
     }
 
     @Transactional
-    //của buiquangann
     public RaceSummaryResponse updateStatus(Integer raceId, String status, User refereeUser) {
         requireRole(refereeUser, "Referee");
         Race race = getRaceOrThrow(raceId);

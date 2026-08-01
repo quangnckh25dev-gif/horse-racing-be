@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,11 +24,15 @@ public class AuditLogController {
     }
 
     @GetMapping
-    public ApiResponse<?> getLogs(HttpServletRequest request) {
+    public ApiResponse<?> getLogs(HttpServletRequest request,
+                                  @RequestParam(required = false) String action,
+                                  @RequestParam(required = false) String tableName,
+                                  @RequestParam(required = false) String keyword,
+                                  @RequestParam(required = false) String date) {
         return ApiResponse.success(
                 200,
                 "Audit logs loaded successfully",
-                auditLogService.getLogs(request)
+                auditLogService.getLogs(request, action, tableName, keyword, date)
         );
     }
 

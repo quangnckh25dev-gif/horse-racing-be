@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class RaceComplaintService {
@@ -97,17 +98,27 @@ public class RaceComplaintService {
         return toResponse(raceComplaintRepository.save(complaint));
     }
 
-    public List<RaceComplaintResponse> getMyComplaints(HttpServletRequest request) {
+    public List<RaceComplaintResponse> getMyComplaints(HttpServletRequest request, String status, String keyword) {
         User ownerUser = currentUserService.getCurrentUser(request);
         requireRole(ownerUser, "HorseOwner");
+        String statusFilter = normalizeOptionalStatus(status);
+        String keywordFilter = trimToNull(keyword);
         return raceComplaintRepository.findByOwnerUserIdOrderByCreatedAtDesc(ownerUser.getUserId())
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .filter(complaint -> matchesStatus(complaint, statusFilter))
+                .filter(complaint -> matchesKeyword(complaint, keywordFilter))
+                .map(this::toResponse).toList();
     }
 
-    public List<RaceComplaintResponse> getRefereeComplaints(HttpServletRequest request) {
+    public List<RaceComplaintResponse> getRefereeComplaints(HttpServletRequest request, String status, String keyword) {
         Referee referee = getCurrentReferee(request);
+        String statusFilter = normalizeOptionalStatus(status);
+        String keywordFilter = trimToNull(keyword);
         return raceComplaintRepository.findAssignedToReferee(referee.getRefereeId())
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .filter(complaint -> matchesStatus(complaint, statusFilter))
+                .filter(complaint -> matchesKeyword(complaint, keywordFilter))
+                .map(this::toResponse).toList();
     }
 
     public RaceComplaintResponse getRefereeComplaint(Integer id, HttpServletRequest request) {
@@ -151,11 +162,16 @@ public class RaceComplaintService {
         return toResponse(raceComplaintRepository.save(complaint));
     }
 
-    public List<RaceComplaintResponse> getOrganizerComplaints(HttpServletRequest request) {
+    public List<RaceComplaintResponse> getOrganizerComplaints(HttpServletRequest request, String status, String keyword) {
         User organizer = currentUserService.getCurrentUser(request);
         requireRole(organizer, "Organizer");
+        String statusFilter = normalizeOptionalStatus(status);
+        String keywordFilter = trimToNull(keyword);
         return raceComplaintRepository.findForwardedToOrganizer(organizer.getUserId())
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .filter(complaint -> matchesStatus(complaint, statusFilter))
+                .filter(complaint -> matchesKeyword(complaint, keywordFilter))
+                .map(this::toResponse).toList();
     }
 
     @Transactional
@@ -286,6 +302,49 @@ public class RaceComplaintService {
 
     private String trimToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeOptionalStatus(String status) {
+        String cleanStatus = trimToNull(status);
+        if (cleanStatus == null) {
+            return null;
+        }
+        if (!STATUS_PENDING.equalsIgnoreCase(cleanStatus)
+                && !STATUS_RESOLVED.equalsIgnoreCase(cleanStatus)
+                && !STATUS_REJECTED.equalsIgnoreCase(cleanStatus)
+                && !STATUS_FORWARDED.equalsIgnoreCase(cleanStatus)) {
+            throw new IllegalArgumentException("status only accepts Pending, Resolved, Rejected, or Forwarded.");
+        }
+        return cleanStatus;
+    }
+
+    private boolean matchesStatus(RaceComplaint complaint, String status) {
+        return status == null || status.equalsIgnoreCase(complaint.getStatus());
+    }
+
+    private boolean matchesKeyword(RaceComplaint complaint, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        String normalized = keyword.toLowerCase(Locale.ROOT);
+        Race race = raceRepository.findById(complaint.getRaceId()).orElse(null);
+        RaceEntry entry = raceEntryRepository.findById(complaint.getEntryId()).orElse(null);
+        Horse horse = entry == null ? null : horseRepository.findById(entry.getHorseId()).orElse(null);
+        User owner = userRepository.findById(complaint.getOwnerUserId()).orElse(null);
+        return contains(complaint.getReason(), normalized)
+                || contains(complaint.getEvidenceUrl(), normalized)
+                || contains(complaint.getRefereeNote(), normalized)
+                || contains(complaint.getOrganizerNote(), normalized)
+                || contains(race == null ? null : race.getRaceName(), normalized)
+                || contains(horse == null ? null : horse.getHorseName(), normalized)
+                || contains(owner == null ? null : owner.getUsername(), normalized)
+                || contains(owner == null ? null : owner.getFullName(), normalized)
+                || contains(owner == null ? null : owner.getEmail(), normalized)
+                || contains(owner == null ? null : owner.getPhone(), normalized);
+    }
+
+    private boolean contains(String value, String keyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     private RaceComplaintResponse toResponse(RaceComplaint complaint) {

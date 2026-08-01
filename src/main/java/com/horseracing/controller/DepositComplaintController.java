@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,9 +40,13 @@ public class DepositComplaintController {
     }
 
     @GetMapping("/api/admin/complaints/deposits")
-    public ApiResponse<?> getAllComplaints(HttpServletRequest request) {
+    public ApiResponse<?> getAllComplaints(HttpServletRequest request,
+                                           @RequestParam(required = false) String status,
+                                           @RequestParam(required = false) String paymentMethod,
+                                           @RequestParam(required = false) String keyword,
+                                           @RequestParam(required = false) String date) {
         return ApiResponse.success(200, "Deposit complaints loaded successfully",
-                depositComplaintService.getAllComplaints(request));
+                depositComplaintService.getAllComplaints(request, status, paymentMethod, keyword, date));
     }
 
     @PutMapping("/api/admin/complaints/deposits/{id}/resolve")
