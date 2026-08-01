@@ -2,6 +2,7 @@ package com.horseracing.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class RaceEntryResponse {
     private Integer entryId;
@@ -21,6 +22,7 @@ public class RaceEntryResponse {
     private Boolean jockeyConfirmed;
     private BigDecimal odds;
     private String healthStatus;
+    private List<HorseHealthRecordResponse> healthHistory;
     private LocalDateTime registeredAt;
     private LocalDateTime updatedAt;
 
@@ -29,6 +31,17 @@ public class RaceEntryResponse {
                              Integer laneNumber, String registrationStatus, Boolean organizerApproved,
                              Integer approvedBy, String rejectReason, Boolean jockeyConfirmed, BigDecimal odds,
                              String healthStatus, LocalDateTime registeredAt, LocalDateTime updatedAt) {
+        this(entryId, raceId, raceName, horseId, horseName, ownerId, ownerName, jockeyId, jockeyName, laneNumber,
+                registrationStatus, organizerApproved, approvedBy, rejectReason, jockeyConfirmed, odds,
+                healthStatus, List.of(), registeredAt, updatedAt);
+    }
+
+    public RaceEntryResponse(Integer entryId, Integer raceId, String raceName, Integer horseId, String horseName,
+                             Integer ownerId, String ownerName, Integer jockeyId, String jockeyName,
+                             Integer laneNumber, String registrationStatus, Boolean organizerApproved,
+                             Integer approvedBy, String rejectReason, Boolean jockeyConfirmed, BigDecimal odds,
+                             String healthStatus, List<HorseHealthRecordResponse> healthHistory,
+                             LocalDateTime registeredAt, LocalDateTime updatedAt) {
         this.entryId = entryId;
         this.raceId = raceId;
         this.raceName = raceName;
@@ -46,6 +59,7 @@ public class RaceEntryResponse {
         this.jockeyConfirmed = jockeyConfirmed;
         this.odds = odds;
         this.healthStatus = healthStatus;
+        this.healthHistory = healthHistory;
         this.registeredAt = registeredAt;
         this.updatedAt = updatedAt;
     }
@@ -67,6 +81,7 @@ public class RaceEntryResponse {
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
     public BigDecimal getOdds() { return odds; }
     public String getHealthStatus() { return healthStatus; }
+    public List<HorseHealthRecordResponse> getHealthHistory() { return healthHistory; }
     public LocalDateTime getRegisteredAt() { return registeredAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

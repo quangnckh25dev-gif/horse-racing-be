@@ -4,6 +4,8 @@ import com.horseracing.dto.RaceEntryApproveRequest;
 import com.horseracing.dto.RaceEntryRequest;
 import com.horseracing.dto.RaceEntryResponse;
 import com.horseracing.entity.Horse;
+import com.horseracing.dto.HorseHealthRecordResponse;
+import com.horseracing.entity.HorseHealthRecord;
 import com.horseracing.entity.HorseOwner;
 import com.horseracing.entity.Jockey;
 import com.horseracing.entity.Notification;
@@ -12,6 +14,7 @@ import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.Tournament;
 import com.horseracing.entity.User;
 import com.horseracing.repository.HorseOwnerRepository;
+import com.horseracing.repository.HorseHealthRecordRepository;
 import com.horseracing.repository.HorseRepository;
 import com.horseracing.repository.JockeyRepository;
 import com.horseracing.repository.NotificationRepository;
@@ -34,6 +37,7 @@ public class RaceEntryService {
     private final RaceEntryRepository raceEntryRepository;
     private final RaceRepository raceRepository;
     private final HorseRepository horseRepository;
+    private final HorseHealthRecordRepository healthRecordRepository;
     private final HorseOwnerRepository horseOwnerRepository;
     private final JockeyRepository jockeyRepository;
     private final UserRepository userRepository;
@@ -42,13 +46,15 @@ public class RaceEntryService {
     private final TournamentRepository tournamentRepository;
 
     public RaceEntryService(RaceEntryRepository raceEntryRepository, RaceRepository raceRepository,
-                            HorseRepository horseRepository, HorseOwnerRepository horseOwnerRepository,
+                            HorseRepository horseRepository, HorseHealthRecordRepository healthRecordRepository,
+                            HorseOwnerRepository horseOwnerRepository,
                             JockeyRepository jockeyRepository, UserRepository userRepository,
                             NotificationRepository notificationRepository, CurrentUserService currentUserService,
                             TournamentRepository tournamentRepository) {
         this.raceEntryRepository = raceEntryRepository;
         this.raceRepository = raceRepository;
         this.horseRepository = horseRepository;
+        this.healthRecordRepository = healthRecordRepository;
         this.horseOwnerRepository = horseOwnerRepository;
         this.jockeyRepository = jockeyRepository;
         this.userRepository = userRepository;
@@ -160,6 +166,9 @@ public class RaceEntryService {
         if (Boolean.TRUE.equals(request.getApproved())) {
             Horse horse = horseRepository.findById(entry.getHorseId())
                     .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
+            if (!Boolean.TRUE.equals(horse.getIsActive())) {
+                throw new IllegalArgumentException("Inactive horses cannot be approved.");
+            }
             String hs = horse.getHealthStatus() == null ? "" : horse.getHealthStatus().trim();
             if (!isActiveHorseStatus(hs)) {
                 throw new IllegalArgumentException("Only horses with healthStatus = Active can be approved.");
@@ -169,20 +178,27 @@ public class RaceEntryService {
             entry.setApprovedBy(user.getUserId());
             entry.setRejectReason(null);
         } else {
+            String reason = normalizeReason(request.getReason());
+            if (reason == null) {
+                throw new IllegalArgumentException("Reject reason is required.");
+            }
             entry.setRegistrationStatus("Rejected");
             entry.setOrganizerApproved(false);
             entry.setApprovedBy(user.getUserId());
-            entry.setRejectReason(request.getReason());
+            entry.setRejectReason(reason);
         }
 
         RaceEntry saved = raceEntryRepository.save(entry);
-        notifyOwner(saved, Boolean.TRUE.equals(request.getApproved()), request.getReason());
+        notifyOwner(saved, Boolean.TRUE.equals(request.getApproved()), saved.getRejectReason());
         return toResponse(saved);
     }
 
-    public RaceEntryResponse getEntry(Integer entryId) {
-        return toResponse(raceEntryRepository.findById(entryId)
-                .orElseThrow(() -> new IllegalArgumentException("Entry was not found.")));
+    public RaceEntryResponse getEntry(Integer entryId, HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        RaceEntry entry = raceEntryRepository.findById(entryId)
+                .orElseThrow(() -> new IllegalArgumentException("Entry was not found."));
+        ensureCanViewEntry(user, entry);
+        return toResponse(entry);
     }
 
     private void validateRaceCanReceiveEntry(Race race) {
@@ -222,6 +238,22 @@ public class RaceEntryService {
                 .orElseThrow(() -> new IllegalArgumentException("Current user does not have a HorseOwner profile."));
     }
 
+    private void ensureCanViewEntry(User user, RaceEntry entry) {
+        if (isOrganizer(user)) {
+            Race race = getRace(entry.getRaceId());
+            tournamentRepository.findByTournamentIdAndCreatedBy(race.getTournamentId(), user.getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException("Race does not belong to the current organizer."));
+            return;
+        }
+
+        Horse horse = horseRepository.findById(entry.getHorseId())
+                .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
+        HorseOwner owner = getOwnerByUserId(user.getUserId());
+        if (!owner.getOwnerId().equals(horse.getOwnerId())) {
+            throw new IllegalArgumentException("You do not have permission to view this entry.");
+        }
+    }
+
     private void notifyOwner(RaceEntry entry, boolean approved, String reason) {
         Horse horse = horseRepository.findById(entry.getHorseId()).orElse(null);
         if (horse == null) {
@@ -248,6 +280,13 @@ public class RaceEntryService {
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT);
         return "active".equals(normalized) || "hoat dong".equals(normalized);
+    }
+
+    private String normalizeReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return null;
+        }
+        return reason.trim();
     }
 
     private void notifyOrganizers(RaceEntry entry, Race race, Horse horse, User ownerUser) {
@@ -298,8 +337,24 @@ public class RaceEntryService {
                 entry.getJockeyConfirmed(),
                 entry.getOdds(),
                 horse == null ? null : horse.getHealthStatus(),
+                horse == null ? List.of() : healthRecordRepository.findByHorseIdOrderByCheckDateDesc(horse.getHorseId())
+                        .stream()
+                        .map(this::toHealthResponse)
+                        .toList(),
                 entry.getRegisteredAt(),
                 entry.getUpdatedAt()
+        );
+    }
+
+    private HorseHealthRecordResponse toHealthResponse(HorseHealthRecord record) {
+        return new HorseHealthRecordResponse(
+                record.getRecordId(),
+                record.getHorseId(),
+                record.getCheckDate(),
+                record.getVetName(),
+                record.getDiagnosis(),
+                record.getNotes(),
+                record.getCreatedAt()
         );
     }
 
@@ -308,5 +363,13 @@ public class RaceEntryService {
                 || !Boolean.TRUE.equals(user.getIsActive()) || !Boolean.TRUE.equals(user.getIsApproved())) {
             throw new IllegalArgumentException("Only organizers can approve entries.");
         }
+    }
+
+    private boolean isOrganizer(User user) {
+        return user != null
+                && user.getRole() != null
+                && "Organizer".equalsIgnoreCase(user.getRole().getRoleName())
+                && Boolean.TRUE.equals(user.getIsActive())
+                && Boolean.TRUE.equals(user.getIsApproved());
     }
 }
