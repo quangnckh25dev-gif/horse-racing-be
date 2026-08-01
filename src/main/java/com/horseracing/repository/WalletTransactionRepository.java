@@ -7,4 +7,11 @@ import java.util.List;
 
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Integer> {
     List<WalletTransaction> findByWalletIdOrderByCreatedAtDesc(Integer walletId);
+
+    boolean existsByWalletIdAndTransactionTypeAndRelatedEntityAndRelatedEntityId(
+            Integer walletId,
+            String transactionType,
+            String relatedEntity,
+            Integer relatedEntityId
+    );
 }

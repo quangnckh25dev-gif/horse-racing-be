@@ -8,6 +8,8 @@ import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.RaceResult;
 import com.horseracing.entity.Referee;
 import com.horseracing.entity.User;
+import com.horseracing.repository.HorseOwnerRepository;
+import com.horseracing.repository.HorseRepository;
 import com.horseracing.repository.NotificationRepository;
 import com.horseracing.repository.RaceEntryRepository;
 import com.horseracing.repository.RaceRefereeRepository;
@@ -40,6 +42,9 @@ public class RaceResultService {
     private final TournamentRepository tournamentRepository;
     private final NotificationRepository notificationRepository;
     private final RaceRankingService raceRankingService;
+    private final HorseRepository horseRepository;
+    private final HorseOwnerRepository horseOwnerRepository;
+    private final WalletService walletService;
 
     public RaceResultService(RaceResultRepository raceResultRepository,
                              RaceRepository raceRepository,
@@ -48,7 +53,10 @@ public class RaceResultService {
                              RaceRefereeRepository raceRefereeRepository,
                              TournamentRepository tournamentRepository,
                              NotificationRepository notificationRepository,
-                             RaceRankingService raceRankingService) {
+                             RaceRankingService raceRankingService,
+                             HorseRepository horseRepository,
+                             HorseOwnerRepository horseOwnerRepository,
+                             WalletService walletService) {
         this.raceResultRepository = raceResultRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
@@ -57,6 +65,9 @@ public class RaceResultService {
         this.tournamentRepository = tournamentRepository;
         this.notificationRepository = notificationRepository;
         this.raceRankingService = raceRankingService;
+        this.horseRepository = horseRepository;
+        this.horseOwnerRepository = horseOwnerRepository;
+        this.walletService = walletService;
     }
 
     @Transactional
@@ -180,6 +191,7 @@ public class RaceResultService {
         }
 
         raceResultRepository.publishRaceResult(raceId, organizer.getUserId());
+        awardOwnerPrizes(raceId);
         return getPublishedResultsByRace(raceId);
     }
 
@@ -276,6 +288,23 @@ public class RaceResultService {
                 notificationRepository.save(notification);
             });
         });
+    }
+
+    private void awardOwnerPrizes(Integer raceId) {
+        raceResultRepository.findByRaceId(raceId).stream()
+                .filter(result -> STATUS_PUBLISHED.equals(result.getApprovalStatus()))
+                .filter(result -> defaultDecimal(result.getPrizeWon()).compareTo(BigDecimal.ZERO) > 0)
+                .forEach(result -> {
+                    RaceEntry entry = raceEntryRepository.findById(result.getEntryId())
+                            .orElseThrow(() -> new IllegalArgumentException("Race entry was not found for prize payout."));
+                    Integer ownerId = horseRepository.findById(entry.getHorseId())
+                            .orElseThrow(() -> new IllegalArgumentException("Horse was not found for prize payout."))
+                            .getOwnerId();
+                    Integer ownerUserId = horseOwnerRepository.findById(ownerId)
+                            .orElseThrow(() -> new IllegalArgumentException("Horse owner was not found for prize payout."))
+                            .getUserId();
+                    walletService.creditPrizeAward(ownerUserId, result.getPrizeWon(), raceId, result.getResultId());
+                });
     }
 
     private boolean isApprovedActiveRole(User user, String roleName) {

@@ -191,6 +191,27 @@ public class WalletService {
     }
 
     @Transactional
+    public Wallet creditPrizeAward(Integer ownerUserId, BigDecimal amount, Integer raceId, Integer resultId) {
+        BigDecimal validAmount = validateAmount(amount);
+        Wallet wallet = getOrCreateWallet(ownerUserId);
+        boolean alreadyAwardedByResult = walletTransactionRepository
+                .existsByWalletIdAndTransactionTypeAndRelatedEntityAndRelatedEntityId(
+                        wallet.getWalletId(), "PrizeAwarded", "RaceResult", resultId);
+        boolean alreadyAwardedByRace = walletTransactionRepository
+                .existsByWalletIdAndTransactionTypeAndRelatedEntityAndRelatedEntityId(
+                        wallet.getWalletId(), "PrizeAwarded", "Race", raceId);
+        if (alreadyAwardedByResult || alreadyAwardedByRace) {
+            return wallet;
+        }
+
+        wallet.setBalance(wallet.getBalance().add(validAmount));
+        Wallet saved = walletRepository.save(wallet);
+        createTransaction(saved, validAmount, "PrizeAwarded", "Race placement prize awarded",
+                "RaceResult", resultId);
+        return saved;
+    }
+
+    @Transactional
     public void transferJockeyDeal(Integer ownerUserId, Integer jockeyUserId, BigDecimal amount, Integer invitationId) {
         BigDecimal validAmount = validateAmount(amount);
         Wallet ownerWallet = getOrCreateWallet(ownerUserId);
