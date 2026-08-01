@@ -250,6 +250,9 @@ CREATE TABLE RaceEntries (
     OrganizerApproved  BIT          NOT NULL DEFAULT 0,          -- helper flag; backend must keep it in sync with RegistrationStatus
     ApprovedBy         INT          NULL REFERENCES Users(UserID),  -- approver user
     RejectReason       NVARCHAR(500) NULL,
+    RoundStatus        NVARCHAR(30) NULL,                        -- Qualified|Eliminated|Finalist
+    EliminationRoundID INT NULL REFERENCES Rounds(RoundID),
+    EliminationReason  NVARCHAR(255) NULL,
     JockeyConfirmed    BIT          NOT NULL DEFAULT 0,          -- jockey accepted invitation; backend can set Ready
     Odds               DECIMAL(10,2) NOT NULL DEFAULT 2.00,     -- (5) server-side odds snapshot
     RegisteredAt       DATETIME2    DEFAULT GETDATE(),

@@ -45,6 +45,15 @@ public class RaceEntry {
     @Column(name = "RejectReason")
     private String rejectReason;
 
+    @Column(name = "RoundStatus")
+    private String roundStatus;
+
+    @Column(name = "EliminationRoundID")
+    private Integer eliminationRoundId;
+
+    @Column(name = "EliminationReason")
+    private String eliminationReason;
+
     @Column(name = "JockeyConfirmed", nullable = false)
     private Boolean jockeyConfirmed;
 
@@ -99,6 +108,12 @@ public class RaceEntry {
     public void setApprovedBy(Integer approvedBy) { this.approvedBy = approvedBy; }
     public String getRejectReason() { return rejectReason; }
     public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+    public String getRoundStatus() { return roundStatus; }
+    public void setRoundStatus(String roundStatus) { this.roundStatus = roundStatus; }
+    public Integer getEliminationRoundId() { return eliminationRoundId; }
+    public void setEliminationRoundId(Integer eliminationRoundId) { this.eliminationRoundId = eliminationRoundId; }
+    public String getEliminationReason() { return eliminationReason; }
+    public void setEliminationReason(String eliminationReason) { this.eliminationReason = eliminationReason; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
     public void setJockeyConfirmed(Boolean jockeyConfirmed) { this.jockeyConfirmed = jockeyConfirmed; }
     public BigDecimal getOdds() { return odds; }

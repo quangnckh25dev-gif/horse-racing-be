@@ -19,6 +19,9 @@ public class RaceEntryResponse {
     private Boolean organizerApproved;
     private Integer approvedBy;
     private String rejectReason;
+    private String roundStatus;
+    private Integer eliminationRoundId;
+    private String eliminationReason;
     private Boolean jockeyConfirmed;
     private BigDecimal odds;
     private String healthStatus;
@@ -64,6 +67,21 @@ public class RaceEntryResponse {
         this.updatedAt = updatedAt;
     }
 
+    public RaceEntryResponse(Integer entryId, Integer raceId, String raceName, Integer horseId, String horseName,
+                             Integer ownerId, String ownerName, Integer jockeyId, String jockeyName,
+                             Integer laneNumber, String registrationStatus, Boolean organizerApproved,
+                             Integer approvedBy, String rejectReason, String roundStatus, Integer eliminationRoundId,
+                             String eliminationReason, Boolean jockeyConfirmed, BigDecimal odds,
+                             String healthStatus, List<HorseHealthRecordResponse> healthHistory,
+                             LocalDateTime registeredAt, LocalDateTime updatedAt) {
+        this(entryId, raceId, raceName, horseId, horseName, ownerId, ownerName, jockeyId, jockeyName, laneNumber,
+                registrationStatus, organizerApproved, approvedBy, rejectReason, jockeyConfirmed, odds,
+                healthStatus, healthHistory, registeredAt, updatedAt);
+        this.roundStatus = roundStatus;
+        this.eliminationRoundId = eliminationRoundId;
+        this.eliminationReason = eliminationReason;
+    }
+
     public Integer getEntryId() { return entryId; }
     public Integer getRaceId() { return raceId; }
     public String getRaceName() { return raceName; }
@@ -78,6 +96,9 @@ public class RaceEntryResponse {
     public Boolean getOrganizerApproved() { return organizerApproved; }
     public Integer getApprovedBy() { return approvedBy; }
     public String getRejectReason() { return rejectReason; }
+    public String getRoundStatus() { return roundStatus; }
+    public Integer getEliminationRoundId() { return eliminationRoundId; }
+    public String getEliminationReason() { return eliminationReason; }
     public Boolean getJockeyConfirmed() { return jockeyConfirmed; }
     public BigDecimal getOdds() { return odds; }
     public String getHealthStatus() { return healthStatus; }

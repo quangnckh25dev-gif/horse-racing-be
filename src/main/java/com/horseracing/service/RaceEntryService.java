@@ -11,6 +11,7 @@ import com.horseracing.entity.Jockey;
 import com.horseracing.entity.Notification;
 import com.horseracing.entity.Race;
 import com.horseracing.entity.RaceEntry;
+import com.horseracing.entity.Round;
 import com.horseracing.entity.Tournament;
 import com.horseracing.entity.User;
 import com.horseracing.repository.HorseOwnerRepository;
@@ -20,6 +21,7 @@ import com.horseracing.repository.JockeyRepository;
 import com.horseracing.repository.NotificationRepository;
 import com.horseracing.repository.RaceEntryRepository;
 import com.horseracing.repository.RaceRepository;
+import com.horseracing.repository.RoundRepository;
 import com.horseracing.repository.TournamentRepository;
 import com.horseracing.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,13 +46,14 @@ public class RaceEntryService {
     private final NotificationRepository notificationRepository;
     private final CurrentUserService currentUserService;
     private final TournamentRepository tournamentRepository;
+    private final RoundRepository roundRepository;
 
     public RaceEntryService(RaceEntryRepository raceEntryRepository, RaceRepository raceRepository,
                             HorseRepository horseRepository, HorseHealthRecordRepository healthRecordRepository,
                             HorseOwnerRepository horseOwnerRepository,
                             JockeyRepository jockeyRepository, UserRepository userRepository,
                             NotificationRepository notificationRepository, CurrentUserService currentUserService,
-                            TournamentRepository tournamentRepository) {
+                            TournamentRepository tournamentRepository, RoundRepository roundRepository) {
         this.raceEntryRepository = raceEntryRepository;
         this.raceRepository = raceRepository;
         this.horseRepository = horseRepository;
@@ -61,6 +64,7 @@ public class RaceEntryService {
         this.notificationRepository = notificationRepository;
         this.currentUserService = currentUserService;
         this.tournamentRepository = tournamentRepository;
+        this.roundRepository = roundRepository;
     }
 
     public List<RaceEntryResponse> getRaceEntries(Integer raceId) {
@@ -103,6 +107,7 @@ public class RaceEntryService {
         if (!Boolean.TRUE.equals(horse.getIsActive())) {
             throw new IllegalArgumentException("Horse is inactive.");
         }
+        ensureHorseCanEnterRound(race, horse.getHorseId());
         if (raceEntryRepository.existsActiveRegistration(raceId, horse.getHorseId())) {
             throw new IllegalArgumentException("Horse has already registered for this race.");
         }
@@ -199,6 +204,20 @@ public class RaceEntryService {
                 .orElseThrow(() -> new IllegalArgumentException("Entry was not found."));
         ensureCanViewEntry(user, entry);
         return toResponse(entry);
+    }
+
+    private void ensureHorseCanEnterRound(Race race, Integer horseId) {
+        if (race.getRoundId() == null) {
+            return;
+        }
+        Round round = roundRepository.findById(race.getRoundId())
+                .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
+        if (round.getRoundOrder() == null || round.getRoundOrder() <= 1) {
+            return;
+        }
+        if (raceEntryRepository.countEliminatedBeforeRound(race.getTournamentId(), horseId, round.getRoundOrder()) > 0) {
+            throw new IllegalArgumentException("This horse was eliminated in a previous round.");
+        }
     }
 
     private void validateRaceCanReceiveEntry(Race race) {
@@ -334,6 +353,9 @@ public class RaceEntryService {
                 entry.getOrganizerApproved(),
                 entry.getApprovedBy(),
                 entry.getRejectReason(),
+                entry.getRoundStatus(),
+                entry.getEliminationRoundId(),
+                entry.getEliminationReason(),
                 entry.getJockeyConfirmed(),
                 entry.getOdds(),
                 horse == null ? null : horse.getHealthStatus(),

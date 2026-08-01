@@ -7,6 +7,7 @@ import com.horseracing.entity.Race;
 import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.RaceResult;
 import com.horseracing.entity.Referee;
+import com.horseracing.entity.Round;
 import com.horseracing.entity.User;
 import com.horseracing.repository.HorseOwnerRepository;
 import com.horseracing.repository.HorseRepository;
@@ -16,6 +17,7 @@ import com.horseracing.repository.RaceRefereeRepository;
 import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RaceResultRepository;
 import com.horseracing.repository.RefereeRepository;
+import com.horseracing.repository.RoundRepository;
 import com.horseracing.repository.TournamentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -46,6 +52,7 @@ public class RaceResultService {
     private final HorseOwnerRepository horseOwnerRepository;
     private final WalletService walletService;
     private final BettingService bettingService;
+    private final RoundRepository roundRepository;
 
     public RaceResultService(RaceResultRepository raceResultRepository,
                              RaceRepository raceRepository,
@@ -58,7 +65,8 @@ public class RaceResultService {
                              HorseRepository horseRepository,
                              HorseOwnerRepository horseOwnerRepository,
                              WalletService walletService,
-                             BettingService bettingService) {
+                             BettingService bettingService,
+                             RoundRepository roundRepository) {
         this.raceResultRepository = raceResultRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
@@ -71,6 +79,7 @@ public class RaceResultService {
         this.horseOwnerRepository = horseOwnerRepository;
         this.walletService = walletService;
         this.bettingService = bettingService;
+        this.roundRepository = roundRepository;
     }
 
     @Transactional
@@ -194,6 +203,7 @@ public class RaceResultService {
         }
 
         raceResultRepository.publishRaceResult(raceId, organizer.getUserId());
+        applyRoundAdvancement(raceId);
         awardOwnerPrizes(raceId);
         bettingService.settleRaceBets(raceId);
         return getPublishedResultsByRace(raceId);
@@ -270,6 +280,105 @@ public class RaceResultService {
             throw new IllegalArgumentException("Race does not have results yet.");
         }
         return results;
+    }
+
+    private void applyRoundAdvancement(Integer raceId) {
+        Race race = ensureRaceExists(raceId);
+        if (race.getRoundId() == null) {
+            return;
+        }
+
+        Round round = roundRepository.findById(race.getRoundId())
+                .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
+        Integer roundOrder = round.getRoundOrder();
+        if (roundOrder == null) {
+            return;
+        }
+
+        raceRankingService.recalculateRace(raceId);
+        List<RaceEntry> entries = raceEntryRepository.findAdvancementEligibleEntriesByRaceId(raceId);
+        if (entries.isEmpty()) {
+            return;
+        }
+
+        Map<Integer, RaceResult> resultByEntryId = raceResultRepository.findByRaceId(raceId).stream()
+                .filter(result -> STATUS_PUBLISHED.equals(result.getApprovalStatus()))
+                .collect(Collectors.toMap(RaceResult::getEntryId, Function.identity(), (left, right) -> left));
+
+        List<RaceEntry> orderedEntries = entries.stream()
+                .sorted(Comparator
+                        .comparing((RaceEntry entry) -> isRankedResult(resultByEntryId.get(entry.getEntryId())) ? 0 : 1)
+                        .thenComparing(entry -> {
+                            RaceResult result = resultByEntryId.get(entry.getEntryId());
+                            return result == null || result.getFinishPosition() == null
+                                    ? Integer.MAX_VALUE
+                                    : result.getFinishPosition();
+                        })
+                        .thenComparing(RaceEntry::getEntryId))
+                .toList();
+
+        if (roundOrder >= 3) {
+            orderedEntries.forEach(entry -> {
+                entry.setRoundStatus("Finalist");
+                entry.setEliminationRoundId(null);
+                entry.setEliminationReason(null);
+            });
+            raceEntryRepository.saveAll(orderedEntries);
+            return;
+        }
+
+        int eliminationCount = (int) Math.ceil(orderedEntries.size() / 4.0);
+        int qualifiedCount = Math.max(0, orderedEntries.size() - eliminationCount);
+        List<RaceEntry> qualifiedEntries = orderedEntries.subList(0, qualifiedCount);
+        List<RaceEntry> eliminatedEntries = orderedEntries.subList(qualifiedCount, orderedEntries.size());
+
+        qualifiedEntries.forEach(entry -> {
+            entry.setRoundStatus("Qualified");
+            entry.setEliminationRoundId(null);
+            entry.setEliminationReason(null);
+        });
+        eliminatedEntries.forEach(entry -> {
+            entry.setRoundStatus("Eliminated");
+            entry.setEliminationRoundId(round.getRoundId());
+            entry.setEliminationReason(round.getRoundName() + " cutoff");
+        });
+        raceEntryRepository.saveAll(orderedEntries);
+        createNextRoundEntries(race, roundOrder + 1, qualifiedEntries);
+    }
+
+    private boolean isRankedResult(RaceResult result) {
+        return result != null
+                && result.getFinishPosition() != null
+                && !Boolean.TRUE.equals(result.getDnf())
+                && !Boolean.TRUE.equals(result.getDq());
+    }
+
+    private void createNextRoundEntries(Race currentRace, Integer nextRoundOrder, List<RaceEntry> qualifiedEntries) {
+        roundRepository.findByTournamentIdAndRoundOrder(currentRace.getTournamentId(), nextRoundOrder)
+                .flatMap(nextRound -> raceRepository.findByTournamentIdAndRoundId(
+                                currentRace.getTournamentId(), nextRound.getRoundId())
+                        .stream()
+                        .findFirst())
+                .ifPresent(nextRace -> qualifiedEntries.forEach(entry -> {
+                    if (raceEntryRepository.existsByRaceIdAndHorseId(nextRace.getRaceId(), entry.getHorseId())) {
+                        return;
+                    }
+                    RaceEntry nextEntry = new RaceEntry();
+                    nextEntry.setRaceId(nextRace.getRaceId());
+                    nextEntry.setHorseId(entry.getHorseId());
+                    nextEntry.setJockeyId(entry.getJockeyId());
+                    nextEntry.setLaneNumber(entry.getLaneNumber());
+                    nextEntry.setRegistrationStatus(entry.getRegistrationStatus());
+                    nextEntry.setOrganizerApproved(entry.getOrganizerApproved());
+                    nextEntry.setApprovedBy(entry.getApprovedBy());
+                    nextEntry.setRejectReason(null);
+                    nextEntry.setRoundStatus(null);
+                    nextEntry.setEliminationRoundId(null);
+                    nextEntry.setEliminationReason(null);
+                    nextEntry.setJockeyConfirmed(entry.getJockeyConfirmed());
+                    nextEntry.setOdds(entry.getOdds());
+                    raceEntryRepository.save(nextEntry);
+                }));
     }
 
     private RaceResult getResultOrThrow(Integer resultId) {
