@@ -190,6 +190,26 @@ public class WalletService {
         return saved;
     }
 
+    @Transactional
+    public void transferJockeyDeal(Integer ownerUserId, Integer jockeyUserId, BigDecimal amount, Integer invitationId) {
+        BigDecimal validAmount = validateAmount(amount);
+        Wallet ownerWallet = getOrCreateWallet(ownerUserId);
+        if (ownerWallet.getBalance().compareTo(validAmount) < 0) {
+            throw new IllegalArgumentException("Owner wallet balance is insufficient for this jockey deal.");
+        }
+
+        Wallet jockeyWallet = getOrCreateWallet(jockeyUserId);
+        ownerWallet.setBalance(ownerWallet.getBalance().subtract(validAmount));
+        jockeyWallet.setBalance(jockeyWallet.getBalance().add(validAmount));
+
+        Wallet savedOwnerWallet = walletRepository.save(ownerWallet);
+        Wallet savedJockeyWallet = walletRepository.save(jockeyWallet);
+        createTransaction(savedOwnerWallet, validAmount.negate(), "JockeyDealPaid",
+                "Jockey deal paid", "JockeyInvitation", invitationId);
+        createTransaction(savedJockeyWallet, validAmount, "JockeyDealReceived",
+                "Jockey deal received", "JockeyInvitation", invitationId);
+    }
+
     public Wallet getOrCreateWallet(Integer userId) {
         return walletRepository.findByUserId(userId)
                 .orElseGet(() -> {
