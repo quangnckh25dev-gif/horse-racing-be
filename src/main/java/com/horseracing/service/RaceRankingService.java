@@ -1,6 +1,8 @@
 package com.horseracing.service;
 
+import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.RaceResult;
+import com.horseracing.repository.RaceEntryRepository;
 import com.horseracing.repository.RaceResultRepository;
 import com.horseracing.repository.ViolationRepository;
 import org.springframework.stereotype.Service;
@@ -15,11 +17,14 @@ public class RaceRankingService {
 
     private final RaceResultRepository raceResultRepository;
     private final ViolationRepository violationRepository;
+    private final RaceEntryRepository raceEntryRepository;
 
     public RaceRankingService(RaceResultRepository raceResultRepository,
-                              ViolationRepository violationRepository) {
+                              ViolationRepository violationRepository,
+                              RaceEntryRepository raceEntryRepository) {
         this.raceResultRepository = raceResultRepository;
         this.violationRepository = violationRepository;
+        this.raceEntryRepository = raceEntryRepository;
     }
 
     @Transactional
@@ -32,10 +37,11 @@ public class RaceRankingService {
         for (RaceResult result : results) {
             BigDecimal penalty = violationRepository.sumPenaltySecondsByRaceAndEntry(raceId, result.getEntryId());
             boolean dqByViolation = violationRepository.countDqByRaceAndEntry(raceId, result.getEntryId()) > 0;
+            boolean preRaceRejected = isPreRaceRejected(result.getEntryId());
 
             result.setPenaltyTime(penalty == null ? BigDecimal.ZERO : penalty);
             result.setDq(dqByViolation);
-            if (Boolean.TRUE.equals(result.getDnf()) || dqByViolation || result.getFinishTime() == null) {
+            if (Boolean.TRUE.equals(result.getDnf()) || dqByViolation || preRaceRejected || result.getFinishTime() == null) {
                 result.setFinalTime(null);
                 result.setFinishPosition(null);
             } else {
@@ -46,6 +52,7 @@ public class RaceRankingService {
         List<RaceResult> ranked = results.stream()
                 .filter(result -> !Boolean.TRUE.equals(result.getDnf())
                         && !Boolean.TRUE.equals(result.getDq())
+                        && !isPreRaceRejected(result.getEntryId())
                         && result.getFinalTime() != null)
                 .sorted(Comparator.comparing(RaceResult::getFinalTime)
                         .thenComparing(RaceResult::getResultId))
@@ -56,5 +63,12 @@ public class RaceRankingService {
         }
 
         raceResultRepository.saveAll(results);
+    }
+
+    private boolean isPreRaceRejected(Integer entryId) {
+        return raceEntryRepository.findById(entryId)
+                .map(RaceEntry::getRegistrationStatus)
+                .map(status -> "PreRaceRejected".equalsIgnoreCase(status))
+                .orElse(false);
     }
 }

@@ -19,11 +19,19 @@ public class ViolationOptionResponse {
         return violationType;
     }
 
+    public String getType() {
+        return violationType;
+    }
+
     public String getLabel() {
         return label;
     }
 
     public BigDecimal getPenaltySeconds() {
+        return penaltySeconds;
+    }
+
+    public BigDecimal getPenalty() {
         return penaltySeconds;
     }
 
