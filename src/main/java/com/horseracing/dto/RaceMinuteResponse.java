@@ -8,6 +8,7 @@ public class RaceMinuteResponse {
     private Integer raceId;
     private Integer refereeId;
     private String content;
+    private String weatherCondition;
     private String preRaceChecks;
     private String postRaceNotes;
     private String minutesFileUrl;
@@ -17,13 +18,14 @@ public class RaceMinuteResponse {
     private LocalDateTime updatedAt;
 
     public RaceMinuteResponse(Integer minuteId, Integer raceId, Integer refereeId, String content,
-                              String preRaceChecks, String postRaceNotes, String minutesFileUrl,
-                              Boolean sentToOwners, LocalDateTime sentAt,
+                              String weatherCondition, String preRaceChecks, String postRaceNotes,
+                              String minutesFileUrl, Boolean sentToOwners, LocalDateTime sentAt,
                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.minuteId = minuteId;
         this.raceId = raceId;
         this.refereeId = refereeId;
         this.content = content;
+        this.weatherCondition = weatherCondition;
         this.preRaceChecks = preRaceChecks;
         this.postRaceNotes = postRaceNotes;
         this.minutesFileUrl = minutesFileUrl;
@@ -47,6 +49,10 @@ public class RaceMinuteResponse {
 
     public String getContent() {
         return content;
+    }
+
+    public String getWeatherCondition() {
+        return weatherCondition;
     }
 
     public String getPreRaceChecks() {

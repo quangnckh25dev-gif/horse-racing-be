@@ -148,6 +148,10 @@ public class RaceResultService {
     @Transactional
     public List<RaceResultResponse> rejectResults(Integer raceId, String reason, User organizer) {
         Race race = ensureOwnedRace(raceId, organizer);
+        String cleanReason = trimToNull(reason);
+        if (cleanReason == null) {
+            throw new IllegalArgumentException("Reject reason is required.");
+        }
         List<RaceResult> results = getRaceResultsOrThrow(raceId);
         LocalDateTime now = LocalDateTime.now();
 
@@ -160,7 +164,7 @@ public class RaceResultService {
             result.setApprovedAt(now);
             result.setPublishedAt(null);
         });
-        notifyAssignedReferees(race, reason);
+        notifyAssignedReferees(race, cleanReason);
 
         return raceResultRepository.saveAll(results).stream()
                 .map(this::toResponse)
@@ -258,9 +262,7 @@ public class RaceResultService {
     }
 
     private void notifyAssignedReferees(Race race, String reason) {
-        String body = reason == null || reason.isBlank()
-                ? "Race results were rejected. Please review and update them."
-                : reason.trim();
+        String body = "Race results were rejected. Reason: " + reason;
         raceRefereeRepository.findByRaceId(race.getRaceId()).forEach(assignment -> {
             refereeRepository.findById(assignment.getRefereeId()).ifPresent(referee -> {
                 Notification notification = new Notification();
@@ -286,6 +288,10 @@ public class RaceResultService {
 
     private BigDecimal defaultDecimal(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private BigDecimal parseFinishTime(String finishTime) {

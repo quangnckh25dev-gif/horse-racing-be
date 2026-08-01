@@ -27,6 +27,9 @@ public class RaceMinute {
     @Column(name = "Content")
     private String content;
 
+    @Column(name = "WeatherCondition")
+    private String weatherCondition;
+
     @Column(name = "PreRaceChecks")
     private String preRaceChecks;
 
@@ -78,6 +81,14 @@ public class RaceMinute {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getWeatherCondition() {
+        return weatherCondition;
+    }
+
+    public void setWeatherCondition(String weatherCondition) {
+        this.weatherCondition = weatherCondition;
     }
 
     public String getPreRaceChecks() {
