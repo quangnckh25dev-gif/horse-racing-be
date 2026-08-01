@@ -23,21 +23,31 @@ public class AdminUserService {
     private final AuditLogRepository auditLogRepository;
     private final UserRoleHistoryRepository userRoleHistoryRepository;
 
-    public AdminUserService(UserRepository userRepository, RoleRepository roleRepository, AuditLogRepository auditLogRepository, UserRoleHistoryRepository userRoleHistoryRepository) {
+    public AdminUserService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            AuditLogRepository auditLogRepository,
+            UserRoleHistoryRepository userRoleHistoryRepository
+    ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.auditLogRepository = auditLogRepository;
         this.userRoleHistoryRepository = userRoleHistoryRepository;
     }
 
-    public List<UserResponse> getPendingUsers() {
-        return userRepository.findByIsApprovedFalse().stream()
+    public List<UserResponse> getPendingUsers(String role, String keyword) {
+        String roleFilter = normalizeBlank(role);
+        String keywordFilter = normalizeBlank(keyword);
+        return userRepository.findPendingUsers(roleFilter, keywordFilter).stream()
                 .map(this::toUserResponse)
                 .collect(Collectors.toList());
     }
 
-    public List<UserResponse> getAllActiveUsers() {
-        return userRepository.findByIsActiveTrue().stream()
+    public List<UserResponse> getAllActiveUsers(String role, String status, String keyword) {
+        String roleFilter = normalizeBlank(role);
+        Boolean activeFilter = normalizeStatus(status);
+        String keywordFilter = normalizeBlank(keyword);
+        return userRepository.findManagedUsers(roleFilter, activeFilter, keywordFilter).stream()
                 .map(this::toUserResponse)
                 .collect(Collectors.toList());
     }
@@ -56,7 +66,7 @@ public class AdminUserService {
         return toUserResponse(savedUser);
     }
 
-    public UserResponse rejectUser(Integer targetUserId, Integer adminId) {
+    public UserResponse rejectUser(Integer targetUserId, Integer adminId, String reason) {
         User user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("User was not found."));
         ensureNotHardAdmin(user);
@@ -66,7 +76,8 @@ public class AdminUserService {
         user.setUpdatedAt(LocalDateTime.now());
         User savedUser = userRepository.save(user);
 
-        logAudit("REJECT_USER", adminId, "Users", targetUserId, "Pending", "Rejected");
+        String auditValue = normalizeBlank(reason) == null ? "Rejected" : "Rejected: " + reason.trim();
+        logAudit("REJECT_USER", adminId, "Users", targetUserId, "Pending", auditValue);
 
         return toUserResponse(savedUser);
     }
@@ -100,7 +111,14 @@ public class AdminUserService {
         history.setChangedAt(LocalDateTime.now());
         userRoleHistoryRepository.save(history);
 
-        logAudit("CHANGE_ROLE", adminId, "Users", targetUserId, String.valueOf(oldRoleId), String.valueOf(newRole.getRoleId()));
+        logAudit(
+                "CHANGE_ROLE",
+                adminId,
+                "Users",
+                targetUserId,
+                String.valueOf(oldRoleId),
+                String.valueOf(newRole.getRoleId())
+        );
 
         return toUserResponse(savedUser);
     }
@@ -122,6 +140,24 @@ public class AdminUserService {
         log.setNewValue(newValue);
         log.setCreatedAt(LocalDateTime.now());
         auditLogRepository.save(log);
+    }
+
+    private String normalizeBlank(String value) {
+        return value == null || value.trim().isEmpty() ? null : value.trim();
+    }
+
+    private Boolean normalizeStatus(String status) {
+        String normalized = normalizeBlank(status);
+        if (normalized == null) {
+            return null;
+        }
+        if ("Active".equalsIgnoreCase(normalized) || "true".equalsIgnoreCase(normalized)) {
+            return true;
+        }
+        if ("Inactive".equalsIgnoreCase(normalized) || "false".equalsIgnoreCase(normalized)) {
+            return false;
+        }
+        throw new IllegalArgumentException("status only accepts Active or Inactive.");
     }
 
     private UserResponse toUserResponse(User user) {
