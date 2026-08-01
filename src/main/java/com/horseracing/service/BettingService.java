@@ -194,8 +194,7 @@ public class BettingService {
         if (race.getRaceDate() != null && !race.getRaceDate().isAfter(LocalDateTime.now())) {
             throw new IllegalArgumentException("The race has already started. Betting is no longer allowed.");
         }
-        if (!"Scheduled".equalsIgnoreCase(race.getStatus())
-                && !"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
+        if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
             throw new IllegalArgumentException("This race is not open for betting.");
         }
         return race;

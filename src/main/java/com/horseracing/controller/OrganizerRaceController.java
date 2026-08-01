@@ -2,6 +2,7 @@ package com.horseracing.controller;
 
 import com.horseracing.dto.RaceRefereeRequest;
 import com.horseracing.dto.RaceRequest;
+import com.horseracing.dto.RaceStatusRequest;
 import com.horseracing.entity.User;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.CurrentUserService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -74,6 +76,20 @@ public class OrganizerRaceController {
                 200,
                 "Race updated successfully",
                 raceService.updateRace(id, request, organizer)
+        );
+    }
+
+    @PatchMapping("/races/{id}/status")
+    public ApiResponse<?> updateRaceStatus(
+            @PathVariable Integer id,
+            @RequestBody RaceStatusRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        User organizer = currentUserService.getCurrentUser(httpRequest);
+        return ApiResponse.success(
+                200,
+                "Race status updated successfully",
+                raceService.updateStatusByOrganizer(id, request.getStatus(), organizer)
         );
     }
 

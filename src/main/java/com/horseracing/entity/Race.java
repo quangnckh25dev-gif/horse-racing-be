@@ -72,7 +72,7 @@ public class Race {
         createdAt = now;
         updatedAt = now;
         if (status == null || status.isBlank()) {
-            status = "Scheduled";
+            status = "Draft";
         }
         if (prizeFirst == null) {
             prizeFirst = BigDecimal.ZERO;

@@ -26,7 +26,7 @@ import java.util.Set;
 public class RaceService {
 
     private static final Set<String> VALID_STATUSES = Set.of(
-            "Scheduled", "RegistrationOpen", "Ongoing", "Finished", "Cancelled"
+            "Draft", "RegistrationOpen", "Ongoing", "Finished", "Cancelled"
     );
 
     private final RaceRepository raceRepository;
@@ -94,7 +94,7 @@ public class RaceService {
 
         Race race = new Race();
         applyRequest(race, request);
-        race.setStatus("Scheduled");
+        race.setStatus("Draft");
 
         return toResponse(raceRepository.save(race));
     }
@@ -103,7 +103,7 @@ public class RaceService {
     public RaceSummaryResponse updateRace(Integer raceId, RaceRequest request, User organizer) {
         Race race = getRaceOrThrow(raceId);
         ensureOwnedTournament(race.getTournamentId(), organizer);
-        if (!Set.of("Scheduled", "RegistrationOpen").contains(race.getStatus())) {
+        if (!Set.of("Draft", "RegistrationOpen").contains(race.getStatus())) {
             throw new IllegalArgumentException("Races that have started or finished cannot be edited.");
         }
         validateRaceRequest(request, organizer, raceId);
@@ -124,20 +124,8 @@ public class RaceService {
         }
 
         String newStatus = resolveStatus(status, race.getStatus());
-        if (race.getStatus() != null && race.getStatus().equals(newStatus)) {
-            return toResponse(race);
-        }
-        validateTransition(race.getStatus(), newStatus);
-
-        RaceStatusHistory history = new RaceStatusHistory();
-        history.setRaceId(raceId);
-        history.setOldStatus(race.getStatus());
-        history.setNewStatus(newStatus);
-        history.setChangedBy(refereeUser.getUserId());
-
-        race.setStatus(newStatus);
-        statusHistoryRepository.save(history);
-        return toResponse(raceRepository.save(race));
+        validateRefereeTransition(race.getStatus(), newStatus);
+        return applyStatusChange(race, newStatus, refereeUser);
     }
 
     @Transactional
@@ -146,11 +134,21 @@ public class RaceService {
     }
 
     @Transactional
+    public RaceSummaryResponse updateStatusByOrganizer(Integer raceId, String status, User organizer) {
+        Race race = getRaceOrThrow(raceId);
+        ensureOwnedTournament(race.getTournamentId(), organizer);
+
+        String newStatus = resolveStatus(status, race.getStatus());
+        validateOrganizerTransition(race.getStatus(), newStatus);
+        return applyStatusChange(race, newStatus, organizer);
+    }
+
+    @Transactional
     public void deleteRace(Integer raceId, User organizer) {
         Race race = getRaceOrThrow(raceId);
         Tournament tournament = ensureOwnedTournament(race.getTournamentId(), organizer);
-        if (!"Draft".equals(tournament.getStatus()) || !"Scheduled".equals(race.getStatus())) {
-            throw new IllegalArgumentException("Only Scheduled races can be deleted while the tournament is still Draft.");
+        if (!"Draft".equals(tournament.getStatus()) || !"Draft".equals(race.getStatus())) {
+            throw new IllegalArgumentException("Only Draft races can be deleted while the tournament is still Draft.");
         }
         raceRepository.delete(race);
     }
@@ -288,19 +286,42 @@ public class RaceService {
         }
     }
 
-    private void validateTransition(String oldStatus, String newStatus) {
-        boolean valid = ("Scheduled".equals(oldStatus) && Set.of("RegistrationOpen", "Ongoing", "Cancelled").contains(newStatus))
-                || ("RegistrationOpen".equals(oldStatus) && Set.of("Ongoing", "Cancelled").contains(newStatus))
+    private RaceSummaryResponse applyStatusChange(Race race, String newStatus, User changedBy) {
+        if (race.getStatus() != null && race.getStatus().equals(newStatus)) {
+            return toResponse(race);
+        }
+
+        RaceStatusHistory history = new RaceStatusHistory();
+        history.setRaceId(race.getRaceId());
+        history.setOldStatus(race.getStatus());
+        history.setNewStatus(newStatus);
+        history.setChangedBy(changedBy.getUserId());
+
+        race.setStatus(newStatus);
+        statusHistoryRepository.save(history);
+        return toResponse(raceRepository.save(race));
+    }
+
+    private void validateOrganizerTransition(String oldStatus, String newStatus) {
+        boolean valid = ("Draft".equals(oldStatus) && Set.of("RegistrationOpen", "Cancelled").contains(newStatus))
+                || ("RegistrationOpen".equals(oldStatus) && "Cancelled".equals(newStatus));
+        if (!valid) {
+            throw new IllegalArgumentException("Organizer can only move Draft races to RegistrationOpen, or cancel Draft/RegistrationOpen races.");
+        }
+    }
+
+    private void validateRefereeTransition(String oldStatus, String newStatus) {
+        boolean valid = ("RegistrationOpen".equals(oldStatus) && Set.of("Ongoing", "Cancelled").contains(newStatus))
                 || ("Ongoing".equals(oldStatus) && Set.of("Finished", "Cancelled").contains(newStatus));
         if (!valid) {
-            throw new IllegalArgumentException("Race status transition is invalid.");
+            throw new IllegalArgumentException("Referee can only move RegistrationOpen races to Ongoing, move Ongoing races to Finished, or cancel active races.");
         }
     }
 
     private String normalizeStatus(String status) {
         String normalized = status.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "scheduled", "da len lich" -> "Scheduled";
+            case "draft", "scheduled", "da len lich" -> "Draft";
             case "registrationopen", "registration open", "mo dang ky" -> "RegistrationOpen";
             case "ongoing", "dang dien ra" -> "Ongoing";
             case "finished", "ket thuc" -> "Finished";

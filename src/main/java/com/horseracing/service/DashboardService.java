@@ -64,7 +64,7 @@ public class DashboardService {
 
         return new SharedDashboardResponse(
                 toInteger(raceRepository.count()),
-                toInteger(raceRepository.countByStatus("Scheduled")),
+                toInteger(raceRepository.countByStatus("Draft")),
                 toInteger(raceRepository.countByStatus("Ongoing")),
                 toInteger(raceRepository.countByStatus("Finished")),
                 toInteger(raceRepository.countByStatus("RegistrationOpen")),

@@ -51,7 +51,7 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
                 CASE r.Status
                     WHEN 'Ongoing' THEN 1
                     WHEN 'RegistrationOpen' THEN 2
-                    WHEN 'Scheduled' THEN 3
+                    WHEN 'Draft' THEN 3
                     WHEN 'Finished' THEN 4
                     ELSE 5
                 END,
