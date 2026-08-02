@@ -8,6 +8,7 @@ import com.horseracing.entity.RaceEntry;
 import com.horseracing.entity.RaceResult;
 import com.horseracing.entity.Referee;
 import com.horseracing.entity.Round;
+import com.horseracing.entity.Tournament;
 import com.horseracing.entity.User;
 import com.horseracing.repository.HorseOwnerRepository;
 import com.horseracing.repository.HorseRepository;
@@ -215,7 +216,7 @@ public class RaceResultService {
         }
 
         raceResultRepository.publishRaceResult(raceId, organizer.getUserId());
-        applyRoundAdvancement(raceId);
+        applyRoundAdvancement(raceId, organizer);
         awardOwnerPrizes(raceId);
         bettingService.settleRaceBets(raceId);
         return getPublishedResultsByRace(raceId);
@@ -300,7 +301,7 @@ public class RaceResultService {
         return results;
     }
 
-    private void applyRoundAdvancement(Integer raceId) {
+    private void applyRoundAdvancement(Integer raceId, User organizer) {
         Race race = ensureRaceExists(raceId);
         if (race.getRoundId() == null) {
             return;
@@ -361,7 +362,7 @@ public class RaceResultService {
             entry.setEliminationReason(round.getRoundName() + " cutoff");
         });
         raceEntryRepository.saveAll(orderedEntries);
-        createNextRoundEntries(race, roundOrder + 1, qualifiedEntries);
+        createNextRoundEntries(race, roundOrder + 1, qualifiedEntries, organizer);
     }
 
     private boolean isRankedResult(RaceResult result) {
@@ -371,12 +372,9 @@ public class RaceResultService {
                 && !Boolean.TRUE.equals(result.getDq());
     }
 
-    private void createNextRoundEntries(Race currentRace, Integer nextRoundOrder, List<RaceEntry> qualifiedEntries) {
+    private void createNextRoundEntries(Race currentRace, Integer nextRoundOrder, List<RaceEntry> qualifiedEntries, User organizer) {
         roundRepository.findByTournamentIdAndRoundOrder(currentRace.getTournamentId(), nextRoundOrder)
-                .flatMap(nextRound -> raceRepository.findByTournamentIdAndRoundId(
-                                currentRace.getTournamentId(), nextRound.getRoundId())
-                        .stream()
-                        .findFirst())
+                .map(nextRound -> getOrCreateNextRoundRace(currentRace, nextRound, qualifiedEntries.size(), organizer))
                 .ifPresent(nextRace -> qualifiedEntries.forEach(entry -> {
                     if (raceEntryRepository.existsByRaceIdAndHorseId(nextRace.getRaceId(), entry.getHorseId())) {
                         return;
@@ -390,13 +388,64 @@ public class RaceResultService {
                     nextEntry.setOrganizerApproved(entry.getOrganizerApproved());
                     nextEntry.setApprovedBy(entry.getApprovedBy());
                     nextEntry.setRejectReason(null);
-                    nextEntry.setRoundStatus(null);
+                    nextEntry.setRoundStatus("Qualified");
                     nextEntry.setEliminationRoundId(null);
                     nextEntry.setEliminationReason(null);
                     nextEntry.setJockeyConfirmed(entry.getJockeyConfirmed());
                     nextEntry.setOdds(entry.getOdds());
                     raceEntryRepository.save(nextEntry);
                 }));
+    }
+
+    private Race getOrCreateNextRoundRace(Race currentRace, Round nextRound, int qualifiedCount, User organizer) {
+        Race nextRace = raceRepository.findByTournamentIdAndRoundId(currentRace.getTournamentId(), nextRound.getRoundId())
+                .stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    Race race = new Race();
+                    race.setTournamentId(currentRace.getTournamentId());
+                    race.setRoundId(nextRound.getRoundId());
+                    race.setRaceName(nextRound.getRoundName());
+                    race.setTrackLength(currentRace.getTrackLength());
+                    race.setTrackType(currentRace.getTrackType());
+                    race.setPrizeFirst(currentRace.getPrizeFirst());
+                    race.setPrizeSecond(currentRace.getPrizeSecond());
+                    race.setPrizeThird(currentRace.getPrizeThird());
+                    race.setMaxParticipants(qualifiedCount);
+                    race.setRegistrationOpen(LocalDateTime.now());
+                    race.setRegistrationClose(null);
+                    race.setRaceDate(resolveNextRoundRaceDate(currentRace, nextRound));
+                    return raceRepository.save(race);
+                });
+
+        if ("Draft".equalsIgnoreCase(nextRace.getStatus())) {
+            nextRace.setStatus("RegistrationOpen");
+            nextRace.setRegistrationOpen(LocalDateTime.now());
+            raceRepository.save(nextRace);
+            raceRepository.insertStatusHistory(nextRace.getRaceId(), "Draft", "RegistrationOpen", organizer.getUserId());
+        }
+        if (qualifiedCount > 0 && (nextRace.getMaxParticipants() == null || nextRace.getMaxParticipants() < qualifiedCount)) {
+            nextRace.setMaxParticipants(qualifiedCount);
+            nextRace = raceRepository.save(nextRace);
+        }
+        return nextRace;
+    }
+
+    private LocalDateTime resolveNextRoundRaceDate(Race currentRace, Round nextRound) {
+        Tournament tournament = tournamentRepository.findById(currentRace.getTournamentId()).orElse(null);
+        LocalDateTime candidate = currentRace.getRaceDate() == null
+                ? LocalDateTime.now().plusDays(1)
+                : currentRace.getRaceDate().plusDays(1);
+        if (tournament == null || tournament.getEndDate() == null) {
+            return candidate;
+        }
+        LocalDateTime tournamentEnd = tournament.getEndDate().atTime(23, 59);
+        if (!candidate.isAfter(tournamentEnd)) {
+            return candidate;
+        }
+        int roundOrder = nextRound.getRoundOrder() == null ? 2 : nextRound.getRoundOrder();
+        int offsetHours = Math.max(1, roundOrder - 1);
+        return tournamentEnd.minusHours(offsetHours);
     }
 
     private RaceResult getResultOrThrow(Integer resultId) {

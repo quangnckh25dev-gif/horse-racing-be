@@ -224,6 +224,13 @@ public class RaceEntryService {
         if (!"RegistrationOpen".equalsIgnoreCase(race.getStatus())) {
             throw new IllegalArgumentException("Race registration is not open.");
         }
+        if (race.getRoundId() != null) {
+            Round round = roundRepository.findById(race.getRoundId())
+                    .orElseThrow(() -> new IllegalArgumentException("Round was not found."));
+            if (round.getRoundOrder() != null && round.getRoundOrder() > 1) {
+                throw new IllegalArgumentException("Semi Final and Final entries are advanced automatically from the previous round.");
+            }
+        }
         Tournament tournament = tournamentRepository.findById(race.getTournamentId())
                 .orElseThrow(() -> new IllegalArgumentException("Tournament was not found."));
         if (!Set.of("Draft", "Open", "Ongoing").contains(tournament.getStatus())) {

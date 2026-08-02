@@ -209,7 +209,8 @@ public class DashboardService {
                        (SELECT COUNT(1) FROM RaceEntries re WHERE re.RaceID = r.RaceID AND re.RegistrationStatus NOT IN ('Rejected', 'Withdrawn', 'PreRaceRejected')) AS Entries
                 FROM Races r
                 JOIN Tournaments t ON t.TournamentID = r.TournamentID
-                WHERE t.CreatedBy = :userId AND r.Status <> 'Cancelled'
+                WHERE t.CreatedBy = :userId
+                  AND r.Status IN ('Draft', 'RegistrationOpen')
                 ORDER BY r.RaceDate ASC
                 """, Map.of("userId", user.getUserId()),
                 "raceId", "raceName", "raceDate", "trackLength", "status", "maxParticipants", "entries"));
@@ -222,7 +223,8 @@ public class DashboardService {
                 JOIN HorseOwners ho ON ho.OwnerID = h.OwnerID
                 JOIN Users u ON u.UserID = ho.UserID
                 WHERE t.CreatedBy = :userId
-                ORDER BY CASE WHEN re.RegistrationStatus = 'Pending' THEN 0 ELSE 1 END, re.RegisteredAt DESC
+                  AND re.RegistrationStatus = 'Pending'
+                ORDER BY re.RegisteredAt DESC
                 """, Map.of("userId", user.getUserId()),
                 "entryId", "raceName", "horseName", "ownerName", "registeredAt", "status"));
         return data;
