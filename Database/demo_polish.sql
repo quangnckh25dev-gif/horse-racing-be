@@ -1,10 +1,10 @@
 /* ============================================================
    DEMO POLISH — làm đẹp dữ liệu để demo/bảo vệ đồ án
    ------------------------------------------------------------
-   CÁCH DÙNG:
-     1) Import seed gốc trước:  2.8.26_DTB.sql
-     2) Chạy file này NGAY SAU ĐÓ (khi ID còn khớp):
-        sqlcmd -S localhost,1433 -U sa -P 12345 -C -i demo_polish.sql
+   CÁCH DÙNG (BẮT BUỘC thêm -f 65001 để sqlcmd đọc UTF-8, tránh lỗi font tiếng Việt):
+     1) Import seed goc:   sqlcmd -S localhost,1433 -U sa -P 12345 -C -f 65001 -i 2.8.26_DTB.sql
+     2) Chay file nay:     sqlcmd -S localhost,1433 -U sa -P 12345 -C -f 65001 -i demo_polish.sql
+   (Neu quen -f 65001, chu tieng Viet se bi loi kieu "Giai Dua" -> "Giáº£i Äua".)
    KẾT QUẢ:
      - Tên giải / race / ngựa: tiếng Việt, gọn đẹp
      - Toàn bộ ví = 0đ (dọn sạch giao dịch/nạp/rút/cược/khiếu nại)
@@ -62,5 +62,9 @@ UPDATE Jockeys SET TotalRaces = 12, TotalWins = 7 WHERE JockeyID = 1;
 UPDATE Jockeys SET TotalRaces = 9,  TotalWins = 3 WHERE JockeyID = 2;
 UPDATE Jockeys SET TotalRaces = 15, TotalWins = 9 WHERE JockeyID = 3;
 UPDATE Jockeys SET TotalRaces = 6,  TotalWins = 2 WHERE JockeyID = 4;
+
+/* ===== 6. Tài khoản chờ duyệt đúng chuẩn (isActive=1 để hiện ở trang Approve) =====
+   Luong dang ky that: user moi = IsActive=1, IsApproved=0. Query pending yeu cau IsActive=1. */
+UPDATE Users SET IsApproved = 0, IsActive = 1 WHERE Username IN ('owner_pending', 'flow_pending_owner');
 
 SELECT 'DEMO POLISH DONE' AS Result;
