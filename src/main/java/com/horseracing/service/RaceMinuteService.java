@@ -6,6 +6,7 @@ import com.horseracing.entity.Notification;
 import com.horseracing.entity.RaceMinute;
 import com.horseracing.entity.User;
 import com.horseracing.repository.NotificationRepository;
+import com.horseracing.repository.RaceComplaintRepository;
 import com.horseracing.repository.RaceMinuteRepository;
 import com.horseracing.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -16,14 +17,19 @@ import java.time.LocalDateTime;
 @Service
 public class RaceMinuteService {
 
+    private static final long OWNER_COMPLAINT_WINDOW_SECONDS = 60;
+
     private final RaceMinuteRepository raceMinuteRepository;
+    private final RaceComplaintRepository raceComplaintRepository;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
     public RaceMinuteService(RaceMinuteRepository raceMinuteRepository,
+                             RaceComplaintRepository raceComplaintRepository,
                              NotificationRepository notificationRepository,
                              UserRepository userRepository) {
         this.raceMinuteRepository = raceMinuteRepository;
+        this.raceComplaintRepository = raceComplaintRepository;
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
     }
@@ -109,6 +115,9 @@ public class RaceMinuteService {
         if (minute.getMinutesFileUrl() == null || minute.getMinutesFileUrl().isBlank()) {
             throw new IllegalArgumentException("minutesFileUrl is required before handing over to BTC.");
         }
+        ensureMinutesSentToOwners(minute);
+        ensureComplaintWindowClosed(minute);
+        ensureNoOpenComplaints(raceId);
 
         notifyOrganizerAndAdmins(raceId);
 
@@ -161,6 +170,25 @@ public class RaceMinuteService {
     private void ensureRaceHasResults(Integer raceId) {
         if (raceMinuteRepository.countResultsByRaceId(raceId) == 0) {
             throw new IllegalArgumentException("Race results are required before handing off to Organizer.");
+        }
+    }
+
+    private void ensureMinutesSentToOwners(RaceMinute minute) {
+        if (!Boolean.TRUE.equals(minute.getSentToOwners()) || minute.getSentAt() == null) {
+            throw new IllegalArgumentException("Send the race minutes to owners before handing off to Organizer.");
+        }
+    }
+
+    private void ensureComplaintWindowClosed(RaceMinute minute) {
+        LocalDateTime deadline = minute.getSentAt().plusSeconds(OWNER_COMPLAINT_WINDOW_SECONDS);
+        if (LocalDateTime.now().isBefore(deadline)) {
+            throw new IllegalArgumentException("Owner complaint window is still open. Please wait 1 minute after sending minutes to owners.");
+        }
+    }
+
+    private void ensureNoOpenComplaints(Integer raceId) {
+        if (raceComplaintRepository.countOpenComplaintsByRaceId(raceId) > 0) {
+            throw new IllegalArgumentException("This race still has open complaints. Resolve or reject all complaints before handing off to Organizer.");
         }
     }
 

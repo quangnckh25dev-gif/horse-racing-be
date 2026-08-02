@@ -12,6 +12,14 @@ public interface RaceComplaintRepository extends JpaRepository<RaceComplaint, In
     List<RaceComplaint> findByOwnerUserIdOrderByCreatedAtDesc(Integer ownerUserId);
 
     @Query(value = """
+            SELECT COUNT(1)
+            FROM RaceComplaints
+            WHERE RaceID = :raceId
+              AND Status IN ('Pending', 'Forwarded')
+            """, nativeQuery = true)
+    int countOpenComplaintsByRaceId(@Param("raceId") Integer raceId);
+
+    @Query(value = """
             SELECT rc.*
             FROM RaceComplaints rc
             JOIN RaceReferees rr ON rr.RaceID = rc.RaceID

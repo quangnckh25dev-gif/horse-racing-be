@@ -773,7 +773,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Notifications (UserID, Title, Body, NotifType, RelatedEntityID, RelatedEntity)
-    SELECT DISTINCT u.UserID, N'Race minutes sent', N'The referee has sent the race minutes with signature evidence.', 'MinutesSent', @RaceID, 'Race'
+    SELECT DISTINCT u.UserID, N'Race minutes sent', N'The referee has sent the race minutes with signature evidence. You have 1 minute to submit a complaint.', 'MinutesSent', @RaceID, 'Race'
     FROM RaceEntries re
     JOIN Horses h ON re.HorseID = h.HorseID
     JOIN HorseOwners ho ON h.OwnerID = ho.OwnerID

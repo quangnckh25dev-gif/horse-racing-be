@@ -14,6 +14,7 @@ import com.horseracing.repository.HorseOwnerRepository;
 import com.horseracing.repository.HorseRepository;
 import com.horseracing.repository.RaceComplaintRepository;
 import com.horseracing.repository.RaceEntryRepository;
+import com.horseracing.repository.RaceMinuteRepository;
 import com.horseracing.repository.RaceRefereeRepository;
 import com.horseracing.repository.RaceRepository;
 import com.horseracing.repository.RaceResultRepository;
@@ -31,6 +32,8 @@ import java.util.Locale;
 @Service
 public class RaceComplaintService {
 
+    private static final long OWNER_COMPLAINT_WINDOW_SECONDS = 60;
+
     private static final String STATUS_PENDING = "Pending";
     private static final String STATUS_RESOLVED = "Resolved";
     private static final String STATUS_REJECTED = "Rejected";
@@ -39,6 +42,7 @@ public class RaceComplaintService {
     private final RaceComplaintRepository raceComplaintRepository;
     private final RaceRepository raceRepository;
     private final RaceEntryRepository raceEntryRepository;
+    private final RaceMinuteRepository raceMinuteRepository;
     private final RaceResultRepository raceResultRepository;
     private final RaceRefereeRepository raceRefereeRepository;
     private final RefereeRepository refereeRepository;
@@ -51,6 +55,7 @@ public class RaceComplaintService {
     public RaceComplaintService(RaceComplaintRepository raceComplaintRepository,
                                 RaceRepository raceRepository,
                                 RaceEntryRepository raceEntryRepository,
+                                RaceMinuteRepository raceMinuteRepository,
                                 RaceResultRepository raceResultRepository,
                                 RaceRefereeRepository raceRefereeRepository,
                                 RefereeRepository refereeRepository,
@@ -62,6 +67,7 @@ public class RaceComplaintService {
         this.raceComplaintRepository = raceComplaintRepository;
         this.raceRepository = raceRepository;
         this.raceEntryRepository = raceEntryRepository;
+        this.raceMinuteRepository = raceMinuteRepository;
         this.raceResultRepository = raceResultRepository;
         this.raceRefereeRepository = raceRefereeRepository;
         this.refereeRepository = refereeRepository;
@@ -82,6 +88,7 @@ public class RaceComplaintService {
         Race race = getRace(request.getRaceId());
         RaceEntry entry = getEntryInRace(race.getRaceId(), request.getEntryId());
         ensureRaceCanBeComplained(race);
+        ensureComplaintWindowOpen(race.getRaceId());
         ensureOwnerOwnsEntry(ownerUser, entry);
         String reason = trimToNull(request.getReason());
         if (reason == null) {
@@ -224,6 +231,16 @@ public class RaceComplaintService {
         boolean published = hasPublishedResults(race.getRaceId());
         if (!"Finished".equalsIgnoreCase(race.getStatus()) && !published) {
             throw new IllegalArgumentException("Race complaints can only be created after the race is finished or results are published.");
+        }
+    }
+
+    private void ensureComplaintWindowOpen(Integer raceId) {
+        LocalDateTime sentAt = raceMinuteRepository.findByRaceId(raceId)
+                .filter(minute -> Boolean.TRUE.equals(minute.getSentToOwners()) && minute.getSentAt() != null)
+                .map(minute -> minute.getSentAt())
+                .orElseThrow(() -> new IllegalArgumentException("Race minutes have not been sent to owners yet."));
+        if (LocalDateTime.now().isAfter(sentAt.plusSeconds(OWNER_COMPLAINT_WINDOW_SECONDS))) {
+            throw new IllegalArgumentException("The owner complaint window has closed.");
         }
     }
 
