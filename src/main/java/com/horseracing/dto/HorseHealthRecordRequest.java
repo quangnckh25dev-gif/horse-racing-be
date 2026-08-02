@@ -9,6 +9,9 @@ public class HorseHealthRecordRequest {
     private String diagnosis;
     private String note;
     private String notes;
+    private String evidenceUrl;
+    private String status;
+    private String reviewNote;
 
     public LocalDate getCheckDate() { return checkDate; }
     public void setCheckDate(LocalDate checkDate) { this.checkDate = checkDate; }
@@ -22,4 +25,10 @@ public class HorseHealthRecordRequest {
     public void setNote(String note) { this.note = note; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public String getEvidenceUrl() { return evidenceUrl; }
+    public void setEvidenceUrl(String evidenceUrl) { this.evidenceUrl = evidenceUrl; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getReviewNote() { return reviewNote; }
+    public void setReviewNote(String reviewNote) { this.reviewNote = reviewNote; }
 }

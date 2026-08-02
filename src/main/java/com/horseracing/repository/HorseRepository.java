@@ -11,6 +11,12 @@ import java.util.Optional;
 public interface HorseRepository extends JpaRepository<Horse, Integer> {
     List<Horse> findByOwnerId(Integer ownerId);
 
+    @Query(value = "SELECT * FROM Horses WHERE ISNULL(IsDeleted, 0) = 0", nativeQuery = true)
+    List<Horse> findAllActiveHorses();
+
+    @Query(value = "SELECT * FROM Horses WHERE OwnerID = :ownerId AND ISNULL(IsDeleted, 0) = 0", nativeQuery = true)
+    List<Horse> findByOwnerIdNotDeleted(@Param("ownerId") Integer ownerId);
+
     List<Horse> findByOwnerIdAndIsActive(Integer ownerId, Boolean isActive);
 
     boolean existsByRegisterCode(String registerCode);
@@ -21,6 +27,7 @@ public interface HorseRepository extends JpaRepository<Horse, Integer> {
             WHERE OwnerID = :ownerId
               AND LOWER(LTRIM(RTRIM(HorseName))) = LOWER(LTRIM(RTRIM(:horseName)))
               AND (:horseId IS NULL OR HorseID <> :horseId)
+              AND ISNULL(IsDeleted, 0) = 0
             """, nativeQuery = true)
     boolean existsDuplicateNameForOwner(@Param("ownerId") Integer ownerId,
                                         @Param("horseName") String horseName,

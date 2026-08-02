@@ -18,12 +18,21 @@ public class HorseResponse {
     private String photoUrl;
     private String status;
     private Boolean active;
+    private Boolean deleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public HorseResponse(Integer horseId, Integer ownerId, String horseName, String breed, Integer birthYear,
                          Integer age, String color, String gender, BigDecimal weightKg, String registerCode,
                          String healthStatus, String photoUrl, String status, Boolean active,
+                         LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(horseId, ownerId, horseName, breed, birthYear, age, color, gender, weightKg, registerCode,
+                healthStatus, photoUrl, status, active, false, createdAt, updatedAt);
+    }
+
+    public HorseResponse(Integer horseId, Integer ownerId, String horseName, String breed, Integer birthYear,
+                         Integer age, String color, String gender, BigDecimal weightKg, String registerCode,
+                         String healthStatus, String photoUrl, String status, Boolean active, Boolean deleted,
                          LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.horseId = horseId;
         this.ownerId = ownerId;
@@ -39,6 +48,7 @@ public class HorseResponse {
         this.photoUrl = photoUrl;
         this.status = status;
         this.active = active;
+        this.deleted = deleted;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -57,6 +67,7 @@ public class HorseResponse {
     public String getPhotoUrl() { return photoUrl; }
     public String getStatus() { return status; }
     public Boolean getActive() { return active; }
+    public Boolean getDeleted() { return deleted; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

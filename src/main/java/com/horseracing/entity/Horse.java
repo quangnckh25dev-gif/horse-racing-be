@@ -60,6 +60,12 @@ public class Horse {
     @Column(name = "IsActive", nullable = false)
     private Boolean isActive;
 
+    @Column(name = "IsDeleted", nullable = false)
+    private Boolean isDeleted;
+
+    @Column(name = "DeletedAt")
+    private LocalDateTime deletedAt;
+
     @Column(name = "CreatedAt")
     private LocalDateTime createdAt;
 
@@ -73,6 +79,9 @@ public class Horse {
         updatedAt = now;
         if (isActive == null) {
             isActive = true;
+        }
+        if (isDeleted == null) {
+            isDeleted = false;
         }
     }
 
@@ -109,6 +118,10 @@ public class Horse {
     public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean deleted) { isDeleted = deleted; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

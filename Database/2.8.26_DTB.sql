@@ -147,6 +147,8 @@ CREATE TABLE Horses (
     HealthUpdatedAt DATETIME2   NULL,
     PhotoURL      NVARCHAR(500),
     IsActive      BIT           NOT NULL DEFAULT 1,
+    IsDeleted     BIT           NOT NULL DEFAULT 0,
+    DeletedAt     DATETIME2     NULL,
     CreatedAt     DATETIME2     DEFAULT GETDATE(),
     UpdatedAt     DATETIME2     DEFAULT GETDATE()
 );
@@ -158,7 +160,13 @@ CREATE TABLE HorseHealthRecords (
     HealthStatus NVARCHAR(100),
     Diagnosis  NVARCHAR(500),
     Notes      NVARCHAR(1000),
+    EvidenceUrl NVARCHAR(500),
+    Status     NVARCHAR(20)    NOT NULL DEFAULT 'Approved' CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+    SubmittedBy INT            NULL REFERENCES Users(UserID),
     RecordedBy INT           NULL REFERENCES Users(UserID),  -- Organizer/BTC records health check
+    ReviewedBy INT           NULL REFERENCES Users(UserID),
+    ReviewedAt DATETIME2     NULL,
+    ReviewNote NVARCHAR(500) NULL,
     CreatedAt  DATETIME2     DEFAULT GETDATE()
 );
 
@@ -1872,5 +1880,69 @@ GROUP BY RoundID
 HAVING COUNT(*) > 1
 ORDER BY RoundID;
 GO
-ALTER TABLE JockeyInvitations
-ADD ResponseReason NVARCHAR(500) NULL;
+IF COL_LENGTH('dbo.JockeyInvitations', 'ResponseReason') IS NULL
+BEGIN
+    ALTER TABLE dbo.JockeyInvitations
+    ADD ResponseReason NVARCHAR(500) NULL;
+END;
+GO
+
+/* ============================================================
+   HORSE OWNER HEALTH RECORD + SOFT DELETE MIGRATION
+   Safe to run on an existing DB: only missing columns are added.
+   ============================================================ */
+IF COL_LENGTH('dbo.Horses', 'IsDeleted') IS NULL
+BEGIN
+    ALTER TABLE dbo.Horses
+    ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Horses_IsDeleted DEFAULT 0;
+END;
+GO
+
+IF COL_LENGTH('dbo.Horses', 'DeletedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Horses
+    ADD DeletedAt DATETIME2 NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.HorseHealthRecords', 'EvidenceUrl') IS NULL
+BEGIN
+    ALTER TABLE dbo.HorseHealthRecords
+    ADD EvidenceUrl NVARCHAR(500) NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.HorseHealthRecords', 'Status') IS NULL
+BEGIN
+    ALTER TABLE dbo.HorseHealthRecords
+    ADD Status NVARCHAR(20) NOT NULL CONSTRAINT DF_HorseHealthRecords_Status DEFAULT 'Approved';
+END;
+GO
+
+IF COL_LENGTH('dbo.HorseHealthRecords', 'SubmittedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.HorseHealthRecords
+    ADD SubmittedBy INT NULL CONSTRAINT FK_HorseHealthRecords_SubmittedBy REFERENCES dbo.Users(UserID);
+END;
+GO
+
+IF COL_LENGTH('dbo.HorseHealthRecords', 'ReviewedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.HorseHealthRecords
+    ADD ReviewedBy INT NULL CONSTRAINT FK_HorseHealthRecords_ReviewedBy REFERENCES dbo.Users(UserID);
+END;
+GO
+
+IF COL_LENGTH('dbo.HorseHealthRecords', 'ReviewedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.HorseHealthRecords
+    ADD ReviewedAt DATETIME2 NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.HorseHealthRecords', 'ReviewNote') IS NULL
+BEGIN
+    ALTER TABLE dbo.HorseHealthRecords
+    ADD ReviewNote NVARCHAR(500) NULL;
+END;
+GO

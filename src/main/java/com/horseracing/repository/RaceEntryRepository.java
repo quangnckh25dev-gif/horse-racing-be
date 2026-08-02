@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
     List<RaceEntry> findByRaceId(Integer raceId);
@@ -94,4 +95,14 @@ public interface RaceEntryRepository extends JpaRepository<RaceEntry, Integer> {
               AND RegistrationStatus NOT IN ('Rejected', 'Withdrawn', 'PreRaceRejected')
             """, nativeQuery = true)
     boolean existsActiveRegistration(@Param("raceId") Integer raceId, @Param("horseId") Integer horseId);
+
+    @Query(value = """
+            SELECT TOP 1 *
+            FROM RaceEntries
+            WHERE RaceID = :raceId
+              AND HorseID = :horseId
+              AND RegistrationStatus IN ('Rejected', 'Withdrawn', 'PreRaceRejected')
+            ORDER BY UpdatedAt DESC, EntryID DESC
+            """, nativeQuery = true)
+    Optional<RaceEntry> findReusableRegistration(@Param("raceId") Integer raceId, @Param("horseId") Integer horseId);
 }

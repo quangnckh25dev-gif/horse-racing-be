@@ -101,6 +101,9 @@ public class RaceEntryService {
 
         Horse horse = horseRepository.findById(request.getHorseId())
                 .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
+        if (Boolean.TRUE.equals(horse.getIsDeleted())) {
+            throw new IllegalArgumentException("Horse was archived.");
+        }
         if (!owner.getOwnerId().equals(horse.getOwnerId())) {
             throw new IllegalArgumentException("This horse does not belong to you.");
         }
@@ -117,13 +120,20 @@ public class RaceEntryService {
             throw new IllegalArgumentException("Race has reached the maximum number of horse participants.");
         }
 
-        RaceEntry entry = new RaceEntry();
+        RaceEntry entry = raceEntryRepository.findReusableRegistration(raceId, horse.getHorseId())
+                .orElseGet(RaceEntry::new);
         entry.setRaceId(raceId);
         entry.setHorseId(horse.getHorseId());
+        entry.setJockeyId(null);
         entry.setLaneNumber(request.getLaneNumber());
         entry.setOrganizerApproved(false);
+        entry.setApprovedBy(null);
+        entry.setRejectReason(null);
         entry.setRegistrationStatus("Pending");
         entry.setJockeyConfirmed(false);
+        entry.setRoundStatus(null);
+        entry.setEliminationRoundId(null);
+        entry.setEliminationReason(null);
         entry.setOdds(BigDecimal.valueOf(2));
 
         RaceEntry saved = raceEntryRepository.save(entry);
@@ -381,8 +391,16 @@ public class RaceEntryService {
                 record.getHorseId(),
                 record.getCheckDate(),
                 record.getVetName(),
+                record.getHealthStatus(),
                 record.getDiagnosis(),
                 record.getNotes(),
+                record.getEvidenceUrl(),
+                record.getStatus(),
+                record.getSubmittedBy(),
+                record.getRecordedBy(),
+                record.getReviewedBy(),
+                record.getReviewedAt(),
+                record.getReviewNote(),
                 record.getCreatedAt()
         );
     }

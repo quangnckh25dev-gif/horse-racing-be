@@ -51,12 +51,12 @@ public class HorseService {
         User user = currentUserService.getCurrentUser(httpRequest);
         List<Horse> horses;
         if (currentUserService.isAdmin(user)) {
-            horses = horseRepository.findAll();
+            horses = horseRepository.findAllActiveHorses();
         } else if (isOrganizer(user)) {
-            horses = horseRepository.findAll();
+            horses = horseRepository.findAllActiveHorses();
         } else {
             HorseOwner owner = getOwnerByUserId(user.getUserId());
-            horses = horseRepository.findByOwnerId(owner.getOwnerId());
+            horses = horseRepository.findByOwnerIdNotDeleted(owner.getOwnerId());
         }
 
         return horses.stream()
@@ -138,6 +138,15 @@ public class HorseService {
         return toHorseResponse(horseRepository.save(horse));
     }
 
+    public void archiveHorse(Integer horseId, HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        Horse horse = getHorseEntity(horseId);
+        ensureOwnerOwnsHorse(user, horse);
+        horse.setIsDeleted(true);
+        horse.setDeletedAt(LocalDateTime.now());
+        horseRepository.save(horse);
+    }
+
     public HorseResponse updateHorseStatus(Integer horseId, HorseStatusRequest request, HttpServletRequest httpRequest) {
         // Horse owner or organizer updates horse status.
         User user = currentUserService.getCurrentUser(httpRequest);
@@ -164,10 +173,12 @@ public class HorseService {
     }
 
     public HorseHealthRecordResponse addHealthRecord(Integer horseId, HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
-        // Organizer adds a horse health record.
         User user = currentUserService.getCurrentUser(httpRequest);
         Horse horse = getHorseEntity(horseId);
-        ensureCanManageHorseHealth(user);
+        boolean organizer = isOrganizer(user);
+        if (!organizer) {
+            ensureOwnerOwnsHorse(user, horse);
+        }
 
         if (request == null) {
             throw new IllegalArgumentException("Health record data is invalid.");
@@ -180,13 +191,52 @@ public class HorseService {
         record.setHorseId(horseId);
         record.setCheckDate(request.getCheckDate());
         record.setVetName(request.getVetName());
+        record.setHealthStatus(trimToNull(request.getHealthStatus()));
         record.setDiagnosis(firstNonBlank(request.getDiagnosis(), request.getHealthStatus()));
         record.setNotes(firstNonBlank(request.getNotes(), request.getNote()));
+        record.setEvidenceUrl(trimToNull(request.getEvidenceUrl()));
+        record.setSubmittedBy(user.getUserId());
+        record.setStatus(organizer ? "Approved" : "Pending");
 
         String latestHealth = trimToNull(request.getHealthStatus());
-        if (latestHealth != null) {
+        if (organizer && latestHealth != null) {
+            record.setRecordedBy(user.getUserId());
+            record.setReviewedBy(user.getUserId());
+            record.setReviewedAt(LocalDateTime.now());
             applyHorseStatus(horse, latestHealth, user);
             horseRepository.save(horse);
+        }
+
+        return toHealthResponse(healthRecordRepository.save(record));
+    }
+
+    public HorseHealthRecordResponse reviewHealthRecord(Integer horseId, Integer recordId, HorseHealthRecordRequest request,
+                                                        HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        ensureCanManageHorseHealth(user);
+        Horse horse = getHorseEntity(horseId);
+        HorseHealthRecord record = healthRecordRepository.findById(recordId)
+                .orElseThrow(() -> new IllegalArgumentException("Health record was not found."));
+        if (!horseId.equals(record.getHorseId())) {
+            throw new IllegalArgumentException("This health record does not belong to the selected horse.");
+        }
+        if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
+            throw new IllegalArgumentException("status is required.");
+        }
+
+        String status = normalizeHealthReviewStatus(request.getStatus());
+        record.setStatus(status);
+        record.setReviewNote(firstNonBlank(request.getReviewNote(), request.getNotes()));
+        record.setReviewedBy(user.getUserId());
+        record.setReviewedAt(LocalDateTime.now());
+        if ("Approved".equals(status)) {
+            record.setRecordedBy(user.getUserId());
+            String latestHealth = firstNonBlank(request.getHealthStatus(), record.getHealthStatus());
+            if (latestHealth != null) {
+                record.setHealthStatus(latestHealth);
+                applyHorseStatus(horse, latestHealth, user);
+                horseRepository.save(horse);
+            }
         }
 
         return toHealthResponse(healthRecordRepository.save(record));
@@ -250,8 +300,12 @@ public class HorseService {
         if (horseId == null) {
             throw new IllegalArgumentException("horseId is required.");
         }
-        return horseRepository.findById(horseId)
+        Horse horse = horseRepository.findById(horseId)
                 .orElseThrow(() -> new IllegalArgumentException("Horse was not found."));
+        if (Boolean.TRUE.equals(horse.getIsDeleted())) {
+            throw new IllegalArgumentException("Horse was archived.");
+        }
+        return horse;
     }
 
     private HorseOwner getOwnerByUserId(Integer userId) {
@@ -327,6 +381,20 @@ public class HorseService {
         throw new IllegalArgumentException("Horse status only accepts: Active, Injured, Inactive.");
     }
 
+    private String normalizeHealthReviewStatus(String status) {
+        String normalized = normalizeText(status);
+        if ("approved".equals(normalized) || "approve".equals(normalized)) {
+            return "Approved";
+        }
+        if ("rejected".equals(normalized) || "reject".equals(normalized)) {
+            return "Rejected";
+        }
+        if ("pending".equals(normalized)) {
+            return "Pending";
+        }
+        throw new IllegalArgumentException("Health record status only accepts: Pending, Approved, Rejected.");
+    }
+
     private String normalizeText(String value) {
         return Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
@@ -372,6 +440,7 @@ public class HorseService {
                 horse.getPhotoUrl(),
                 resolveStatusCode(horse),
                 active,
+                Boolean.TRUE.equals(horse.getIsDeleted()),
                 horse.getCreatedAt(),
                 horse.getUpdatedAt()
         );
@@ -446,8 +515,16 @@ public class HorseService {
                 record.getHorseId(),
                 record.getCheckDate(),
                 record.getVetName(),
+                record.getHealthStatus(),
                 record.getDiagnosis(),
                 record.getNotes(),
+                record.getEvidenceUrl(),
+                record.getStatus(),
+                record.getSubmittedBy(),
+                record.getRecordedBy(),
+                record.getReviewedBy(),
+                record.getReviewedAt(),
+                record.getReviewNote(),
                 record.getCreatedAt()
         );
     }

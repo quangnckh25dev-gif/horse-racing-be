@@ -9,6 +9,7 @@ import com.horseracing.service.StatsService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -65,6 +66,12 @@ public class HorseController {
         return ApiResponse.success(200, "Horse status updated successfully", horseService.updateHorseStatus(horseId, request, httpRequest));
     }
 
+    @DeleteMapping("/api/horses/{horseId}")
+    public ApiResponse<?> archiveHorse(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
+        horseService.archiveHorse(horseId, httpRequest);
+        return ApiResponse.success(200, "Horse archived successfully", null);
+    }
+
     @GetMapping({"/api/horses/{horseId}/health-records", "/api/horses/{horseId}/health"})
     public ApiResponse<?> getHealthHistory(@PathVariable Integer horseId, HttpServletRequest httpRequest) {
         return ApiResponse.success(200, "Horse health history loaded successfully", horseService.getHealthHistory(horseId, httpRequest));
@@ -78,6 +85,14 @@ public class HorseController {
     @PostMapping({"/api/horses/{horseId}/health-records", "/api/horses/{horseId}/health"})
     public ApiResponse<?> addHealthRecord(@PathVariable Integer horseId, @RequestBody HorseHealthRecordRequest request, HttpServletRequest httpRequest) {
         return ApiResponse.success(201, "Horse health record added successfully", horseService.addHealthRecord(horseId, request, httpRequest));
+    }
+
+    @PatchMapping("/api/horses/{horseId}/health-records/{recordId}/review")
+    public ApiResponse<?> reviewHealthRecord(@PathVariable Integer horseId, @PathVariable Integer recordId,
+                                             @RequestBody HorseHealthRecordRequest request,
+                                             HttpServletRequest httpRequest) {
+        return ApiResponse.success(200, "Horse health record reviewed successfully",
+                horseService.reviewHealthRecord(horseId, recordId, request, httpRequest));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
