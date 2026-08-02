@@ -202,7 +202,7 @@ public class WalletService {
     @Transactional
     public DepositRequestResponse createDepositRequest(DepositRequestCreateRequest request, HttpServletRequest httpRequest) {
         User user = currentUserService.getCurrentUser(httpRequest);
-        requireRole(user, "Spectator", "Only spectators can create deposit requests.");
+        // Moi role deu co vi -> ai cung nap tien duoc (khong gioi han Spectator)
         BigDecimal amount = validateAmount(request == null ? null : request.getAmount());
         String paymentMethod = normalizePaymentMethod(request == null ? null : request.getPaymentMethod());
         Wallet wallet = getOrCreateWallet(user.getUserId());
