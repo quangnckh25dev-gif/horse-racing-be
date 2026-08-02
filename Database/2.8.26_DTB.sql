@@ -428,6 +428,22 @@ CREATE TABLE DepositRequests (
     CreatedAt        DATETIME2     DEFAULT GETDATE(),
     UpdatedAt        DATETIME2     DEFAULT GETDATE()
 );
+CREATE TABLE WithdrawalRequests (
+    WithdrawalRequestID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID            INT           NOT NULL REFERENCES Users(UserID),
+    WalletID          INT           NOT NULL REFERENCES Wallets(WalletID),
+    Amount            DECIMAL(18,2) NOT NULL CHECK (Amount > 0),
+    PaymentMethod     NVARCHAR(20)  NOT NULL CHECK (PaymentMethod IN ('BANK', 'MOMO')),
+    BankName          NVARCHAR(100),
+    BankAccountNumber NVARCHAR(50)  NOT NULL,
+    BankAccountName   NVARCHAR(200) NOT NULL,
+    Status            NVARCHAR(20)  NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+    AdminNote         NVARCHAR(500),
+    ApprovedBy        INT           NULL REFERENCES Users(UserID),
+    ApprovedAt        DATETIME2,
+    CreatedAt         DATETIME2     DEFAULT GETDATE(),
+    UpdatedAt         DATETIME2     DEFAULT GETDATE()
+);
 CREATE TABLE DepositComplaints (
     ComplaintID      INT IDENTITY(1,1) PRIMARY KEY,
     UserID           INT           NOT NULL REFERENCES Users(UserID),

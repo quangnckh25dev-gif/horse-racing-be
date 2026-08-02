@@ -3,6 +3,8 @@ package com.horseracing.controller;
 import com.horseracing.dto.DepositRequestCreateRequest;
 import com.horseracing.dto.DepositRequestRejectRequest;
 import com.horseracing.dto.WalletDepositRequest;
+import com.horseracing.dto.WithdrawalRequestCreateRequest;
+import com.horseracing.dto.WithdrawalRejectRequest;
 import com.horseracing.response.ApiResponse;
 import com.horseracing.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,6 +69,33 @@ public class WalletController {
     public ApiResponse<?> rejectDepositRequest(@PathVariable Integer id, @RequestBody DepositRequestRejectRequest body,
                                                HttpServletRequest request) {
         return ApiResponse.success(200, "Deposit request rejected successfully", walletService.rejectDepositRequest(id, body, request));
+    }
+
+    // ── Rút tiền (Withdrawal) ──────────────────────────────────────────
+    @PostMapping("/api/wallets/withdrawal-requests")
+    public ApiResponse<?> createWithdrawalRequest(@RequestBody WithdrawalRequestCreateRequest body, HttpServletRequest request) {
+        return ApiResponse.success(201, "Withdrawal request created successfully", walletService.createWithdrawalRequest(body, request));
+    }
+
+    @GetMapping("/api/wallets/withdrawal-requests/mine")
+    public ApiResponse<?> getMyWithdrawalRequests(HttpServletRequest request) {
+        return ApiResponse.success(200, "My withdrawal requests loaded successfully", walletService.getMyWithdrawalRequests(request));
+    }
+
+    @GetMapping("/api/admin/withdrawal-requests")
+    public ApiResponse<?> getAllWithdrawalRequests(HttpServletRequest request) {
+        return ApiResponse.success(200, "Withdrawal requests loaded successfully", walletService.getAllWithdrawalRequests(request));
+    }
+
+    @PutMapping("/api/admin/withdrawal-requests/{id}/approve")
+    public ApiResponse<?> approveWithdrawalRequest(@PathVariable Integer id, HttpServletRequest request) {
+        return ApiResponse.success(200, "Withdrawal request approved successfully", walletService.approveWithdrawalRequest(id, request));
+    }
+
+    @PutMapping("/api/admin/withdrawal-requests/{id}/reject")
+    public ApiResponse<?> rejectWithdrawalRequest(@PathVariable Integer id, @RequestBody WithdrawalRejectRequest body,
+                                                  HttpServletRequest request) {
+        return ApiResponse.success(200, "Withdrawal request rejected successfully", walletService.rejectWithdrawalRequest(id, body, request));
     }
 
     @GetMapping("/api/wallets/transactions")

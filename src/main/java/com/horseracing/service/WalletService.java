@@ -7,14 +7,19 @@ import com.horseracing.dto.WalletDepositRequest;
 import com.horseracing.dto.WalletResponse;
 import com.horseracing.dto.WalletTransactionResponse;
 import com.horseracing.dto.WalletTransactionSummaryResponse;
+import com.horseracing.dto.WithdrawalRequestCreateRequest;
+import com.horseracing.dto.WithdrawalRejectRequest;
+import com.horseracing.dto.WithdrawalRequestResponse;
 import com.horseracing.entity.DepositRequest;
 import com.horseracing.entity.User;
 import com.horseracing.entity.Wallet;
 import com.horseracing.entity.WalletTransaction;
+import com.horseracing.entity.WithdrawalRequest;
 import com.horseracing.repository.DepositRequestRepository;
 import com.horseracing.repository.UserRepository;
 import com.horseracing.repository.WalletRepository;
 import com.horseracing.repository.WalletTransactionRepository;
+import com.horseracing.repository.WithdrawalRequestRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,22 +35,155 @@ import java.util.UUID;
 @Service
 public class WalletService {
 
+    // Rut tien: so tien toi thieu moi lan
+    private static final BigDecimal MIN_WITHDRAWAL = new BigDecimal("10000");
+
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final DepositRequestRepository depositRequestRepository;
+    private final WithdrawalRequestRepository withdrawalRequestRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
 
     public WalletService(WalletRepository walletRepository,
                          WalletTransactionRepository walletTransactionRepository,
                          DepositRequestRepository depositRequestRepository,
+                         WithdrawalRequestRepository withdrawalRequestRepository,
                          UserRepository userRepository,
                          CurrentUserService currentUserService) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
         this.depositRequestRepository = depositRequestRepository;
+        this.withdrawalRequestRepository = withdrawalRequestRepository;
         this.userRepository = userRepository;
         this.currentUserService = currentUserService;
+    }
+
+    // ========================= RÚT TIỀN (Withdrawal) =========================
+
+    @Transactional
+    public WithdrawalRequestResponse createWithdrawalRequest(WithdrawalRequestCreateRequest request,
+                                                             HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);   // moi role deu rut duoc
+        if (request == null) {
+            throw new IllegalArgumentException("Withdrawal data is required.");
+        }
+        BigDecimal amount = validateAmount(request.getAmount());
+        if (amount.compareTo(MIN_WITHDRAWAL) < 0) {
+            throw new IllegalArgumentException("Minimum withdrawal amount is 10,000 VND.");
+        }
+        String paymentMethod = normalizePaymentMethod(request.getPaymentMethod());
+        String accNumber = trimToNull(request.getBankAccountNumber());
+        String accName = trimToNull(request.getBankAccountName());
+        if (accNumber == null) {
+            throw new IllegalArgumentException("Bank account number is required.");
+        }
+        if (accName == null) {
+            throw new IllegalArgumentException("Bank account name is required.");
+        }
+
+        Wallet wallet = getOrCreateWallet(user.getUserId());
+        if (wallet.getBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient balance for this withdrawal.");
+        }
+
+        // Tru (giu) tien ngay khi tao yeu cau
+        wallet.setBalance(wallet.getBalance().subtract(amount));
+        Wallet savedWallet = walletRepository.save(wallet);
+
+        WithdrawalRequest wr = new WithdrawalRequest();
+        wr.setUserId(user.getUserId());
+        wr.setWalletId(savedWallet.getWalletId());
+        wr.setAmount(amount);
+        wr.setPaymentMethod(paymentMethod);
+        wr.setBankName(trimToNull(request.getBankName()));
+        wr.setBankAccountNumber(accNumber);
+        wr.setBankAccountName(accName);
+        wr.setStatus("Pending");
+        WithdrawalRequest saved = withdrawalRequestRepository.save(wr);
+
+        createTransaction(savedWallet, amount.negate(), "Withdrawal", "Withdrawal requested",
+                "WithdrawalRequest", saved.getWithdrawalRequestId());
+        return toWithdrawalRequestResponse(saved);
+    }
+
+    public List<WithdrawalRequestResponse> getMyWithdrawalRequests(HttpServletRequest httpRequest) {
+        User user = currentUserService.getCurrentUser(httpRequest);
+        return withdrawalRequestRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())
+                .stream().map(this::toWithdrawalRequestResponse).toList();
+    }
+
+    public List<WithdrawalRequestResponse> getAllWithdrawalRequests(HttpServletRequest httpRequest) {
+        requireAdmin(currentUserService.getCurrentUser(httpRequest));
+        return withdrawalRequestRepository.findAllByOrderByCreatedAtDesc()
+                .stream().map(this::toWithdrawalRequestResponse).toList();
+    }
+
+    @Transactional
+    public WithdrawalRequestResponse approveWithdrawalRequest(Integer id, HttpServletRequest httpRequest) {
+        User admin = currentUserService.getCurrentUser(httpRequest);
+        requireAdmin(admin);
+        WithdrawalRequest wr = getPendingWithdrawalRequest(id);
+        // Tien da tru luc tao -> approve chi danh dau da chuyen
+        wr.setStatus("Approved");
+        wr.setApprovedBy(admin.getUserId());
+        wr.setApprovedAt(LocalDateTime.now());
+        return toWithdrawalRequestResponse(withdrawalRequestRepository.save(wr));
+    }
+
+    @Transactional
+    public WithdrawalRequestResponse rejectWithdrawalRequest(Integer id, WithdrawalRejectRequest request,
+                                                             HttpServletRequest httpRequest) {
+        User admin = currentUserService.getCurrentUser(httpRequest);
+        requireAdmin(admin);
+        WithdrawalRequest wr = getPendingWithdrawalRequest(id);
+
+        // Hoan tien lai vi (idempotent: chi hoan khi chuyen tu Pending)
+        Wallet wallet = walletRepository.findById(wr.getWalletId())
+                .orElseThrow(() -> new IllegalArgumentException("Wallet was not found."));
+        wallet.setBalance(wallet.getBalance().add(wr.getAmount()));
+        Wallet savedWallet = walletRepository.save(wallet);
+        createTransaction(savedWallet, wr.getAmount(), "WithdrawalRefund", "Withdrawal rejected - refunded",
+                "WithdrawalRequest", wr.getWithdrawalRequestId());
+
+        wr.setStatus("Rejected");
+        wr.setAdminNote(request == null ? null : trimToNull(request.getAdminNote()));
+        wr.setApprovedBy(admin.getUserId());
+        wr.setApprovedAt(LocalDateTime.now());
+        return toWithdrawalRequestResponse(withdrawalRequestRepository.save(wr));
+    }
+
+    private WithdrawalRequest getPendingWithdrawalRequest(Integer id) {
+        WithdrawalRequest wr = withdrawalRequestRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Withdrawal request was not found."));
+        if (!"Pending".equalsIgnoreCase(wr.getStatus())) {
+            throw new IllegalArgumentException("Only pending withdrawal requests can be processed.");
+        }
+        return wr;
+    }
+
+    private WithdrawalRequestResponse toWithdrawalRequestResponse(WithdrawalRequest wr) {
+        User user = userRepository.findById(wr.getUserId()).orElse(null);
+        return new WithdrawalRequestResponse(
+                wr.getWithdrawalRequestId(),
+                wr.getUserId(),
+                user == null ? null : user.getUsername(),
+                user == null ? null : user.getFullName(),
+                user == null ? null : user.getEmail(),
+                user == null ? null : user.getPhone(),
+                wr.getWalletId(),
+                wr.getAmount(),
+                wr.getPaymentMethod(),
+                wr.getBankName(),
+                wr.getBankAccountNumber(),
+                wr.getBankAccountName(),
+                wr.getStatus(),
+                wr.getAdminNote(),
+                wr.getApprovedBy(),
+                wr.getApprovedAt(),
+                wr.getCreatedAt(),
+                wr.getUpdatedAt()
+        );
     }
 
     public WalletResponse getMyWallet(HttpServletRequest request) {
@@ -478,6 +616,8 @@ public class WalletService {
             case "BetWon" -> "Bet Won";
             case "BetRefund" -> "Refunded";
             case "PrizeAwarded" -> "Prize Awarded";
+            case "Withdrawal" -> "Withdrawal";
+            case "WithdrawalRefund" -> "Withdrawal Refund";
             default -> value;
         };
     }
