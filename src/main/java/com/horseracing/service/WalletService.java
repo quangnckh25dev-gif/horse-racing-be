@@ -256,6 +256,24 @@ public class WalletService {
     }
 
     @Transactional
+    public Wallet creditDepositComplaint(Integer userId, BigDecimal amount, Integer complaintId) {
+        BigDecimal validAmount = validateAmount(amount);
+        Wallet wallet = getOrCreateWallet(userId);
+        boolean alreadyCredited = walletTransactionRepository
+                .existsByWalletIdAndTransactionTypeAndRelatedEntityAndRelatedEntityId(
+                        wallet.getWalletId(), "Deposit", "DepositComplaint", complaintId);
+        if (alreadyCredited) {
+            return wallet;
+        }
+
+        wallet.setBalance(wallet.getBalance().add(validAmount));
+        Wallet saved = walletRepository.save(wallet);
+        createTransaction(saved, validAmount, "Deposit", "Deposit complaint resolved by Admin",
+                "DepositComplaint", complaintId);
+        return saved;
+    }
+
+    @Transactional
     public void transferJockeyDeal(Integer ownerUserId, Integer jockeyUserId, BigDecimal amount, Integer invitationId) {
         BigDecimal validAmount = validateAmount(amount);
         Wallet ownerWallet = getOrCreateWallet(ownerUserId);

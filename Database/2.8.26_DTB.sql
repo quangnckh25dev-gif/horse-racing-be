@@ -436,7 +436,7 @@ CREATE TABLE DepositComplaints (
     Amount           DECIMAL(18,2) NOT NULL CHECK (Amount > 0),
     PaymentMethod    NVARCHAR(20)  NOT NULL CHECK (PaymentMethod IN ('BANK', 'MOMO')),
     Reason           NVARCHAR(1000) NOT NULL,
-    EvidenceUrl      NVARCHAR(500),
+    EvidenceUrl      NVARCHAR(MAX),
     Status           NVARCHAR(20)  NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Resolved', 'Rejected')),
     AdminNote        NVARCHAR(500),
     ResolvedBy       INT           NULL REFERENCES Users(UserID),

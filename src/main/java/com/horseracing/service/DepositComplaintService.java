@@ -30,15 +30,18 @@ public class DepositComplaintService {
     private final DepositRequestRepository depositRequestRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
+    private final WalletService walletService;
 
     public DepositComplaintService(DepositComplaintRepository depositComplaintRepository,
                                    DepositRequestRepository depositRequestRepository,
                                    UserRepository userRepository,
-                                   CurrentUserService currentUserService) {
+                                   CurrentUserService currentUserService,
+                                   WalletService walletService) {
         this.depositComplaintRepository = depositComplaintRepository;
         this.depositRequestRepository = depositRequestRepository;
         this.userRepository = userRepository;
         this.currentUserService = currentUserService;
+        this.walletService = walletService;
     }
 
     @Transactional
@@ -119,7 +122,11 @@ public class DepositComplaintService {
         complaint.setAdminNote(request == null ? null : trimToNull(request.getAdminNote()));
         complaint.setResolvedBy(admin.getUserId());
         complaint.setResolvedAt(LocalDateTime.now());
-        return toResponse(depositComplaintRepository.save(complaint));
+        DepositComplaint saved = depositComplaintRepository.save(complaint);
+        if (!isLinkedDepositRequestApproved(saved)) {
+            walletService.creditDepositComplaint(saved.getUserId(), saved.getAmount(), saved.getComplaintId());
+        }
+        return toResponse(saved);
     }
 
     @Transactional
@@ -149,6 +156,15 @@ public class DepositComplaintService {
             throw new IllegalArgumentException("Only Pending complaints can be processed.");
         }
         return complaint;
+    }
+
+    private boolean isLinkedDepositRequestApproved(DepositComplaint complaint) {
+        if (complaint.getDepositRequestId() == null) {
+            return false;
+        }
+        return depositRequestRepository.findById(complaint.getDepositRequestId())
+                .map(request -> "Approved".equalsIgnoreCase(request.getStatus()))
+                .orElse(false);
     }
 
     private DepositRequest findLinkedDepositRequest(DepositComplaintRequest request, Integer userId) {
