@@ -79,6 +79,11 @@ public class JockeyInvitationService {
             throw new IllegalArgumentException("jockeyId is required.");
         }
         BigDecimal dealAmount = validateDealAmount(request.getDealAmount());
+        // Bad case: owner phai du tien trong vi moi duoc deal (tien deal chuyen cho jockey khi accept)
+        BigDecimal balance = walletService.getOrCreateWallet(user.getUserId()).getBalance();
+        if (balance.compareTo(dealAmount) < 0) {
+            throw new IllegalArgumentException("Insufficient wallet balance to offer this deal. Please top up your wallet first.");
+        }
         if (!"Approved".equalsIgnoreCase(entry.getRegistrationStatus())) {
             throw new IllegalArgumentException("Only organizer-approved entries can invite a jockey.");
         }
