@@ -336,7 +336,7 @@ CREATE TABLE Violations (
     ViolationType    NVARCHAR(100) NOT NULL,   -- XuatPhatSai | LanLane | CanDuong | ViPhamNang
     PenaltySeconds   DECIMAL(5,2)  NOT NULL DEFAULT 0,  -- 0 when DQ only
     IsDQ             BIT           NOT NULL DEFAULT 0,
-    EvidenceImageURL NVARCHAR(500),            -- evidence image
+    EvidenceImageURL NVARCHAR(MAX),            -- evidence image (ho tro data URL upload)
     Description      NVARCHAR(1000),
     RecordedAt       DATETIME2     DEFAULT GETDATE()
 );
@@ -365,7 +365,7 @@ CREATE TABLE RaceComplaints (
     RaceID          INT            NOT NULL REFERENCES Races(RaceID),
     EntryID         INT            NOT NULL REFERENCES RaceEntries(EntryID),
     Reason          NVARCHAR(1000) NOT NULL,
-    EvidenceUrl     NVARCHAR(500),
+    EvidenceUrl     NVARCHAR(MAX),
     Status          NVARCHAR(20)   NOT NULL DEFAULT 'Pending'
         CHECK (Status IN ('Pending', 'Resolved', 'Rejected', 'Forwarded')),
     RefereeID       INT            NULL REFERENCES Referees(RefereeID),

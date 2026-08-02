@@ -37,7 +37,7 @@ public class Violation {
     @Column(name = "IsDQ", nullable = false)
     private Boolean isDq;
 
-    @Column(name = "EvidenceImageURL")
+    @Column(name = "EvidenceImageURL", columnDefinition = "NVARCHAR(MAX)")
     private String evidenceImageUrl;
 
     @Column(name = "Description")

@@ -32,7 +32,7 @@ public class RaceComplaint {
     @Column(name = "Reason", nullable = false)
     private String reason;
 
-    @Column(name = "EvidenceUrl")
+    @Column(name = "EvidenceUrl", columnDefinition = "NVARCHAR(MAX)")
     private String evidenceUrl;
 
     @Column(name = "Status", nullable = false)
