@@ -34,7 +34,7 @@ public interface RaceRepository extends JpaRepository<Race, Integer> {
             SELECT r.*
             FROM Races r
             JOIN Tournaments t ON t.TournamentID = r.TournamentID
-            WHERE t.Status IN ('Open', 'Ongoing', 'Finished', 'Cancelled')
+            WHERE (r.Status <> 'Draft' OR t.Status IN ('Open', 'Ongoing', 'Finished', 'Cancelled'))
               AND (:tournamentId IS NULL OR r.TournamentID = :tournamentId)
               AND (:roundId IS NULL OR r.RoundID = :roundId)
               AND (:status IS NULL OR r.Status = :status)

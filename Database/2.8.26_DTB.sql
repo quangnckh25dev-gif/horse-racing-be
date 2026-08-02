@@ -270,7 +270,7 @@ CREATE TABLE JockeyInvitations (
     InvitedByOwner INT           NOT NULL REFERENCES HorseOwners(OwnerID),
     Message        NVARCHAR(500),
     DealAmount     DECIMAL(18,2) NOT NULL DEFAULT 0,
-    RejectReason   NVARCHAR(500) NULL,
+    ResponseReason NVARCHAR(500) NULL,
     Status         NVARCHAR(20)  NOT NULL DEFAULT 'Pending',  -- Pending|Accepted|Declined
     InvitedAt      DATETIME2     DEFAULT GETDATE(),
     RespondedAt    DATETIME2
