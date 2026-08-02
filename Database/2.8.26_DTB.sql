@@ -1856,3 +1856,5 @@ GROUP BY RoundID
 HAVING COUNT(*) > 1
 ORDER BY RoundID;
 GO
+ALTER TABLE JockeyInvitations
+ADD ResponseReason NVARCHAR(500) NULL;
